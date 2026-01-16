@@ -9,12 +9,30 @@ package frc.robot;
 
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.Constants.RobotType;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.BiConsumer;
+
 import org.littletonrobotics.junction.LogFileUtil;
 import org.littletonrobotics.junction.LoggedRobot;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.NT4Publisher;
 import org.littletonrobotics.junction.wpilog.WPILOGReader;
 import org.littletonrobotics.junction.wpilog.WPILOGWriter;
+
+import edu.wpi.first.hal.AllianceStationID;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
+import edu.wpi.first.wpilibj.DriverStation;
+import edu.wpi.first.wpilibj.RobotController;
+import edu.wpi.first.wpilibj.Timer;
+import edu.wpi.first.wpilibj.simulation.DriverStationSim;
+import edu.wpi.first.wpilibj.simulation.RoboRioSim;
+import edu.wpi.first.math.MathShared;
+import edu.wpi.first.math.MathSharedStore;
+import edu.wpi.first.math.MathUsageId;
 
 /**
  * The VM is configured to automatically run this class, and to call the functions corresponding to
@@ -25,6 +43,19 @@ import org.littletonrobotics.junction.wpilog.WPILOGWriter;
 public class Robot extends LoggedRobot {
   private Command autonomousCommand;
   private RobotContainer robotContainer;
+
+  //For low battery alerts
+  private static final double lowBatteryVoltage = 11.0;
+  private static final double lowBatteryDisabledTime = 2.0;
+  private final Timer disabledTimer = new Timer();
+  private final Alert lowBatteryAlert =
+      new Alert(
+          "Battery voltage is very low, turn off the robot or replace the battery to avoid damage.",
+          AlertType.kWarning);
+
+  //For reporting autonomous time in console
+  private double autoStart;
+  private boolean autoMessagePrinted;
 
   public Robot() {
     // Record metadata
@@ -69,6 +100,63 @@ public class Robot extends LoggedRobot {
     // Instantiate our RobotContainer. This will perform all our button bindings,
     // and put our autonomous chooser on the dashboard.
     robotContainer = new RobotContainer();
+
+    // *** Additional features adapted from Mechanical Advantage code (untested) ***
+   
+    disabledTimer.restart();
+
+    // Silence joystick alerts
+    DriverStation.silenceJoystickConnectionWarning(true);
+
+    // Silence Rotation2d warnings
+    /*
+    var mathShared = MathSharedStore.getMathShared();
+    MathSharedStore.setMathShared(
+        new MathShared() {
+          @Override
+          public void reportError(String error, StackTraceElement[] stackTrace) {
+            if (error.startsWith("x and y components of Rotation2d are zero")) {
+              return;
+            }
+            mathShared.reportError(error, stackTrace);
+          }
+
+          @Override
+          public void reportUsage(MathUsageId id, int count) {
+            mathShared.reportUsage(id, count);
+          }
+
+          @Override
+          public double getTimestamp() {
+            return mathShared.getTimestamp();
+          }
+        });
+      */
+
+    // Log active commands
+    Map<String, Integer> commandCounts = new HashMap<>();
+    BiConsumer<Command, Boolean> logCommandFunction =
+        (Command command, Boolean active) -> {
+          String name = command.getName();
+          int count = commandCounts.getOrDefault(name, 0) + (active ? 1 : -1);
+          commandCounts.put(name, count);
+          Logger.recordOutput(
+              "CommandsUnique/" + name + "_" + Integer.toHexString(command.hashCode()), active);
+          Logger.recordOutput("CommandsAll/" + name, count > 0);
+        };
+    CommandScheduler.getInstance()
+        .onCommandInitialize((Command command) -> logCommandFunction.accept(command, true));
+    CommandScheduler.getInstance()
+        .onCommandFinish((Command command) -> logCommandFunction.accept(command, false));
+    CommandScheduler.getInstance()
+        .onCommandInterrupt((Command command) -> logCommandFunction.accept(command, false));
+
+    // Configure Driver Station for sim
+    RoboRioSim.setTeamNumber(4416);
+    if (Constants.robot == RobotType.SIMBOT) {
+      DriverStationSim.setAllianceStationId(AllianceStationID.Blue1);
+      DriverStationSim.notifyNewData();
+    }
   }
 
   /** This function is called periodically during all modes. */
@@ -87,6 +175,35 @@ public class Robot extends LoggedRobot {
 
     // Return to non-RT thread priority (do not modify the first argument)
     // Threads.setCurrentThreadPriority(false, 10);
+
+
+    // *** Additional features adapted from Mechanical Advantage code (untested) ***
+
+    // Print auto duration
+    if (autonomousCommand != null) {
+      if (!autonomousCommand.isScheduled() && !autoMessagePrinted) {
+        if (DriverStation.isAutonomousEnabled()) {
+          System.out.printf(
+              "*** Auto finished in %.2f secs ***%n", Timer.getTimestamp() - autoStart);
+        } else {
+          System.out.printf(
+              "*** Auto cancelled in %.2f secs ***%n", Timer.getTimestamp() - autoStart);
+        }
+        autoMessagePrinted = true;
+      }
+    }
+
+    // Low battery alert
+    if (DriverStation.isEnabled()) {
+      disabledTimer.reset();
+    }
+
+    if (RobotController.getBatteryVoltage() > 0.0
+        && RobotController.getBatteryVoltage() <= lowBatteryVoltage
+        && disabledTimer.hasElapsed(lowBatteryDisabledTime)) {
+      lowBatteryAlert.set(true);
+      DriverStation.reportWarning("Battery is low! Replace it.", false);
+    }
   }
 
   /** This function is called once when the robot is disabled. */
@@ -100,6 +217,8 @@ public class Robot extends LoggedRobot {
   /** This autonomous runs the autonomous command selected by your {@link RobotContainer} class. */
   @Override
   public void autonomousInit() {
+    autoStart = Timer.getTimestamp();
+    autoMessagePrinted = false;
     autonomousCommand = robotContainer.getAutonomousCommand();
 
     // schedule the autonomous command (example)
