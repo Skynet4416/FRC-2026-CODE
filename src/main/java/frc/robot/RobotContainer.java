@@ -10,8 +10,12 @@ package frc.robot;
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
@@ -36,8 +40,13 @@ public class RobotContainer {
   // Subsystems
   private final Drive drive;
 
-  // Controller
-  private final CommandXboxController controller = new CommandXboxController(0);
+  // Controllers
+  private final CommandXboxController driveController = new CommandXboxController(0);
+  private final CommandXboxController mechanismController = new CommandXboxController(1);
+  private final Alert driverControllerDisconnected =
+      new Alert("Driver controller disconnected (port 0).", AlertType.kWarning);
+  private final Alert mechanismControllerDisconnected =
+      new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
@@ -133,25 +142,25 @@ public class RobotContainer {
     drive.setDefaultCommand(
         DriveCommands.joystickDrive(
             drive,
-            () -> -controller.getLeftY(),
-            () -> -controller.getLeftX(),
-            () -> -controller.getRightX()));
+            () -> -driveController.getLeftY(),
+            () -> -driveController.getLeftX(),
+            () -> -driveController.getRightX()));
 
     // Lock to 0° when A button is held
-    controller
+    driveController
         .a()
         .whileTrue(
             DriveCommands.joystickDriveAtAngle(
                 drive,
-                () -> -controller.getLeftY(),
-                () -> -controller.getLeftX(),
+                () -> -driveController.getLeftY(),
+                () -> -driveController.getLeftX(),
                 () -> Rotation2d.kZero));
 
     // Switch to X pattern when X button is pressed
-    controller.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
+    driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
     // Reset gyro to 0° when B button is pressed
-    controller
+    driveController
         .b()
         .onTrue(
             Commands.runOnce(
@@ -162,6 +171,16 @@ public class RobotContainer {
                 .ignoringDisable(true));
   }
 
+
+    /** Update dashboard outputs. */
+  public void updateDashboardOutputs() {
+    // Publish match time
+    SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
+
+    // Controller disconnected alerts
+    driverControllerDisconnected.set(!DriverStation.isJoystickConnected(driveController.getHID().getPort()));
+    mechanismControllerDisconnected.set(!DriverStation.isJoystickConnected(mechanismController.getHID().getPort()));
+  }
   /**
    * Use this to pass the autonomous command to the main {@link Robot} class.
    *

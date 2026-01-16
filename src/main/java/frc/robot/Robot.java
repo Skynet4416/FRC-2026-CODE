@@ -179,6 +179,7 @@ public class Robot extends LoggedRobot {
 
     // *** Additional features adapted from Mechanical Advantage code (untested) ***
 
+    robotContainer.updateDashboardOutputs()
     // Print auto duration
     if (autonomousCommand != null) {
       if (!autonomousCommand.isScheduled() && !autoMessagePrinted) {
