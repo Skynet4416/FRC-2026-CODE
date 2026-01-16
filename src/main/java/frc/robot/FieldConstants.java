@@ -49,8 +49,7 @@ public class FieldConstants {
       try {
         layoutString = new ObjectMapper().writeValueAsString(layout);
       } catch (JsonProcessingException e) {
-        throw new RuntimeException(
-            "Failed to serialize AprilTag layout JSON " + toString());
+        throw new RuntimeException("Failed to serialize AprilTag layout JSON " + toString());
       }
     }
 

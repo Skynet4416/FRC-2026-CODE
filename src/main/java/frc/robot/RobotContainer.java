@@ -171,15 +171,16 @@ public class RobotContainer {
                 .ignoringDisable(true));
   }
 
-
-    /** Update dashboard outputs. */
+  /** Update dashboard outputs. */
   public void updateDashboardOutputs() {
     // Publish match time
     SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
 
     // Controller disconnected alerts
-    driverControllerDisconnected.set(!DriverStation.isJoystickConnected(driveController.getHID().getPort()));
-    mechanismControllerDisconnected.set(!DriverStation.isJoystickConnected(mechanismController.getHID().getPort()));
+    driverControllerDisconnected.set(
+        !DriverStation.isJoystickConnected(driveController.getHID().getPort()));
+    mechanismControllerDisconnected.set(
+        !DriverStation.isJoystickConnected(mechanismController.getHID().getPort()));
   }
   /**
    * Use this to pass the autonomous command to the main {@link Robot} class.
