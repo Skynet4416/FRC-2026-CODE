@@ -1,6 +1,6 @@
 package frc.robot.subsystems.intake;
 
-public class IntakesSubsystemIOSparkMax implements IntakesSubsystemIO {
+public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
 
   @Override
   public void updateInputs(IntakeIOInputs inputs) {}

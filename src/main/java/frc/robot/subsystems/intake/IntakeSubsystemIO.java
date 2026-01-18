@@ -2,7 +2,7 @@ package frc.robot.subsystems.intake;
 
 import org.littletonrobotics.junction.AutoLog;
 
-public interface IntakesSubsystemIO {
+public interface IntakeSubsystemIO {
   @AutoLog
   public static class IntakeIOInputs {
     public double velocityRPM = 0.0;

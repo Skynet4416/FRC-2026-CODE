@@ -46,4 +46,10 @@ public final class Constants {
     ALPHABOT,
     SIMBOT
   }
+
+  public static class Subsystems {
+    public static class Intake {
+      public static class ID {}
+    }
+  }
 }
