@@ -47,17 +47,28 @@ public final class Constants {
     SIMBOT
   }
 
-  public static class Subsystem{
-    public static class Intake{
-        public static class Id{
-          public static class Motor{
-            public static final ROLLER = 0;
-          }
-          public static class Pneumatics{
-            public static final REVERSE = 0;
-            public static final FORWARDS = 0;
-          }
+  public static class Subsystem {
+    public static class Intake {
+      public static final boolean ROLLER_BREAK = true;
+
+      public static class Id {
+        public static class Motor {
+          public static final int ROLLER = 0;
         }
+
+        public static class Pneumatics {
+          public static final int REVERSE = 0;
+          public static final int FORWARDS = 0;
+        }
+      }
+
+      public static class ClosedLoop {
+        public static final int KP = 0;
+        public static final int KI = 0;
+        public static final int KD = 0;
+        public static final int KS = 0;
+        public static final int KG = 0;
+      }
     }
   }
 }
