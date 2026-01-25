@@ -7,6 +7,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.util.LoggedTunableNumber;
 
+
 public class IntakeSubsystem extends SubsystemBase {
   private final IntakeSubsystemIO io;
   private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("Intake", 500.0);
@@ -44,4 +45,9 @@ public class IntakeSubsystem extends SubsystemBase {
     setTargetRPM(0);
   }
 
+  public Command runRollerCommand() {
+    return Commands.runEnd(() -> setTargetRPM(targetRpm.get()), () -> setTargetRPM(0));
+  }
+
+   @Override
 }
