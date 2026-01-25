@@ -1,5 +1,7 @@
 package frc.robot.subsystems.intake;
 
+import java.util.logging.Logger;
+
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
@@ -20,6 +22,22 @@ public class IntakeSubsystem extends SubsystemBase {
 
   public void setLowered() {
     io.setLowered(true);
+  }
+
+  public double GetVelocityRPM() {
+    return inputs.velocityRPM;
+  }
+
+  public double GetAppliedVolts() {
+    return inputs.appliedVolts;
+  }
+
+  public double GetSupplyCurrentAmps() {
+    return inputs.supplyCurrentAmps;
+  }
+
+  public boolean GetLowered() {
+    return inputs.lowered;
   }
 
   public void Stop() {
