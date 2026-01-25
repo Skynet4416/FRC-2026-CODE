@@ -13,4 +13,13 @@ public class IntakeSubsystem extends SubsystemBase {
   public IntakeSubsystem(IntakeSubsystemIO io) {
     this.io = io;
   }
+
+  public void setTargetRPM(double rpm) {
+    io.setTargetRPM(rpm);
+  }
+
+  public void setLowered() {
+    io.setLowered(true);
+  }
+
 }
