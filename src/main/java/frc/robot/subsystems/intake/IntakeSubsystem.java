@@ -22,4 +22,8 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setLowered(true);
   }
 
+  public void Stop() {
+    setTargetRPM(0);
+  }
+
 }
