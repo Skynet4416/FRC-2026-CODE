@@ -59,7 +59,9 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
   }
 
   @Override
-  public void setVoltage(double volts) {}
+  public void setVoltage(double volts) {
+    this.motor.setVoltage(volts);
+  }
 
   @Override
   public void setLowered(boolean lowered) {
