@@ -2,6 +2,7 @@ package frc.robot.subsystems.intake;
 
 import com.revrobotics.PersistMode;
 import com.revrobotics.ResetMode;
+import com.revrobotics.spark.SparkBase.ControlType;
 import com.revrobotics.spark.SparkLowLevel.MotorType;
 import com.revrobotics.spark.SparkMax;
 import com.revrobotics.spark.config.ClosedLoopConfig;
@@ -53,7 +54,9 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
   }
 
   @Override
-  public void setTargetRPM(double rpm) {}
+  public void setTargetRPM(double rpm) {
+    this.motor.getClosedLoopController().setSetpoint(rpm, ControlType.kVelocity);
+  }
 
   @Override
   public void setVoltage(double volts) {}
