@@ -33,7 +33,7 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
             .d(Constants.Subsystem.Intake.ClosedLoop.KD)
             .apply(
                 new FeedForwardConfig()
-                    .kG(Constants.Subsystem.Intake.ClosedLoop.KG)
+                    .kV(Constants.Subsystem.Intake.ClosedLoop.KV)
                     .kS(Constants.Subsystem.Intake.ClosedLoop.KS));
     this.motorConfig = new SparkMaxConfig();
     motorConfig
