@@ -19,8 +19,8 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setTargetRPM(rpm);
   }
 
-  public void setLowered() {
-    io.setLowered(true);
+  public void setLowered(boolean lowered) {
+    io.setLowered(lowered);
   }
 
   public double GetVelocityRPM() {
