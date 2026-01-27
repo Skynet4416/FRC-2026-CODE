@@ -23,19 +23,19 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setLowered(lowered);
   }
 
-  public double GetVelocityRPM() {
+  public double getVelocityRPM() {
     return inputs.velocityRPM;
   }
 
-  public double GetAppliedVolts() {
+  public double getAppliedVolts() {
     return inputs.appliedVolts;
   }
 
-  public double GetSupplyCurrentAmps() {
+  public double getSupplyCurrentAmps() {
     return inputs.supplyCurrentAmps;
   }
 
-  public boolean GetLowered() {
+  public boolean isLowered() {
     return inputs.lowered;
   }
 
