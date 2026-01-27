@@ -1,17 +1,14 @@
 package frc.robot.subsystems.intake;
 
-
-import org.littletonrobotics.junction.Logger;
-
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.util.LoggedTunableNumber;
-
+import org.littletonrobotics.junction.Logger;
 
 public class IntakeSubsystem extends SubsystemBase {
   private final IntakeSubsystemIO io;
-  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("Intake", 500.0);
+  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("RollerRPM", 500.0);
   protected final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
 
   public IntakeSubsystem(IntakeSubsystemIO io) {
@@ -50,9 +47,9 @@ public class IntakeSubsystem extends SubsystemBase {
     return Commands.runEnd(() -> setTargetRPM(targetRpm.get()), () -> setTargetRPM(0));
   }
 
-   @Override
+  @Override
   public void periodic() {
     io.updateInputs(inputs);
-    Logger.processInputs("Intake", inputs);
+    Logger.processInputs("RollerRPM", inputs);
   }
 }
