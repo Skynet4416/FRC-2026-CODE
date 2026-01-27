@@ -39,8 +39,8 @@ public class IntakeSubsystem extends SubsystemBase {
     return inputs.lowered;
   }
 
-  public void Stop() {
-    setTargetRPM(0);
+  public void stop() {
+    io.setVoltage(0);
   }
 
   public Command runRollerCommand() {
