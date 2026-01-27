@@ -67,7 +67,7 @@ public final class Constants {
         public static final int KI = 0;
         public static final int KD = 0;
         public static final int KS = 0;
-        public static final int KG = 0;
+        public static final int KV = 0;
       }
     }
   }
