@@ -44,7 +44,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public Command runRollerCommand() {
-    return Commands.runEnd(() -> setTargetRPM(targetRpm.get()), () -> setTargetRPM(0));
+    return Commands.runEnd(() -> setTargetRPM(targetRpm.get()), () -> stop());
   }
 
   @Override
