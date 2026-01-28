@@ -41,10 +41,13 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
             Constants.Subsystem.Intake.ROLLER_BREAK
                 ? SparkBaseConfig.IdleMode.kBrake
                 : SparkBaseConfig.IdleMode.kCoast)
+        .smartCurrentLimit(40)
+        .voltageCompensation(12)
         .apply(closedLoopConfig);
 
     this.motor.configure(
         motorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+    this.setLowered(false);
   }
 
   @Override
