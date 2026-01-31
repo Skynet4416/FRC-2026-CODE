@@ -28,6 +28,10 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
+import frc.robot.subsystems.intake.IntakeSubsystem;
+import frc.robot.subsystems.intake.IntakeSubsystemIO;
+import frc.robot.subsystems.intake.IntakeSubsystemIOSim;
+import frc.robot.subsystems.intake.IntakeSubsystemIOSparkMax;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -39,6 +43,7 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 public class RobotContainer {
   // Subsystems
   private final Drive drive;
+  private final IntakeSubsystem intakeSubsystem;
 
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
@@ -65,6 +70,8 @@ public class RobotContainer {
                 new ModuleIOTalonFX(TunerConstants.FrontRight),
                 new ModuleIOTalonFX(TunerConstants.BackLeft),
                 new ModuleIOTalonFX(TunerConstants.BackRight));
+
+        this.intakeSubsystem = new IntakeSubsystem(new IntakeSubsystemIOSparkMax());
 
         // The ModuleIOTalonFXS implementation provides an example implementation for
         // TalonFXS controller connected to a CANdi with a PWM encoder. The
@@ -94,6 +101,8 @@ public class RobotContainer {
                 new ModuleIOSim(TunerConstants.FrontRight),
                 new ModuleIOSim(TunerConstants.BackLeft),
                 new ModuleIOSim(TunerConstants.BackRight));
+
+        this.intakeSubsystem = new IntakeSubsystem(new IntakeSubsystemIOSim());
         break;
 
       default:
@@ -105,6 +114,7 @@ public class RobotContainer {
                 new ModuleIO() {},
                 new ModuleIO() {},
                 new ModuleIO() {});
+        this.intakeSubsystem = new IntakeSubsystem(new IntakeSubsystemIO() {});
         break;
     }
 
@@ -126,6 +136,8 @@ public class RobotContainer {
         "Drive SysId (Dynamic Forward)", drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
     autoChooser.addOption(
         "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+
+    this.intakeSubsystem.setDefaultCommand(this.intakeSubsystem.runRollerCommand());
 
     // Configure the button bindings
     configureButtonBindings();

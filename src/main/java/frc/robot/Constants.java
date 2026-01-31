@@ -18,7 +18,7 @@ public final class Constants {
   public static final Mode simMode = Mode.SIM;
   public static final Mode currentMode = RobotBase.isReal() ? Mode.REAL : simMode;
   public static final RobotType robot = RobotType.ALPHABOT;
-  public static final boolean tuningMode = false;
+  public static final boolean tuningMode = true;
 
   // Disables hardware stuff
   public static boolean disableHAL = false;
@@ -63,11 +63,11 @@ public final class Constants {
       }
 
       public static class ClosedLoop {
-        public static final int KP = 0;
-        public static final int KI = 0;
-        public static final int KD = 0;
-        public static final int KS = 0;
-        public static final int KV = 0;
+        public static final double KP = 0.005;
+        public static final double KI = 0.001;
+        public static final double KD = 0.0;
+        public static final double KS = 0.0;
+        public static final double KV = 0.0;
       }
     }
   }
