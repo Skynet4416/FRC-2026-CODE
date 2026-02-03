@@ -20,6 +20,27 @@ public final class Constants {
   public static final RobotType robot = RobotType.ALPHABOT;
   public static final boolean tuningMode = false;
 
+  public final class ShooterConstants {
+    public static final int MOTOR_ID = 0;
+
+    public static final double GEAR_RATIO = 2.0;
+
+    public static final boolean MOTOR_COAST = false;
+
+    public static final double KP = 0.0;
+    public static final double KI = 0.0;
+    public static final double KD = 0.0;
+
+    public static final double KS = 0.0;
+    public static final double KV = 0.0;
+    public static final double KA = 0.0;
+
+    public static final double DEFAULT_TARGET_RPM = 4500.0;
+    public static final double RPM_TOLERANCE = 100.0;
+
+    private ShooterConstants() {}
+  }
+
   // Disables hardware stuff
   public static boolean disableHAL = false;
 
