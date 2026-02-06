@@ -20,25 +20,48 @@ public final class Constants {
   public static final RobotType robot = RobotType.ALPHABOT;
   public static final boolean tuningMode = false;
 
-  public final class ShooterConstants {
-    public static final int MOTOR_ID = 0;
+  public final class Subsystems {
 
-    public static final double GEAR_RATIO = 2.0;
+    public final class Shooter {
 
-    public static final boolean MOTOR_COAST = false;
+      public static final double GEAR_RATIO = 2.0;
+      public static final boolean MOTOR_COAST = true;
+      public static final boolean SHOOTER_INVERTED = false;
 
-    public static final double KP = 0.0;
-    public static final double KI = 0.0;
-    public static final double KD = 0.0;
+      public static final double DEFAULT_TARGET_RPM = 4500.0;
+      public static final double RPM_TOLERANCE = 100.0;
 
-    public static final double KS = 0.0;
-    public static final double KV = 0.0;
-    public static final double KA = 0.0;
+      public static class Id {
+        public static final int LEADER_ID = 0;
+        public static final int FOLLOWER_ID = 0;
+      }
 
-    public static final double DEFAULT_TARGET_RPM = 4500.0;
-    public static final double RPM_TOLERANCE = 100.0;
+      public static final class ClosedLoop {
 
-    private ShooterConstants() {}
+        public static final double KP = 0.0;
+        public static final double KI = 0.0;
+        public static final double KD = 0.0;
+
+        public static final double KS = 0.0;
+        public static final double KV = 0.0;
+        public static final double KA = 0.0;
+      }
+
+      public static final class CurrentLimits {
+
+        // Supply Limit: Protects the Battery (Prevents Brownouts)
+        // Highly recommended for Shooters.
+        public static final boolean SUPPLY_ENABLED = true;
+
+        // TODO tune this value
+        public static final double SUPPLY_LIMIT_AMPS = 0.0; // Holding limit
+
+        // Stator Limit: Protects the Motor (Prevents Burnout)
+        // Keep this HIGH for Shooters to allow fast spin-up.
+        public static final boolean STATOR_ENABLED = false;
+        public static final double STATOR_LIMIT_AMPS = 0.0;
+      }
+    }
   }
 
   // Disables hardware stuff
