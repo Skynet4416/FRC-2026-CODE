@@ -28,6 +28,10 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
+import frc.robot.subsystems.drive.shooter.FlywheelSubsystem;
+import frc.robot.subsystems.drive.shooter.FlywheelSubsystemIO;
+import frc.robot.subsystems.drive.shooter.FlywheelSubsystemIOSim;
+import frc.robot.subsystems.drive.shooter.FlywheelSubsystemIOTalonFX;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -39,7 +43,7 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 public class RobotContainer {
   // Subsystems
   private final Drive drive;
-
+  private final FlywheelSubsystem flywheelSubsystem;
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
   private final CommandXboxController mechanismController = new CommandXboxController(1);
@@ -65,6 +69,8 @@ public class RobotContainer {
                 new ModuleIOTalonFX(TunerConstants.FrontRight),
                 new ModuleIOTalonFX(TunerConstants.BackLeft),
                 new ModuleIOTalonFX(TunerConstants.BackRight));
+
+        flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
 
         // The ModuleIOTalonFXS implementation provides an example implementation for
         // TalonFXS controller connected to a CANdi with a PWM encoder. The
@@ -94,6 +100,9 @@ public class RobotContainer {
                 new ModuleIOSim(TunerConstants.FrontRight),
                 new ModuleIOSim(TunerConstants.BackLeft),
                 new ModuleIOSim(TunerConstants.BackRight));
+
+        flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOSim());
+
         break;
 
       default:
@@ -105,6 +114,9 @@ public class RobotContainer {
                 new ModuleIO() {},
                 new ModuleIO() {},
                 new ModuleIO() {});
+
+        flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIO() {});
+
         break;
     }
 
@@ -146,7 +158,7 @@ public class RobotContainer {
             () -> -driveController.getLeftX(),
             () -> -driveController.getRightX()));
 
-    // Lock to 0° when A button is held
+    // Lock to 0 when A button is held
     driveController
         .a()
         .whileTrue(
@@ -159,7 +171,7 @@ public class RobotContainer {
     // Switch to X pattern when X button is pressed
     driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
-    // Reset gyro to 0° when B button is pressed
+    // Reset gyro to 0 when B button is pressed
     driveController
         .b()
         .onTrue(
@@ -169,6 +181,8 @@ public class RobotContainer {
                             new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
                     drive)
                 .ignoringDisable(true));
+
+    flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
   }
 
   /** Update dashboard outputs. */
