@@ -1,16 +1,16 @@
 package frc.robot.subsystems.drive.shooter;
 
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.InvertedValue;
+import com.ctre.phoenix6.sim.TalonFXSimState;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import frc.robot.Constants;
-import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.VelocityVoltage;
-import com.ctre.phoenix6.controls.VoltageOut;
-import com.ctre.phoenix6.hardware.TalonFX;
-import com.ctre.phoenix6.sim.TalonFXSimState;
-import com.ctre.phoenix6.signals.InvertedValue;
 
 public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
 
@@ -70,22 +70,22 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
 
     // Update the SimState with the new physics state
     // DCMotorSim returns radians, TalonFX expects rotations
-    double rotorVelocityRPM = motorSim.getAngularVelocityRPM() * Constants.Subsystems.Shooter.GEAR_RATIO;
-    double rotorPositionRotations = (motorSim.getAngularPosition() / (2 * Math.PI)) * Constants.Subsystems.Shooter.GEAR_RATIO;
-    
+    double rotorVelocityRPM =
+        motorSim.getAngularVelocityRPM() * Constants.Subsystems.Shooter.GEAR_RATIO;
+    double rotorPositionRotations =
+        (motorSim.getAngularPosition().in(edu.wpi.first.units.Units.Radians) / (2 * Math.PI))
+            * Constants.Subsystems.Shooter.GEAR_RATIO;
+
     // Convert to rotations/sec for Phoenix 6
     talonFXSim.setRotorVelocity(rotorVelocityRPM / 60.0);
     talonFXSim.setRawRotorPosition(rotorPositionRotations);
 
-    // Read inputs from the TalonFX object, just like on the real robot
     inputs.velocityRPM =
-        talonFX.getVelocity().getValueAsDouble()
-            * 60.0
-            / Constants.Subsystems.Shooter.GEAR_RATIO;
+        talonFX.getVelocity().getValueAsDouble() * 60.0 / Constants.Subsystems.Shooter.GEAR_RATIO;
     inputs.appliedVolts = talonFX.getMotorVoltage().getValueAsDouble();
     inputs.supplyCurrentAmps = talonFX.getSupplyCurrent().getValueAsDouble();
     inputs.tempCelsius = talonFX.getDeviceTemp().getValueAsDouble();
-    inputs.connected = true; 
+    inputs.connected = true;
   }
 
   @Override

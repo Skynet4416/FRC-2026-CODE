@@ -8,7 +8,6 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import frc.robot.Constants;
@@ -28,10 +27,8 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
     leaderMotor = new TalonFX(Constants.Subsystems.Shooter.Id.LEADER_ID);
     followerMotor = new TalonFX(Constants.Subsystems.Shooter.Id.FOLLOWER_ID);
 
-    leaderDisconnected =
-        new Alert("Flywheel leader motor disconnected!", AlertType.kWarning);
-    followerDisconnected =
-        new Alert("Flywheel follower motor disconnected!", AlertType.kWarning);
+    leaderDisconnected = new Alert("Flywheel leader motor disconnected!", AlertType.kWarning);
+    followerDisconnected = new Alert("Flywheel follower motor disconnected!", AlertType.kWarning);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
 
@@ -84,7 +81,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
     leaderDisconnected.set(!inputs.connected);
     followerDisconnected.set(!followerMotor.isConnected());
   }
-  
+
   @Override
   public void setTargetRPM(double rpm) {
     double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.GEAR_RATIO;

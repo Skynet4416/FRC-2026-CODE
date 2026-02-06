@@ -18,7 +18,7 @@ public final class Constants {
   public static final Mode simMode = Mode.SIM;
   public static final Mode currentMode = RobotBase.isReal() ? Mode.REAL : simMode;
   public static final RobotType robot = RobotType.ALPHABOT;
-  public static final boolean tuningMode = false;
+  public static final boolean tuningMode = true;
 
   public final class Subsystems {
 
@@ -38,7 +38,7 @@ public final class Constants {
 
       public static final class ClosedLoop {
 
-        public static final double KP = 0.0;
+        public static final double KP = 1;
         public static final double KI = 0.0;
         public static final double KD = 0.0;
 
@@ -51,7 +51,7 @@ public final class Constants {
 
         // Supply Limit: Protects the Battery (Prevents Brownouts)
         // Highly recommended for Shooters.
-        public static final boolean SUPPLY_ENABLED = true;
+        public static final boolean SUPPLY_ENABLED = false;
 
         // TODO tune this value
         public static final double SUPPLY_LIMIT_AMPS = 0.0; // Holding limit
