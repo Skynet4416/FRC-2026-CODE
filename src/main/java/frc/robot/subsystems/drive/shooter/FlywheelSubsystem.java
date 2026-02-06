@@ -25,8 +25,7 @@ public class FlywheelSubsystem extends SubsystemBase {
                 null,
                 null,
                 (state) -> Logger.recordOutput("Flywheel/SysIdTestState", state.toString())),
-            new SysIdRoutine.Mechanism(
-                (voltage) -> runVolts(voltage.in(Volts)), null, this));
+            new SysIdRoutine.Mechanism((voltage) -> runVolts(voltage.in(Volts)), null, this));
   }
 
   public void setTargetRPM(double rpm) {
