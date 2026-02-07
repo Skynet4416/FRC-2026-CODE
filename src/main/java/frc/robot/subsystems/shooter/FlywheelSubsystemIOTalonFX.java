@@ -1,4 +1,4 @@
-package frc.robot.subsystems.drive.shooter;
+package frc.robot.subsystems.shooter;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;

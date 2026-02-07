@@ -28,10 +28,10 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
-import frc.robot.subsystems.drive.shooter.FlywheelSubsystem;
-import frc.robot.subsystems.drive.shooter.FlywheelSubsystemIO;
-import frc.robot.subsystems.drive.shooter.FlywheelSubsystemIOSim;
-import frc.robot.subsystems.drive.shooter.FlywheelSubsystemIOTalonFX;
+import frc.robot.subsystems.shooter.FlywheelSubsystem;
+import frc.robot.subsystems.shooter.FlywheelSubsystemIO;
+import frc.robot.subsystems.shooter.FlywheelSubsystemIOSim;
+import frc.robot.subsystems.shooter.FlywheelSubsystemIOTalonFX;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
