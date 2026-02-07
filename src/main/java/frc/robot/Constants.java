@@ -38,12 +38,12 @@ public final class Constants {
 
       public static final class ClosedLoop {
 
-        public static final double KP = 1;
+        public static final double KP = 0.1;
         public static final double KI = 0.0;
         public static final double KD = 0.0;
 
         public static final double KS = 0.0;
-        public static final double KV = 0.0;
+        public static final double KV = 0.12;
         public static final double KA = 0.0;
       }
 

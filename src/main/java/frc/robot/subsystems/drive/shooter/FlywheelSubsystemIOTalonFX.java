@@ -23,6 +23,8 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   private final Alert leaderDisconnected;
   private final Alert followerDisconnected;
 
+  private double targetRPM = 0.0;
+
   public FlywheelSubsystemIOTalonFX() {
     leaderMotor = new TalonFX(Constants.Subsystems.Shooter.Id.LEADER_ID);
     followerMotor = new TalonFX(Constants.Subsystems.Shooter.Id.FOLLOWER_ID);
@@ -78,12 +80,15 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
     inputs.tempCelsius = leaderMotor.getDeviceTemp().getValueAsDouble();
     inputs.connected = leaderMotor.isConnected();
 
+    inputs.setpointRPM = targetRPM;
+
     leaderDisconnected.set(!inputs.connected);
     followerDisconnected.set(!followerMotor.isConnected());
   }
 
   @Override
   public void setTargetRPM(double rpm) {
+    targetRPM = rpm;
     double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.GEAR_RATIO;
     leaderMotor.setControl(velocityRequest.withVelocity(motorRPS));
   }

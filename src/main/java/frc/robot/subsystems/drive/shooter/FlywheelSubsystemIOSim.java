@@ -19,11 +19,13 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
   private final DCMotorSim motorSim =
       new DCMotorSim(
           LinearSystemId.createDCMotorSystem(
-              DCMotor.getKrakenX60(1), 0.004, Constants.Subsystems.Shooter.GEAR_RATIO),
-          DCMotor.getKrakenX60(1));
+              DCMotor.getKrakenX60(2), 0.004, Constants.Subsystems.Shooter.GEAR_RATIO),
+          DCMotor.getKrakenX60(2));
 
   private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
   private final VoltageOut voltageRequest = new VoltageOut(0);
+
+  private double targetRPM = 0.0;
 
   public FlywheelSubsystemIOSim() {
     talonFX = new TalonFX(Constants.Subsystems.Shooter.Id.LEADER_ID);
@@ -86,10 +88,12 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
     inputs.supplyCurrentAmps = talonFX.getSupplyCurrent().getValueAsDouble();
     inputs.tempCelsius = talonFX.getDeviceTemp().getValueAsDouble();
     inputs.connected = true;
+    inputs.setpointRPM = targetRPM;
   }
 
   @Override
   public void setTargetRPM(double rpm) {
+    targetRPM = rpm;
     double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.GEAR_RATIO;
     talonFX.setControl(velocityRequest.withVelocity(motorRPS));
   }
