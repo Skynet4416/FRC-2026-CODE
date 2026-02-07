@@ -9,6 +9,9 @@ import com.revrobotics.spark.config.ClosedLoopConfig;
 import com.revrobotics.spark.config.FeedForwardConfig;
 import com.revrobotics.spark.config.SparkBaseConfig;
 import com.revrobotics.spark.config.SparkMaxConfig;
+import edu.wpi.first.math.filter.Debouncer;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DoubleSolenoid;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import frc.robot.Constants;
@@ -18,6 +21,12 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
   private final SparkMaxConfig motorConfig;
   private final DoubleSolenoid solenoid;
   private final ClosedLoopConfig closedLoopConfig;
+
+  private final Debouncer motorConnectedDebouncer =
+      new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+  private final Alert motorDisconnectedAlert =
+      new Alert("Intake motor disconnected!", AlertType.kWarning);
+  private double currentSetpoint = 0.0;
 
   public IntakeSubsystemIOSparkMax() {
     this.motor = new SparkMax(Constants.Subsystem.Intake.Id.Motor.ROLLER, MotorType.kBrushless);
@@ -56,10 +65,15 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
     inputs.appliedVolts = this.motor.getAppliedOutput() * this.motor.getBusVoltage();
     inputs.supplyCurrentAmps = this.motor.getOutputCurrent();
     inputs.lowered = (this.solenoid.get() == DoubleSolenoid.Value.kForward);
+
+    inputs.connected = motorConnectedDebouncer.calculate(this.motor.getFirmwareVersion() != 0);
+    motorDisconnectedAlert.set(!inputs.connected);
+    inputs.setpointRPM = this.currentSetpoint;
   }
 
   @Override
   public void setTargetRPM(double rpm) {
+    this.currentSetpoint = rpm;
     this.motor.getClosedLoopController().setSetpoint(rpm, ControlType.kVelocity);
   }
 

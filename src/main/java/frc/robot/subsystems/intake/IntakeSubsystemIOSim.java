@@ -21,13 +21,14 @@ import frc.robot.Constants;
 
 public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   private final SparkMax motor;
-  DCMotor maxGearbox = DCMotor.getNEO(1);
+  DCMotor maxGearbox = DCMotor.getKrakenX44Foc(1);
 
   private final SparkMaxConfig motorConfig;
   private final DoubleSolenoidSim solenoidSim;
   private final ClosedLoopConfig closedLoopConfig;
   private final SparkMaxSim motorSim;
   private final DCMotorSim dcMotorSim;
+  private double currentSetpoint = 0.0;
 
   public IntakeSubsystemIOSim() {
     this.motor = new SparkMax(Constants.Subsystem.Intake.Id.Motor.ROLLER, MotorType.kBrushless);
@@ -78,10 +79,13 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     inputs.appliedVolts = this.motorSim.getAppliedOutput() * this.motor.getBusVoltage();
     inputs.supplyCurrentAmps = this.motorSim.getMotorCurrent();
     inputs.lowered = (this.solenoidSim.get() == DoubleSolenoid.Value.kForward);
+    inputs.connected = true;
+    inputs.setpointRPM = this.currentSetpoint;
   }
 
   @Override
   public void setTargetRPM(double rpm) {
+    this.currentSetpoint = rpm;
     this.motor.getClosedLoopController().setSetpoint(rpm, ControlType.kVelocity);
   }
 

@@ -8,7 +8,9 @@ public interface IntakeSubsystemIO {
     public double velocityRPM = 0.0;
     public double appliedVolts = 0.0;
     public double supplyCurrentAmps = 0.0;
+    public double setpointRPM = 0.0;
     public boolean lowered = false;
+    public boolean connected = true;
   }
 
   default void updateInputs(IntakeIOInputs inputs) {}
