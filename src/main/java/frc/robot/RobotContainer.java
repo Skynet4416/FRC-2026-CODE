@@ -8,7 +8,6 @@
 package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
-import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
@@ -172,15 +171,17 @@ public class RobotContainer {
     driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
     // Reset gyro to 0° when B button is pressed
-    driveController
-        .b()
-        .onTrue(
-            Commands.runOnce(
-                    () ->
-                        drive.setPose(
-                            new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                    drive)
-                .ignoringDisable(true));
+    //     driveController
+    //         .b()
+    //         .onTrue(
+    //             Commands.runOnce(
+    //                     () ->
+    //                         drive.setPose(
+    //                             new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
+    //                     drive)
+    //                 .ignoringDisable(true));
+
+    driveController.b().onTrue(intakeSubsystem.toggleIntakeCommand());
   }
 
   /** Update dashboard outputs. */

@@ -57,7 +57,7 @@ public final class Constants {
         }
 
         public static class Pneumatics {
-          public static final int REVERSE = 0;
+          public static final int REVERSE = 1;
           public static final int FORWARDS = 0;
         }
       }
