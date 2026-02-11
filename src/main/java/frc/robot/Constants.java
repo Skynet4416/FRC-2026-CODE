@@ -24,7 +24,7 @@ public final class Constants {
 
     public final class Shooter {
 
-      public static final double GEAR_RATIO = 2.0;
+      public static final double GEAR_RATIO = 5;
       public static final boolean MOTOR_COAST = true;
       public static final boolean SHOOTER_INVERTED = false;
 
@@ -32,8 +32,8 @@ public final class Constants {
       public static final double RPM_TOLERANCE = 100.0;
 
       public static class Id {
-        public static final int LEADER_ID = 0;
-        public static final int FOLLOWER_ID = 0;
+        public static final int LEADER_ID = 12;
+        public static final int FOLLOWER_ID = 17;
       }
 
       public static final class ClosedLoop {
@@ -51,10 +51,10 @@ public final class Constants {
 
         // Supply Limit: Protects the Battery (Prevents Brownouts)
         // Highly recommended for Shooters.
-        public static final boolean SUPPLY_ENABLED = false;
+        public static final boolean SUPPLY_ENABLED = true;
 
         // TODO tune this value
-        public static final double SUPPLY_LIMIT_AMPS = 0.0; // Holding limit
+        public static final double SUPPLY_LIMIT_AMPS = 40.0; // Holding limit
 
         // Stator Limit: Protects the Motor (Prevents Burnout)
         // Keep this HIGH for Shooters to allow fast spin-up.

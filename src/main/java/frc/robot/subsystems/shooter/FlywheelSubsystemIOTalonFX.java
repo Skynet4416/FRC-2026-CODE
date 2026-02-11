@@ -90,7 +90,11 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   public void setTargetRPM(double rpm) {
     targetRPM = rpm;
     double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.GEAR_RATIO;
-    leaderMotor.setControl(velocityRequest.withVelocity(motorRPS));
+    if (rpm < targetRPM) {
+      leaderMotor.set(1);
+    } else {
+      leaderMotor.setControl(velocityRequest.withVelocity(motorRPS));
+    }
   }
 
   @Override
