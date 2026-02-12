@@ -19,7 +19,7 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
   private final DCMotorSim motorSim =
       new DCMotorSim(
           LinearSystemId.createDCMotorSystem(
-              DCMotor.getKrakenX60(2), 0.004, Constants.Subsystems.Shooter.GEAR_RATIO),
+              DCMotor.getKrakenX60(2), 0.004, Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO),
           DCMotor.getKrakenX60(2));
 
   private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
@@ -28,31 +28,31 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
   private double targetRPM = 0.0;
 
   public FlywheelSubsystemIOSim() {
-    talonFX = new TalonFX(Constants.Subsystems.Shooter.Id.LEADER_ID);
+    talonFX = new TalonFX(Constants.Subsystems.Shooter.Flywheel.Id.LEADER_ID);
     talonFXSim = talonFX.getSimState();
 
     // Apply the same configuration as the real hardware
     TalonFXConfiguration config = new TalonFXConfiguration();
 
-    config.Slot0.kP = Constants.Subsystems.Shooter.ClosedLoop.KP;
-    config.Slot0.kI = Constants.Subsystems.Shooter.ClosedLoop.KI;
-    config.Slot0.kD = Constants.Subsystems.Shooter.ClosedLoop.KD;
-    config.Slot0.kS = Constants.Subsystems.Shooter.ClosedLoop.KS;
-    config.Slot0.kV = Constants.Subsystems.Shooter.ClosedLoop.KV;
-    config.Slot0.kA = Constants.Subsystems.Shooter.ClosedLoop.KA;
+    config.Slot0.kP = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KP;
+    config.Slot0.kI = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KI;
+    config.Slot0.kD = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KD;
+    config.Slot0.kS = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KS;
+    config.Slot0.kV = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KV;
+    config.Slot0.kA = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KA;
 
     config.CurrentLimits.SupplyCurrentLimitEnable =
-        Constants.Subsystems.Shooter.CurrentLimits.SUPPLY_ENABLED;
+        Constants.Subsystems.Shooter.Flywheel.CurrentLimits.SUPPLY_ENABLED;
     config.CurrentLimits.SupplyCurrentLimit =
-        Constants.Subsystems.Shooter.CurrentLimits.SUPPLY_LIMIT_AMPS;
+        Constants.Subsystems.Shooter.Flywheel.CurrentLimits.SUPPLY_LIMIT_AMPS;
 
     config.CurrentLimits.StatorCurrentLimitEnable =
-        Constants.Subsystems.Shooter.CurrentLimits.STATOR_ENABLED;
+        Constants.Subsystems.Shooter.Flywheel.CurrentLimits.STATOR_ENABLED;
     config.CurrentLimits.StatorCurrentLimit =
-        Constants.Subsystems.Shooter.CurrentLimits.STATOR_LIMIT_AMPS;
+        Constants.Subsystems.Shooter.Flywheel.CurrentLimits.STATOR_LIMIT_AMPS;
 
     config.MotorOutput.Inverted =
-        Constants.Subsystems.Shooter.SHOOTER_INVERTED
+        Constants.Subsystems.Shooter.Flywheel.SHOOTER_INVERTED
             ? InvertedValue.Clockwise_Positive
             : InvertedValue.CounterClockwise_Positive;
 
@@ -73,17 +73,19 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
     // Update the SimState with the new physics state
     // DCMotorSim returns radians, TalonFX expects rotations
     double rotorVelocityRPM =
-        motorSim.getAngularVelocityRPM() * Constants.Subsystems.Shooter.GEAR_RATIO;
+        motorSim.getAngularVelocityRPM() * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
     double rotorPositionRotations =
         (motorSim.getAngularPosition().in(edu.wpi.first.units.Units.Radians) / (2 * Math.PI))
-            * Constants.Subsystems.Shooter.GEAR_RATIO;
+            * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
 
     // Convert to rotations/sec for Phoenix 6
     talonFXSim.setRotorVelocity(rotorVelocityRPM / 60.0);
     talonFXSim.setRawRotorPosition(rotorPositionRotations);
 
     inputs.velocityRPM =
-        talonFX.getVelocity().getValueAsDouble() * 60.0 / Constants.Subsystems.Shooter.GEAR_RATIO;
+        talonFX.getVelocity().getValueAsDouble()
+            * 60.0
+            / Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
     inputs.appliedVolts = talonFX.getMotorVoltage().getValueAsDouble();
     inputs.supplyCurrentAmps = talonFX.getSupplyCurrent().getValueAsDouble();
     inputs.tempCelsius = talonFX.getDeviceTemp().getValueAsDouble();
@@ -94,7 +96,7 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     targetRPM = rpm;
-    double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.GEAR_RATIO;
+    double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
     talonFX.setControl(velocityRequest.withVelocity(motorRPS));
   }
 

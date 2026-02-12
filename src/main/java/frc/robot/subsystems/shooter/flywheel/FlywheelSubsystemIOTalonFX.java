@@ -26,44 +26,47 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   private double targetRPM = 0.0;
 
   public FlywheelSubsystemIOTalonFX() {
-    leaderMotor = new TalonFX(Constants.Subsystems.Shooter.Id.LEADER_ID);
-    followerMotor = new TalonFX(Constants.Subsystems.Shooter.Id.FOLLOWER_ID);
+    leaderMotor = new TalonFX(Constants.Subsystems.Shooter.Flywheel.Id.LEADER_ID);
+    followerMotor = new TalonFX(Constants.Subsystems.Shooter.Flywheel.Id.FOLLOWER_ID);
 
     leaderDisconnected = new Alert("Flywheel leader motor disconnected!", AlertType.kWarning);
     followerDisconnected = new Alert("Flywheel follower motor disconnected!", AlertType.kWarning);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
 
-    config.Slot0.kP = Constants.Subsystems.Shooter.ClosedLoop.KP;
-    config.Slot0.kI = Constants.Subsystems.Shooter.ClosedLoop.KI;
-    config.Slot0.kD = Constants.Subsystems.Shooter.ClosedLoop.KD;
-    config.Slot0.kS = Constants.Subsystems.Shooter.ClosedLoop.KS;
-    config.Slot0.kV = Constants.Subsystems.Shooter.ClosedLoop.KV;
-    config.Slot0.kA = Constants.Subsystems.Shooter.ClosedLoop.KA;
+    config.Slot0.kP = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KP;
+    config.Slot0.kI = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KI;
+    config.Slot0.kD = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KD;
+    config.Slot0.kS = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KS;
+    config.Slot0.kV = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KV;
+    config.Slot0.kA = Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KA;
 
     // 1. Supply Limit (Battery Safety)
     config.CurrentLimits.SupplyCurrentLimitEnable =
-        Constants.Subsystems.Shooter.CurrentLimits.SUPPLY_ENABLED;
+        Constants.Subsystems.Shooter.Flywheel.CurrentLimits.SUPPLY_ENABLED;
     config.CurrentLimits.SupplyCurrentLimit =
-        Constants.Subsystems.Shooter.CurrentLimits.SUPPLY_LIMIT_AMPS;
+        Constants.Subsystems.Shooter.Flywheel.CurrentLimits.SUPPLY_LIMIT_AMPS;
 
     // 2. Stator Limit (Motor Safety)
     config.CurrentLimits.StatorCurrentLimitEnable =
-        Constants.Subsystems.Shooter.CurrentLimits.STATOR_ENABLED;
+        Constants.Subsystems.Shooter.Flywheel.CurrentLimits.STATOR_ENABLED;
     config.CurrentLimits.StatorCurrentLimit =
-        Constants.Subsystems.Shooter.CurrentLimits.STATOR_LIMIT_AMPS;
+        Constants.Subsystems.Shooter.Flywheel.CurrentLimits.STATOR_LIMIT_AMPS;
 
     config.MotorOutput.Inverted =
-        Constants.Subsystems.Shooter.SHOOTER_INVERTED
+        Constants.Subsystems.Shooter.Flywheel.SHOOTER_INVERTED
             ? InvertedValue.Clockwise_Positive
             : InvertedValue.CounterClockwise_Positive;
 
     leaderMotor.getConfigurator().apply(config);
 
     leaderMotor.setNeutralMode(
-        Constants.Subsystems.Shooter.MOTOR_COAST ? NeutralModeValue.Coast : NeutralModeValue.Brake);
+        Constants.Subsystems.Shooter.Flywheel.MOTOR_COAST
+            ? NeutralModeValue.Coast
+            : NeutralModeValue.Brake);
     followerMotor.setControl(
-        new Follower(Constants.Subsystems.Shooter.Id.LEADER_ID, MotorAlignmentValue.Opposed));
+        new Follower(
+            Constants.Subsystems.Shooter.Flywheel.Id.LEADER_ID, MotorAlignmentValue.Opposed));
   }
 
   @Override
@@ -71,7 +74,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
     inputs.velocityRPM =
         leaderMotor.getVelocity().getValueAsDouble()
             * 60.0
-            / Constants.Subsystems.Shooter.GEAR_RATIO;
+            / Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
 
     inputs.appliedVolts = leaderMotor.getMotorVoltage().getValueAsDouble();
 
@@ -89,7 +92,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     targetRPM = rpm;
-    double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.GEAR_RATIO;
+    double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
     if (rpm < targetRPM) {
       leaderMotor.set(1);
     } else {

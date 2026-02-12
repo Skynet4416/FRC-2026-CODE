@@ -32,6 +32,10 @@ import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIO;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIOSim;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIOTalonFX;
+import frc.robot.subsystems.shooter.hood.HoodSubsystem;
+import frc.robot.subsystems.shooter.hood.HoodSubsystemIO;
+import frc.robot.subsystems.shooter.hood.HoodSubsystemIOSim;
+import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -44,6 +48,7 @@ public class RobotContainer {
   // Subsystems
   private final Drive drive;
   private final FlywheelSubsystem flywheelSubsystem;
+  private final HoodSubsystem hoodSubsystem;
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
   private final CommandXboxController mechanismController = new CommandXboxController(1);
@@ -71,6 +76,7 @@ public class RobotContainer {
                 new ModuleIOTalonFX(TunerConstants.BackRight));
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
+        hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
 
         // The ModuleIOTalonFXS implementation provides an example implementation for
         // TalonFXS controller connected to a CANdi with a PWM encoder. The
@@ -102,6 +108,7 @@ public class RobotContainer {
                 new ModuleIOSim(TunerConstants.BackRight));
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOSim());
+        hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
 
         break;
 
@@ -116,6 +123,7 @@ public class RobotContainer {
                 new ModuleIO() {});
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIO() {});
+        hoodSubsystem = new HoodSubsystem(new HoodSubsystemIO() {});
 
         break;
     }
@@ -138,6 +146,30 @@ public class RobotContainer {
         "Drive SysId (Dynamic Forward)", drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
     autoChooser.addOption(
         "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+    autoChooser.addOption(
+        "Hood SysId (Quasistatic Forward)",
+        hoodSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+    autoChooser.addOption(
+        "Hood SysId (Quasistatic Reverse)",
+        hoodSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
+    autoChooser.addOption(
+        "Hood SysId (Dynamic Forward)",
+        hoodSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
+    autoChooser.addOption(
+        "Hood SysId (Dynamic Reverse)",
+        hoodSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+    autoChooser.addOption(
+        "Flywheel SysId (Quasistatic Forward)",
+        flywheelSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+    autoChooser.addOption(
+        "Flywheel SysId (Quasistatic Reverse)",
+        flywheelSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
+    autoChooser.addOption(
+        "Flywheel SysId (Dynamic Forward)",
+        flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
+    autoChooser.addOption(
+        "Flywheel SysId (Dynamic Reverse)",
+        flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
     // Configure the button bindings
     configureButtonBindings();
@@ -183,6 +215,7 @@ public class RobotContainer {
                 .ignoringDisable(true));
 
     flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
+    hoodSubsystem.setDefaultCommand(hoodSubsystem.runTargetAngleCommand());
   }
 
   /** Update dashboard outputs. */
