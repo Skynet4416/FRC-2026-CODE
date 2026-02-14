@@ -150,6 +150,13 @@ public class Robot extends LoggedRobot {
         .onCommandFinish((Command command) -> logCommandFunction.accept(command, false));
     CommandScheduler.getInstance()
         .onCommandInterrupt((Command command) -> logCommandFunction.accept(command, false));
+
+    // Configure Driver Station for sim
+    RoboRioSim.setTeamNumber(4416);
+    if (Constants.currentMode == Constants.Mode.SIM) {
+      DriverStationSim.setAllianceStationId(AllianceStationID.Blue1);
+      DriverStationSim.notifyNewData();
+    }
   }
 
   /** This function is called periodically during all modes. */
