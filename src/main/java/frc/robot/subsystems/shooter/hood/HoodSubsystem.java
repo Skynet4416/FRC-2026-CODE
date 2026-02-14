@@ -1,12 +1,10 @@
 package frc.robot.subsystems.shooter.hood;
 
-
 import static edu.wpi.first.units.Units.Volts;
 
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
-
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -26,7 +24,6 @@ public class HoodSubsystem extends SubsystemBase {
 
   private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 0.0);
   private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.5);
-
 
   private final LoggedMechanism2d mech =
       new LoggedMechanism2d(0.5, 0.5, new Color8Bit(Color.kBlack));
@@ -66,12 +63,7 @@ public class HoodSubsystem extends SubsystemBase {
     Logger.recordOutput("Hood/SetpointMechanism", mechSetpoint);
 
     var poses = mech.generate3dMechanism();
-    var rootPose =
-        new Pose3d(
-            -0.14,
-            0.0,
-            0.41,
-            new Rotation3d(0.0, 0.0, Math.PI));
+    var rootPose = new Pose3d(-0.14, 0.0, 0.41, new Rotation3d(0.0, 0.0, Math.PI));
 
     for (int i = 0; i < poses.size(); i++) {
       poses.set(
