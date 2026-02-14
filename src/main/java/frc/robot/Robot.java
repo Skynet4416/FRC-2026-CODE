@@ -17,7 +17,6 @@ import edu.wpi.first.wpilibj.simulation.DriverStationSim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
-import frc.robot.Constants.RobotType;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -147,7 +146,7 @@ public class Robot extends LoggedRobot {
 
     // Configure Driver Station for sim
     RoboRioSim.setTeamNumber(4416);
-    if (Constants.robot == RobotType.SIMBOT) {
+    if (Constants.currentMode == Constants.Mode.SIM) {
       DriverStationSim.setAllianceStationId(AllianceStationID.Blue1);
       DriverStationSim.notifyNewData();
     }
