@@ -24,7 +24,7 @@ public final class Constants {
 
     public static final class Shooter {
       public static final class Flywheel {
-        public static final double GEAR_RATIO = 5;
+        public static final double GEAR_RATIO =  72 / 56;
         public static final boolean MOTOR_COAST = true;
         public static final boolean SHOOTER_INVERTED = false;
 
