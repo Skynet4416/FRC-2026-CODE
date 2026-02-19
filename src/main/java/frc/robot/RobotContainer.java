@@ -28,6 +28,10 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
+import frc.robot.subsystems.spindexer.SpindexerSubsystem;
+import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
+import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
+import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -39,7 +43,7 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 public class RobotContainer {
   // Subsystems
   private final Drive drive;
-
+  private final SpindexerSubsystem spindexerSubsystem;
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
   private final CommandXboxController mechanismController = new CommandXboxController(1);
@@ -65,7 +69,7 @@ public class RobotContainer {
                 new ModuleIOTalonFX(TunerConstants.FrontRight),
                 new ModuleIOTalonFX(TunerConstants.BackLeft),
                 new ModuleIOTalonFX(TunerConstants.BackRight));
-
+        this.spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOTalonFX());
         // The ModuleIOTalonFXS implementation provides an example implementation for
         // TalonFXS controller connected to a CANdi with a PWM encoder. The
         // implementations
@@ -94,6 +98,8 @@ public class RobotContainer {
                 new ModuleIOSim(TunerConstants.FrontRight),
                 new ModuleIOSim(TunerConstants.BackLeft),
                 new ModuleIOSim(TunerConstants.BackRight));
+
+        this.spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
         break;
 
       default:
@@ -105,6 +111,7 @@ public class RobotContainer {
                 new ModuleIO() {},
                 new ModuleIO() {},
                 new ModuleIO() {});
+        this.spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIO() {});
         break;
     }
 
@@ -169,6 +176,8 @@ public class RobotContainer {
                             new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
                     drive)
                 .ignoringDisable(true));
+
+    spindexerSubsystem.setDefaultCommand(spindexerSubsystem.runIndexerCommand());
   }
 
   /** Update dashboard outputs. */
