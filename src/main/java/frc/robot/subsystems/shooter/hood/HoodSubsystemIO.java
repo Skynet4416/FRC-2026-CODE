@@ -12,6 +12,7 @@ public interface HoodSubsystemIO {
     public double tempCelsius = 0.0;
     public double targetAngle = 0.0;
     public boolean connected = true;
+    public boolean atSetpoint = false;
   }
 
   default void updateInputs(HoodIOInputs inputs) {}

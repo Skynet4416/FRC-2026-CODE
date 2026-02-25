@@ -11,6 +11,7 @@ public interface FlywheelSubsystemIO {
     public double supplyCurrentAmps = 0.0;
     public double tempCelsius = 0.0;
     public double setpointRPM = 0.0;
+    public boolean atSetpoint = false;
     public boolean connected = true;
   }
 

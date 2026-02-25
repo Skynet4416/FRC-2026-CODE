@@ -5,9 +5,11 @@ import static edu.wpi.first.units.Units.Volts;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
+import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
@@ -22,8 +24,17 @@ public class HoodSubsystem extends SubsystemBase {
   private final HoodIOInputsAutoLogged inputs = new HoodIOInputsAutoLogged();
   private final SysIdRoutine sysIdRoutine;
 
+  private boolean hoodZeroed = false;
+
   private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 0.0);
   private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.5);
+  public static final LoggedTunableNumber toleranceDeg =
+      new LoggedTunableNumber("Hood/ToleranceDeg", 1.0);
+
+  private static final LoggedTunableNumber homingVolts =
+      new LoggedTunableNumber("Hood/Homing/Volts", -2);
+  private static final LoggedTunableNumber homingVelocityThreshold =
+      new LoggedTunableNumber("Hood/Homing/VelocityThreshold", 0.05);
 
   private final LoggedMechanism2d mech =
       new LoggedMechanism2d(0.5, 0.5, new Color8Bit(Color.kBlack));
@@ -75,7 +86,9 @@ public class HoodSubsystem extends SubsystemBase {
   }
 
   public void setTargetAngle(double degrees) {
-    io.setTargetAngle(degrees);
+    if (hoodZeroed) {
+      io.setTargetAngle(degrees);
+    }
   }
 
   public void stop() {
@@ -84,6 +97,12 @@ public class HoodSubsystem extends SubsystemBase {
 
   public double getAngle() {
     return inputs.angle;
+  }
+
+  public boolean atSetpoint() {
+    return DriverStation.isEnabled()
+        && hoodZeroed
+        && Math.abs(getAngle() - inputs.targetAngle) <= toleranceDeg.get();
   }
 
   public Command setTargetAngleCommand(double degrees) {
@@ -103,22 +122,21 @@ public class HoodSubsystem extends SubsystemBase {
   }
 
   /**
-   * Command to zero the hood. Lowers manually until current spike is detected, then resets position
-   * to 0. Includes a tunable delay to ignore initial inrush current.
+   * Command to zero the hood. Lowers manually until velocity drops below threshold, then resets
+   * position to MIN_ANGLE. Includes a tunable delay to ignore initial inrush.
    */
   public Command zeroCommand() {
-    return run(() -> io.set(Constants.Subsystems.Shooter.Hood.ZERO_SPEED))
-        .raceWith(new frc.robot.util.SuppliedWaitCommand(() -> zeroWait.get()))
-        .andThen(
-            runEnd(
-                    () -> io.set(Constants.Subsystems.Shooter.Hood.ZERO_SPEED),
-                    () -> {
-                      io.stop();
-                      io.setAngle(0.0);
-                    })
-                .until(
-                    () ->
-                        Math.abs(inputs.supplyCurrentAmps)
-                            > Constants.Subsystems.Shooter.Hood.STALL_CURRENT_LIMIT));
+    return run(() -> io.setVoltage(homingVolts.get()))
+        .raceWith(
+            Commands.waitSeconds(zeroWait.get())
+                .andThen(
+                    Commands.waitUntil(
+                        () -> Math.abs(inputs.velocityRPM) <= homingVelocityThreshold.get())))
+        .andThen(this::zero);
+  }
+
+  private void zero() {
+    io.setAngle(Constants.Subsystems.Shooter.Hood.MIN_ANGLE);
+    hoodZeroed = true;
   }
 }

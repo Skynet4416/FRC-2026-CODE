@@ -19,17 +19,18 @@ public final class Constants {
   public static final Mode currentMode = RobotBase.isReal() ? Mode.REAL : simMode;
   public static final RobotType robot = RobotType.ALPHABOT;
   public static final boolean tuningMode = true;
+  public static final double loopPeriodSecs = 0.02;
 
   public static final class Subsystems {
 
     public static final class Shooter {
       public static final class Flywheel {
-        public static final double GEAR_RATIO =  72 / 56;
+        public static final double GEAR_RATIO = 72 / 56;
         public static final boolean MOTOR_COAST = true;
         public static final boolean SHOOTER_INVERTED = false;
 
-        public static final double DEFAULT_TARGET_RPM = 4500.0;
-        public static final double RPM_TOLERANCE = 100.0;
+        public static final double DEFAULT_TARGET_RPM = 1000.0;
+        public static final double RPM_TOLERANCE = 20.0;
 
         public static class Id {
           public static final int LEADER_ID = 12;
@@ -70,6 +71,8 @@ public final class Constants {
         public static final double STALL_CURRENT_LIMIT = 20.0; // Amps
         public static final double MAX_ANGLE = 45.0; // Degrees
         public static final double MIN_ANGLE = 0.0; // Degrees
+        public static final double HOMING_VOLTS = -2.0;
+        public static final double HOMING_VELOCITY_THRESHOLD = 5.0; // RPM
 
         public static class Id {
           public static final int MOTOR_ID = 20; // TODO: Set ID

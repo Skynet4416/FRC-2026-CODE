@@ -102,6 +102,7 @@ public class HoodSubsystemIOSim implements HoodSubsystemIO {
     inputs.tempCelsius = talonFX.getDeviceTemp().getValueAsDouble();
     inputs.connected = true;
     inputs.targetAngle = targetAngle;
+    inputs.atSetpoint = Math.abs(targetAngle - inputs.angle) <= HoodSubsystem.toleranceDeg.get();
   }
 
   @Override

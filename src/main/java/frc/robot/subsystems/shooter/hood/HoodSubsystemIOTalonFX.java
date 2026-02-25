@@ -67,6 +67,7 @@ public class HoodSubsystemIOTalonFX implements HoodSubsystemIO {
     inputs.tempCelsius = motor.getDeviceTemp().getValueAsDouble();
     inputs.connected = motor.isConnected();
     inputs.targetAngle = targetAngle;
+    inputs.atSetpoint = Math.abs(targetAngle - inputs.angle) <= HoodSubsystem.toleranceDeg.get();
 
     motorDisconnected.set(!inputs.connected);
   }

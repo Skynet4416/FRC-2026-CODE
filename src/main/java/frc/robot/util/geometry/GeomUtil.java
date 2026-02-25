@@ -118,6 +118,17 @@ public class GeomUtil {
   }
 
   /**
+   * Converts a Transform3d to a Transform2d
+   *
+   * @param transform The original transform
+   * @return The resulting transform
+   */
+  public static Transform2d toTransform2d(Transform3d transform) {
+    return new Transform2d(
+        transform.getTranslation().toTranslation2d(), transform.getRotation().toRotation2d());
+  }
+
+  /**
    * Converts a Transform3d to a Pose3d to be used as a position or as the start of a kinematic
    * chain
    *

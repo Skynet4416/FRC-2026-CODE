@@ -40,6 +40,10 @@ public class FlywheelSubsystem extends SubsystemBase {
     return inputs.appliedVolts;
   }
 
+  public boolean atSetpoint() {
+    return inputs.atSetpoint;
+  }
+
   public double getSupplyCurrentAmps() {
     return inputs.supplyCurrentAmps;
   }

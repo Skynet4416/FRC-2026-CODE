@@ -91,6 +91,9 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
     inputs.tempCelsius = talonFX.getDeviceTemp().getValueAsDouble();
     inputs.connected = true;
     inputs.setpointRPM = targetRPM;
+    inputs.atSetpoint =
+        Math.abs(inputs.velocityRPM - targetRPM)
+            <= Constants.Subsystems.Shooter.Flywheel.RPM_TOLERANCE;
   }
 
   @Override
