@@ -58,6 +58,7 @@ public class LaunchCalculator {
       double hoodAngle,
       double hoodVelocity,
       double flywheelSpeed,
+      double flywheelIdleSpeed,
       double distance,
       double distanceNoLookahead,
       double timeOfFlight,
@@ -112,6 +113,9 @@ public class LaunchCalculator {
 
   public static record LaunchPreset(
       LoggedTunableNumber hoodAngleDeg, LoggedTunableNumber flywheelSpeed) {}
+
+  private static final LoggedTunableNumber maxIdleSpeed =
+      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 200);
 
   // Passing targets
   private static final double hubPassLine =
@@ -257,9 +261,11 @@ public class LaunchCalculator {
     double launcherToTargetDistance = target.getDistance(launcherPosition.getTranslation());
 
     // Calculate field relative launcher velocity
-    // This isn't actually the launcherVelocity given it won't account for angular velocity of robot
-    double launcherVelocityX = Drive.getInstance().getFieldVelocity().vxMetersPerSecond;
-    double launcherVelocityY = Drive.getInstance().getFieldVelocity().vyMetersPerSecond;
+    var robotVelocity = Drive.getInstance().getFieldSetpointVelocity();
+    var robotAngle = Drive.getInstance().getRotation();
+    ChassisSpeeds launcherVelocity =
+        GeomUtil.transformVelocity(
+            robotVelocity, robotToLauncher.getTranslation().toTranslation2d(), robotAngle);
 
     // Account for imparted velocity by robot (launcher) to offset
     double timeOfFlight =
@@ -274,8 +280,8 @@ public class LaunchCalculator {
           passing
               ? passingTimeOfFlightMap.get(lookaheadLauncherToTargetDistance)
               : timeOfFlightMap.get(lookaheadLauncherToTargetDistance);
-      double offsetX = launcherVelocityX * timeOfFlight;
-      double offsetY = launcherVelocityY * timeOfFlight;
+      double offsetX = launcherVelocity.vxMetersPerSecond * timeOfFlight;
+      double offsetY = launcherVelocity.vyMetersPerSecond * timeOfFlight;
       lookaheadPose =
           new Pose2d(
               launcherPosition.getTranslation().plus(new Translation2d(offsetX, offsetY)),
@@ -310,6 +316,11 @@ public class LaunchCalculator {
     boolean behindFarHub = farHubBound.contains(flippedPose.getTranslation());
     boolean outsideOfBadBoxes = !(insideTowerBadBox || behindNearHub || behindFarHub);
 
+    double flywheelVelocity =
+        passing
+            ? passingFlywheelSpeedMap.get(lookaheadLauncherToTargetDistance)
+            : flywheelSpeedMap.get(lookaheadLauncherToTargetDistance);
+
     // Constructor parameters
     latestParameters =
         new LaunchingParameters(
@@ -321,9 +332,8 @@ public class LaunchCalculator {
             driveVelocity,
             hoodAngle + Units.degreesToRadians(hoodAngleOffsetDeg),
             hoodVelocity,
-            passing
-                ? passingFlywheelSpeedMap.get(lookaheadLauncherToTargetDistance)
-                : flywheelSpeedMap.get(lookaheadLauncherToTargetDistance),
+            flywheelVelocity,
+            MathUtil.clamp(flywheelVelocity, 0, maxIdleSpeed.get()),
             lookaheadLauncherToTargetDistance,
             launcherToTargetDistance,
             timeOfFlight,
@@ -331,7 +341,7 @@ public class LaunchCalculator {
 
     // Log calculated values
     Logger.recordOutput("LaunchCalculator/TargetPose", new Pose2d(target, Rotation2d.kZero));
-    Logger.recordOutput("LaunchCalculator/LookaheadPose", lookaheadPose);
+    Logger.recordOutput("LaunchCalculator/LookaheadPose", lookaheadRobotPose);
     Logger.recordOutput(
         "LaunchCalculator/LauncherToTargetDistance", lookaheadLauncherToTargetDistance);
 

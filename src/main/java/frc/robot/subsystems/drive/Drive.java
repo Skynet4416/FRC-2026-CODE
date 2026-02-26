@@ -104,6 +104,8 @@ public class Drive extends SubsystemBase {
   private SwerveDrivePoseEstimator poseEstimator =
       new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, Pose2d.kZero);
 
+  private ChassisSpeeds robotSetpointVelocity = new ChassisSpeeds();
+
   public Drive(
       GyroIO gyroIO,
       ModuleIO flModuleIO,
@@ -230,6 +232,9 @@ public class Drive extends SubsystemBase {
     Logger.recordOutput("SwerveStates/Setpoints", setpointStates);
     Logger.recordOutput("SwerveChassisSpeeds/Setpoints", discreteSpeeds);
 
+    // Publish setpoints
+    this.setRobotSetpointVelocity(discreteSpeeds);
+
     // Send setpoints to modules
     for (int i = 0; i < 4; i++) {
       modules[i].runSetpoint(setpointStates[i]);
@@ -244,6 +249,7 @@ public class Drive extends SubsystemBase {
     for (int i = 0; i < 4; i++) {
       modules[i].runCharacterization(output);
     }
+    this.setRobotSetpointVelocity(new ChassisSpeeds());
   }
 
   /** Stops the drive. */
@@ -304,6 +310,18 @@ public class Drive extends SubsystemBase {
   /** Returns the field relative velocity of the robot. */
   public ChassisSpeeds getFieldVelocity() {
     return ChassisSpeeds.fromRobotRelativeSpeeds(getChassisSpeeds(), getRotation());
+  }
+
+  public void setRobotSetpointVelocity(ChassisSpeeds velocity) {
+    this.robotSetpointVelocity = velocity;
+  }
+
+  public ChassisSpeeds getRobotSetpointVelocity() {
+    return robotSetpointVelocity;
+  }
+
+  public ChassisSpeeds getFieldSetpointVelocity() {
+    return ChassisSpeeds.fromRobotRelativeSpeeds(robotSetpointVelocity, getRotation());
   }
 
   /** Returns the position of each module in radians. */
