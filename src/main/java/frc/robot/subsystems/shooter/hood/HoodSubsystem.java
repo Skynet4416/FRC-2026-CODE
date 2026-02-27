@@ -136,7 +136,7 @@ public class HoodSubsystem extends SubsystemBase {
   }
 
   private void zero() {
-    io.setAngle(Constants.Subsystems.Shooter.Hood.MIN_ANGLE);
+    io.setAngle(Constants.Subsystems.Shooter.Hood.MIN_ANGLE_DEG);
     hoodZeroed = true;
   }
 }
