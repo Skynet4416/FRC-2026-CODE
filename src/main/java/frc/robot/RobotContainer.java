@@ -224,7 +224,7 @@ public class RobotContainer {
 
     // Align and auto-launch
     driveController
-        .leftBumper()
+        .leftTrigger()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
