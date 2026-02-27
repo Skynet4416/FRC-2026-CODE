@@ -19,5 +19,7 @@ public interface FlywheelSubsystemIO {
 
   default void setTargetRPM(double rpm) {}
 
+  default void setTargetRADS(double radiansPerSecond) {}
+
   default void setVoltage(double volts) {}
 }

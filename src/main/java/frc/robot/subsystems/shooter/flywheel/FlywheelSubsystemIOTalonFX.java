@@ -8,6 +8,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import frc.robot.Constants;
@@ -95,12 +96,13 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     targetRPM = rpm;
-    double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
-    if (rpm < targetRPM) {
-      leaderMotor.set(1);
-    } else {
-      leaderMotor.setControl(velocityRequest.withVelocity(motorRPS));
-    }
+    double targetMotorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
+    leaderMotor.setControl(velocityRequest.withVelocity(targetMotorRPS));
+  }
+
+  @Override
+  public void setTargetRADS(double radiansPerSecond) {
+    setTargetRPM(Units.radiansPerSecondToRotationsPerMinute(radiansPerSecond));
   }
 
   @Override

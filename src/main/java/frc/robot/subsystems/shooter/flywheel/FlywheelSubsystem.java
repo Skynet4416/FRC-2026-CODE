@@ -6,7 +6,9 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.util.LoggedTunableNumber;
+import java.util.function.DoubleSupplier;
 import org.littletonrobotics.junction.Logger;
 
 public class FlywheelSubsystem extends SubsystemBase {
@@ -30,6 +32,10 @@ public class FlywheelSubsystem extends SubsystemBase {
 
   public void setTargetRPM(double rpm) {
     io.setTargetRPM(rpm);
+  }
+
+  public void setTargetRADS(double rads) {
+    io.setTargetRADS(rads);
   }
 
   public double getVelocityRPM() {
@@ -62,6 +68,20 @@ public class FlywheelSubsystem extends SubsystemBase {
 
   public Command runFlywheelCommand() {
     return Commands.runEnd(() -> setTargetRPM(targetRpm.get()), () -> stop(), this);
+  }
+
+  public Command runFlywheelAtFixedSpeedCommand(double speedRPM) {
+    return Commands.runEnd(() -> setTargetRPM(speedRPM), () -> stop(), this);
+  }
+
+  public Command runAtSpeedCommand(DoubleSupplier speedRPM) {
+    return Commands.runEnd(() -> setTargetRPM(speedRPM.getAsDouble()), () -> stop(), this);
+  }
+
+  public Command runTrackTargetCommand() {
+    return runEnd(
+        () -> setTargetRADS(LaunchCalculator.getInstance().getParameters().flywheelSpeed()),
+        this::stop);
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {

@@ -8,6 +8,7 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.sim.TalonFXSimState;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import frc.robot.Constants;
@@ -101,6 +102,11 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
     targetRPM = rpm;
     double motorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
     talonFX.setControl(velocityRequest.withVelocity(motorRPS));
+  }
+
+  @Override
+  public void setTargetRADS(double radiansPerSecond) {
+    setTargetRPM(Units.radiansPerSecondToRotationsPerMinute(radiansPerSecond));
   }
 
   @Override

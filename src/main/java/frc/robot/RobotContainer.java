@@ -19,6 +19,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
@@ -28,6 +29,7 @@ import frc.robot.subsystems.drive.GyroIOPigeon2;
 import frc.robot.subsystems.drive.ModuleIO;
 import frc.robot.subsystems.drive.ModuleIOSim;
 import frc.robot.subsystems.drive.ModuleIOTalonFX;
+import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIO;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIOSim;
@@ -36,6 +38,7 @@ import frc.robot.subsystems.shooter.hood.HoodSubsystem;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIO;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOSim;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
+import frc.robot.util.ContinuousConditionalCommand;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -57,6 +60,7 @@ public class RobotContainer {
   private final Alert mechanismControllerDisconnected =
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
+  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> false);
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
 
@@ -200,6 +204,11 @@ public class RobotContainer {
                 () -> -driveController.getLeftX(),
                 () -> Rotation2d.kZero));
 
+    driveController
+        .leftTrigger()
+        .whileTrue(
+            DriveCommands.joystickDriveWhileLaunching(
+                drive, () -> -driveController.getLeftY(), () -> -driveController.getLeftX()));
     // Switch to X pattern when X button is pressed
     driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
@@ -214,8 +223,14 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
-    hoodSubsystem.setDefaultCommand(hoodSubsystem.runTargetAngleCommand());
+    flywheelSubsystem.setDefaultCommand(
+        new ContinuousConditionalCommand(
+            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+            flywheelSubsystem.runAtSpeedCommand(
+                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+            disableFlywheelAutoSpinup));
+
+    hoodSubsystem.setDefaultCommand(hoodSubsystem.runTrackTargetCommand());
   }
 
   /** Update dashboard outputs. */

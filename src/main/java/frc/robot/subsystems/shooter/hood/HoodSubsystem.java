@@ -5,6 +5,7 @@ import static edu.wpi.first.units.Units.Volts;
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
@@ -13,6 +14,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
+import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.util.LoggedTunableNumber;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.mechanism.LoggedMechanism2d;
@@ -111,6 +113,15 @@ public class HoodSubsystem extends SubsystemBase {
 
   public Command runTargetAngleCommand() {
     return run(() -> setTargetAngle(targetAngle.get()));
+  }
+
+  public Command runTrackTargetCommand() {
+    return run(
+        () -> {
+          var params = LaunchCalculator.getInstance().getParameters();
+          io.setTargetAngleWithVelocity(
+              Units.radiansToDegrees(params.hoodAngle()), params.hoodVelocity());
+        });
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {

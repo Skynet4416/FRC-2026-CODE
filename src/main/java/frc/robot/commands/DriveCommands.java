@@ -118,6 +118,39 @@ public class DriveCommands {
         drive);
   }
 
+  /**
+   * robot relative drive command using two joysticks (controlling linear and angular velocities).
+   * (Not regular one - dont use for comp)
+   */
+  public static Command robotRelativeJoystickDrive(
+      Drive drive,
+      DoubleSupplier xSupplier,
+      DoubleSupplier ySupplier,
+      DoubleSupplier omegaSupplier) {
+    return Commands.run(
+        () -> {
+          // Get linear velocity
+          Translation2d linearVelocity =
+              getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble());
+
+          // Apply rotation deadband
+          double omega = MathUtil.applyDeadband(omegaSupplier.getAsDouble(), DEADBAND);
+
+          // Square rotation value for more precise control
+          omega = Math.copySign(omega * omega, omega);
+
+          // Convert to robot relative speeds & send command
+          ChassisSpeeds speeds =
+              new ChassisSpeeds(
+                  linearVelocity.getX() * drive.getMaxLinearSpeedMetersPerSec(),
+                  linearVelocity.getY() * drive.getMaxLinearSpeedMetersPerSec(),
+                  omega * drive.getMaxAngularSpeedRadPerSec());
+
+          drive.runVelocity(speeds);
+        },
+        drive);
+  }
+
   public static boolean atLaunchGoal() {
     return DriverStation.isEnabled()
         && Math.abs(

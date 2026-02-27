@@ -26,6 +26,8 @@ public interface HoodSubsystemIO {
   /** Run to the specified angle in degrees. */
   default void setTargetAngle(double degrees) {}
 
+  default void setTargetAngleWithVelocity(double degrees, double velocityRPM) {}
+
   /** Stop the motor. */
   default void stop() {}
 

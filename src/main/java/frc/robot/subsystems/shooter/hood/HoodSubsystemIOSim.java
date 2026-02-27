@@ -115,6 +115,17 @@ public class HoodSubsystemIOSim implements HoodSubsystemIO {
   }
 
   @Override
+  public void setTargetAngleWithVelocity(double degrees, double velocityRPM) {
+    targetAngle = degrees;
+    talonFX.setControl(
+        positionRequest
+            .withPosition(
+                Rotations.convertFrom(
+                    degrees * Constants.Subsystems.Shooter.Hood.GEAR_RATIO, Degrees))
+            .withVelocity(velocityRPM));
+  }
+
+  @Override
   public void setVoltage(double volts) {
     talonFX.setControl(voltageRequest.withOutput(volts));
   }

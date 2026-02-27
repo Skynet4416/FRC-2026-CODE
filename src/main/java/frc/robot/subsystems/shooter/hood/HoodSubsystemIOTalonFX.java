@@ -81,6 +81,15 @@ public class HoodSubsystemIOTalonFX implements HoodSubsystemIO {
   }
 
   @Override
+  public void setTargetAngleWithVelocity(double degrees, double velocityRPM) {
+    targetAngle = degrees;
+    motor.setControl(
+        positionRequest
+            .withPosition((degrees / 360.0) * Constants.Subsystems.Shooter.Hood.GEAR_RATIO)
+            .withVelocity(velocityRPM));
+  }
+
+  @Override
   public void setVoltage(double volts) {
     motor.setControl(voltageRequest.withOutput(volts));
   }
