@@ -19,7 +19,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.util.HubShiftUtil;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -209,6 +208,8 @@ public class Robot extends LoggedRobot {
     // Log launching parameters
     var launchCalculator = LaunchCalculator.getInstance();
     Logger.recordOutput("LaunchCalculator/Parameters", launchCalculator.getParameters());
+
+    launchCalculator.clearLaunchingParameters();
   }
 
   /** This function is called once when the robot is disabled. */

@@ -69,8 +69,8 @@ public final class Constants {
         public static final boolean INVERTED = false;
         public static final double ZERO_SPEED = -0.1; // Duty Cycle
         public static final double STALL_CURRENT_LIMIT = 20.0; // Amps
-        public static final double MAX_ANGLE_DEG = 45.0; 
-        public static final double MIN_ANGLE_DEG = 0.0; 
+        public static final double MAX_ANGLE_DEG = 45.0;
+        public static final double MIN_ANGLE_DEG = 0.0;
         public static final double HOMING_VOLTS = -2.0;
         public static final double HOMING_VELOCITY_THRESHOLD_RPM = 5.0;
 
