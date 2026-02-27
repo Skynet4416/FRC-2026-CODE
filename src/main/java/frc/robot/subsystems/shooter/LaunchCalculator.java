@@ -102,13 +102,13 @@ public class LaunchCalculator {
       new LaunchPreset(
           new LoggedTunableNumber(
               "LaunchCalculator/Presets/HoodMin/HoodAngle",
-              Constants.Subsystems.Shooter.Hood.MIN_ANGLE),
+              Constants.Subsystems.Shooter.Hood.MIN_ANGLE_DEG),
           new LoggedTunableNumber("LaunchCalculator/Presets/HoodMin/FlywheelSpeed", 50));
   public static final LaunchPreset hoodMaxPreset =
       new LaunchPreset(
           new LoggedTunableNumber(
               "LaunchCalculator/Presets/HoodMax/HoodAngle",
-              Constants.Subsystems.Shooter.Hood.MAX_ANGLE),
+              Constants.Subsystems.Shooter.Hood.MAX_ANGLE_DEG),
           new LoggedTunableNumber("LaunchCalculator/Presets/HoodMax/FlywheelSpeed", 50));
 
   public static record LaunchPreset(
