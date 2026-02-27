@@ -8,6 +8,7 @@
 package frc.robot;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.Alert;
@@ -39,6 +40,8 @@ import frc.robot.subsystems.shooter.hood.HoodSubsystemIO;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOSim;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
 import frc.robot.util.ContinuousConditionalCommand;
+import frc.robot.util.HubShiftUtil;
+import java.util.function.DoubleSupplier;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -61,6 +64,7 @@ public class RobotContainer {
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
   private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> false);
+  private final Trigger ignoreHubState = new Trigger(() -> false);
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
 
@@ -186,13 +190,14 @@ public class RobotContainer {
    * edu.wpi.first.wpilibj2.command.button.JoystickButton}.
    */
   private void configureButtonBindings() {
+
+    // Drive controls
+    DoubleSupplier driverX = () -> -driveController.getLeftY();
+    DoubleSupplier driverY = () -> -driveController.getLeftX();
+    DoubleSupplier driverOmega = () -> -driveController.getRightX();
+
     // Default command, normal field-relative drive
-    drive.setDefaultCommand(
-        DriveCommands.joystickDrive(
-            drive,
-            () -> -driveController.getLeftY(),
-            () -> -driveController.getLeftX(),
-            () -> -driveController.getRightX()));
+    drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
     // Lock to 0 when A button is held
     driveController
@@ -204,11 +209,30 @@ public class RobotContainer {
                 () -> -driveController.getLeftX(),
                 () -> Rotation2d.kZero));
 
+    Trigger hubActiveOrPassing =
+        new Trigger(
+            () ->
+                HubShiftUtil.getShiftedShiftInfo().active()
+                    || LaunchCalculator.getInstance().getParameters().passing());
+
+    Trigger inLaunchingTolerance =
+        new Trigger(
+            () ->
+                hoodSubsystem.atSetpoint()
+                    && flywheelSubsystem.atSetpoint()
+                    && DriveCommands.atLaunchGoal());
+
+    // Align and auto-launch
     driveController
-        .leftTrigger()
-        .whileTrue(
-            DriveCommands.joystickDriveWhileLaunching(
-                drive, () -> -driveController.getLeftY(), () -> -driveController.getLeftX()));
+        .leftBumper()
+        .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
+        .whileTrue(flywheelSubsystem.runTrackTargetCommand())
+        .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
+        .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+        .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+
+    // TODO: run indexer when shooting
+
     // Switch to X pattern when X button is pressed
     driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
