@@ -12,6 +12,7 @@ import static frc.robot.subsystems.vision.VisionConstants.*;
 import static frc.robot.subsystems.vision.VisionConstants.robotToCamera1;
 
 import com.pathplanner.lib.auto.AutoBuilder;
+import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.wpilibj.Alert;
@@ -23,11 +24,27 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
+import frc.robot.subsystems.drive.GyroIOPigeon2;
+import frc.robot.subsystems.drive.ModuleIOSim;
+import frc.robot.subsystems.drive.ModuleIOTalonFX;
+import frc.robot.subsystems.shooter.LaunchCalculator;
+import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
+import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIO;
+import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIOSim;
+import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIOTalonFX;
+import frc.robot.subsystems.shooter.hood.HoodSubsystem;
+import frc.robot.subsystems.shooter.hood.HoodSubsystemIO;
+import frc.robot.subsystems.shooter.hood.HoodSubsystemIOSim;
+import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
+import frc.robot.util.ContinuousConditionalCommand;
+import frc.robot.util.HubShiftUtil;
+import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.littletonrobotics.junction.Logger;
@@ -43,7 +60,8 @@ public class RobotContainer {
   // Subsystems
   private final Vision vision;
   private final Drive drive;
-
+  private final FlywheelSubsystem flywheelSubsystem;
+  private final HoodSubsystem hoodSubsystem;
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
   private SwerveDriveSimulation driveSimulation = null;
@@ -54,6 +72,8 @@ public class RobotContainer {
   private final Alert mechanismControllerDisconnected =
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
+  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> false);
+  private final Trigger ignoreHubState = new Trigger(() -> false);
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
 
@@ -77,6 +97,9 @@ public class RobotContainer {
                 drive,
                 new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
                 new VisionIOLimelight(VisionConstants.camera1Name, drive::getRotation));
+
+        flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
+        hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
         break;
 
       case SIM:
@@ -101,6 +124,9 @@ public class RobotContainer {
                     camera0Name, robotToCamera0, driveSimulation::getSimulatedDriveTrainPose),
                 new VisionIOPhotonVisionSim(
                     camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
+
+        flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOSim());
+        hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
         break;
 
       default:
@@ -114,6 +140,9 @@ public class RobotContainer {
                 new ModuleIO() {},
                 (robotPose) -> {});
         vision = new Vision(drive, new VisionIO() {}, new VisionIO() {});
+
+        flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIO() {});
+        hoodSubsystem = new HoodSubsystem(new HoodSubsystemIO() {});
         break;
     }
 
@@ -135,6 +164,30 @@ public class RobotContainer {
         "Drive SysId (Dynamic Forward)", drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
     autoChooser.addOption(
         "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+    autoChooser.addOption(
+        "Hood SysId (Quasistatic Forward)",
+        hoodSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+    autoChooser.addOption(
+        "Hood SysId (Quasistatic Reverse)",
+        hoodSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
+    autoChooser.addOption(
+        "Hood SysId (Dynamic Forward)",
+        hoodSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
+    autoChooser.addOption(
+        "Hood SysId (Dynamic Reverse)",
+        hoodSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
+    autoChooser.addOption(
+        "Flywheel SysId (Quasistatic Forward)",
+        flywheelSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
+    autoChooser.addOption(
+        "Flywheel SysId (Quasistatic Reverse)",
+        flywheelSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
+    autoChooser.addOption(
+        "Flywheel SysId (Dynamic Forward)",
+        flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
+    autoChooser.addOption(
+        "Flywheel SysId (Dynamic Reverse)",
+        flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
     // Configure the button bindings
     configureButtonBindings();
@@ -147,15 +200,16 @@ public class RobotContainer {
    * edu.wpi.first.wpilibj2.command.button.JoystickButton}.
    */
   private void configureButtonBindings() {
-    // Default command, normal field-relative drive
-    drive.setDefaultCommand(
-        DriveCommands.joystickDrive(
-            drive,
-            () -> -driveController.getLeftY(),
-            () -> -driveController.getLeftX(),
-            () -> -driveController.getRightX()));
 
-    // Lock to 0° when A button is held
+    // Drive controls
+    DoubleSupplier driverX = () -> -driveController.getLeftY();
+    DoubleSupplier driverY = () -> -driveController.getLeftX();
+    DoubleSupplier driverOmega = () -> -driveController.getRightX();
+
+    // Default command, normal field-relative drive
+    drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
+
+    // Lock to 0 when A button is held
     driveController
         .a()
         .whileTrue(
@@ -164,6 +218,30 @@ public class RobotContainer {
                 () -> -driveController.getLeftY(),
                 () -> -driveController.getLeftX(),
                 () -> Rotation2d.kZero));
+
+    Trigger hubActiveOrPassing =
+        new Trigger(
+            () ->
+                HubShiftUtil.getShiftedShiftInfo().active()
+                    || LaunchCalculator.getInstance().getParameters().passing());
+
+    Trigger inLaunchingTolerance =
+        new Trigger(
+            () ->
+                hoodSubsystem.atSetpoint()
+                    && flywheelSubsystem.atSetpoint()
+                    && DriveCommands.atLaunchGoal());
+
+    // Align and auto-launch
+    driveController
+        .leftTrigger()
+        .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
+        .whileTrue(flywheelSubsystem.runTrackTargetCommand())
+        .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
+        .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+        .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+
+    // TODO: run indexer when shooting
 
     // Switch to X pattern when X button is pressed
     driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
@@ -182,6 +260,15 @@ public class RobotContainer {
                             new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
                     drive)
                 .ignoringDisable(true));
+
+    flywheelSubsystem.setDefaultCommand(
+        new ContinuousConditionalCommand(
+            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+            flywheelSubsystem.runAtSpeedRADSCommand(
+                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+            disableFlywheelAutoSpinup));
+
+    hoodSubsystem.setDefaultCommand(hoodSubsystem.runTrackTargetCommand());
   }
 
   /** Update dashboard outputs. */

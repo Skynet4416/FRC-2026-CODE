@@ -18,7 +18,84 @@ public final class Constants {
   public static final Mode simMode = Mode.SIM;
   public static final Mode currentMode = RobotBase.isReal() ? Mode.REAL : simMode;
   public static final RobotType robot = RobotType.ALPHABOT;
-  public static final boolean tuningMode = false;
+  public static final boolean tuningMode = true;
+  public static final double loopPeriodSecs = 0.02;
+
+  public static final class Subsystems {
+
+    public static final class Shooter {
+      public static final class Flywheel {
+        public static final double GEAR_RATIO = 72 / 56;
+        public static final boolean MOTOR_COAST = true;
+        public static final boolean SHOOTER_INVERTED = false;
+
+        public static final double DEFAULT_TARGET_RPM = 1000.0;
+        public static final double RPM_TOLERANCE = 20.0;
+
+        public static class Id {
+          public static final int LEADER_ID = 12;
+          public static final int FOLLOWER_ID = 17;
+        }
+
+        public static final class ClosedLoop {
+
+          public static final double KP = 0.1;
+          public static final double KI = 0.0;
+          public static final double KD = 0.0;
+
+          public static final double KS = 0.0;
+          public static final double KV = 0.12;
+          public static final double KA = 0.0;
+        }
+
+        public static final class CurrentLimits {
+
+          // Supply Limit: Protects the Battery (Prevents Brownouts)
+          // Highly recommended for Shooters.
+          public static final boolean SUPPLY_ENABLED = true;
+
+          // TODO tune this value
+          public static final double SUPPLY_LIMIT_AMPS = 40.0; // Holding limit
+
+          // Stator Limit: Protects the Motor (Prevents Burnout)
+          // Keep this HIGH for Shooters to allow fast spin-up.
+          public static final boolean STATOR_ENABLED = false;
+          public static final double STATOR_LIMIT_AMPS = 0.0;
+        }
+      }
+
+      public static final class Hood {
+        public static final double GEAR_RATIO = 875.0 / 38.0;
+        public static final boolean INVERTED = false;
+        public static final double ZERO_SPEED = -0.1; // Duty Cycle
+        public static final double STALL_CURRENT_LIMIT = 20.0; // Amps
+        public static final double MAX_ANGLE_DEG = 45.0;
+        public static final double MIN_ANGLE_DEG = 0.0;
+        public static final double HOMING_VOLTS = -2.0;
+        public static final double HOMING_VELOCITY_THRESHOLD_RPM = 5.0;
+
+        public static class Id {
+          public static final int MOTOR_ID = 20; // TODO: Set ID
+        }
+
+        public static final class ClosedLoop {
+          public static final double KP = 2;
+          public static final double KI = 0.0;
+          public static final double KD = 0.0;
+          public static final double KS = 0.0;
+          public static final double KV = 0.0;
+          public static final double KA = 0.0;
+        }
+
+        public static final class CurrentLimits {
+          public static final boolean SUPPLY_ENABLED = true;
+          public static final double SUPPLY_LIMIT_AMPS = 40.0;
+          public static final boolean STATOR_ENABLED = false;
+          public static final double STATOR_LIMIT_AMPS = 0.0;
+        }
+      }
+    }
+  }
 
   // Disables hardware stuff
   public static boolean disableHAL = false;

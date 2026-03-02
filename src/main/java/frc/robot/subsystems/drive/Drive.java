@@ -54,6 +54,12 @@ import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 
 public class Drive extends SubsystemBase implements Vision.VisionConsumer {
+  private static Drive instance;
+
+  public static Drive getInstance() {
+    return instance;
+  }
+
   // TunerConstants doesn't include these constants, so they are declared locally
   static final double ODOMETRY_FREQUENCY = TunerConstants.kCANBus.isNetworkFD() ? 250.0 : 100.0;
   public static final double DRIVE_BASE_RADIUS =
@@ -127,6 +133,8 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
       new SwerveDrivePoseEstimator(kinematics, rawGyroRotation, lastModulePositions, new Pose2d());
   private final Consumer<Pose2d> resetSimulationPoseCallBack;
 
+  private ChassisSpeeds robotSetpointVelocity = new ChassisSpeeds();
+
   public Drive(
       GyroIO gyroIO,
       ModuleIO flModuleIO,
@@ -134,6 +142,7 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
       ModuleIO blModuleIO,
       ModuleIO brModuleIO,
       Consumer<Pose2d> resetSimulationPoseCallBack) {
+    instance = this;
     this.gyroIO = gyroIO;
     this.resetSimulationPoseCallBack = resetSimulationPoseCallBack;
     modules[0] = new Module(flModuleIO, 0, TunerConstants.FrontLeft);
@@ -254,6 +263,9 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
     Logger.recordOutput("SwerveStates/Setpoints", setpointStates);
     Logger.recordOutput("SwerveChassisSpeeds/Setpoints", discreteSpeeds);
 
+    // Publish setpoints
+    this.setRobotSetpointVelocity(discreteSpeeds);
+
     // Send setpoints to modules
     for (int i = 0; i < 4; i++) {
       modules[i].runSetpoint(setpointStates[i]);
@@ -268,6 +280,7 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
     for (int i = 0; i < 4; i++) {
       modules[i].runCharacterization(output);
     }
+    this.setRobotSetpointVelocity(new ChassisSpeeds());
   }
 
   /** Stops the drive. */
@@ -321,8 +334,25 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
 
   /** Returns the measured chassis speeds of the robot. */
   @AutoLogOutput(key = "SwerveChassisSpeeds/Measured")
-  private ChassisSpeeds getChassisSpeeds() {
+  public ChassisSpeeds getChassisSpeeds() {
     return kinematics.toChassisSpeeds(getModuleStates());
+  }
+
+  /** Returns the field relative velocity of the robot. */
+  public ChassisSpeeds getFieldVelocity() {
+    return ChassisSpeeds.fromRobotRelativeSpeeds(getChassisSpeeds(), getRotation());
+  }
+
+  public void setRobotSetpointVelocity(ChassisSpeeds velocity) {
+    this.robotSetpointVelocity = velocity;
+  }
+
+  public ChassisSpeeds getRobotSetpointVelocity() {
+    return robotSetpointVelocity;
+  }
+
+  public ChassisSpeeds getFieldSetpointVelocity() {
+    return ChassisSpeeds.fromRobotRelativeSpeeds(robotSetpointVelocity, getRotation());
   }
 
   /** Returns the position of each module in radians. */

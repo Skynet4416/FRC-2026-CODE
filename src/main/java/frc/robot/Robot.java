@@ -17,6 +17,8 @@ import edu.wpi.first.wpilibj.simulation.DriverStationSim;
 import edu.wpi.first.wpilibj.simulation.RoboRioSim;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.CommandScheduler;
+import frc.robot.subsystems.shooter.LaunchCalculator;
+import frc.robot.util.HubShiftUtil;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiConsumer;
@@ -198,6 +200,16 @@ public class Robot extends LoggedRobot {
       lowBatteryAlert.set(true);
       DriverStation.reportWarning("Battery is low! Replace it.", false);
     }
+
+    // Log hub state
+    Logger.recordOutput("HubShift/Official", HubShiftUtil.getOfficialShiftInfo());
+    Logger.recordOutput("HubShift/Shifted", HubShiftUtil.getShiftedShiftInfo());
+
+    // Log launching parameters
+    var launchCalculator = LaunchCalculator.getInstance();
+    Logger.recordOutput("LaunchCalculator/Parameters", launchCalculator.getParameters());
+
+    launchCalculator.clearLaunchingParameters();
   }
 
   /** This function is called once when the robot is disabled. */
