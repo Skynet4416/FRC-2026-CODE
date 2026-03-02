@@ -9,12 +9,13 @@ package frc.robot;
 
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.subsystems.vision.VisionConstants.*;
-import static frc.robot.subsystems.vision.VisionConstants.robotToCamera1;
 
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -29,9 +30,6 @@ import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
-import frc.robot.subsystems.drive.GyroIOPigeon2;
-import frc.robot.subsystems.drive.ModuleIOSim;
-import frc.robot.subsystems.drive.ModuleIOTalonFX;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIO;
@@ -47,6 +45,7 @@ import frc.robot.util.HubShiftUtil;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
+import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnFly;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -127,6 +126,7 @@ public class RobotContainer {
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOSim());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
+        hoodSubsystem.zero();
         break;
 
       default:
@@ -239,7 +239,13 @@ public class RobotContainer {
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
         .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
-        .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+        .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
+        .whileTrue(
+            Commands.repeatingSequence(
+                Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
+
+    // Test specific button for simulated launch
+    driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
 
     // TODO: run indexer when shooting
 
@@ -289,6 +295,68 @@ public class RobotContainer {
    */
   public Command getAutonomousCommand() {
     return autoChooser.get();
+  }
+
+  private void launchSimulatedProjectile() {
+    if (Constants.currentMode != Constants.Mode.SIM || driveSimulation == null) {
+      return;
+    }
+
+    var params = LaunchCalculator.getInstance().getParameters();
+    if (params == null || !params.isValid()) {
+      return;
+    }
+
+    Pose2d robotPose = driveSimulation.getSimulatedDriveTrainPose();
+    double rpm = Units.radiansPerSecondToRotationsPerMinute(params.flywheelSpeed());
+
+    // Field relative chassis speeds
+    var chassisSpeeds = drive.getChassisSpeeds();
+    var fieldRelativeSpeeds =
+        edu.wpi.first.math.kinematics.ChassisSpeeds.fromRobotRelativeSpeeds(
+            chassisSpeeds, robotPose.getRotation());
+
+    RebuiltFuelOnFly fuelOnFly =
+        new RebuiltFuelOnFly(
+            robotPose.getTranslation(),
+            new edu.wpi.first.math.geometry.Translation2d(
+                frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getX(),
+                frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getY()),
+            fieldRelativeSpeeds,
+            robotPose.getRotation(), // Assuming launcher faces same direction as robot front
+            Meters.of(frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getZ()),
+            MetersPerSecond.of(rpm / 6000.0 * 37.0),
+            Radians.of(params.hoodAngle()));
+
+    // Setup visualizer and callbacks
+    Translation2d target2d =
+        params.passing()
+            ? LaunchCalculator.getInstance().getPassingTarget()
+            : frc.robot.util.geometry.AllianceFlipUtil.apply(
+                FieldConstants.Hub.topCenterPoint.toTranslation2d());
+
+    fuelOnFly
+        .withTargetPosition(
+            () ->
+                new edu.wpi.first.math.geometry.Translation3d(
+                    target2d.getX(),
+                    target2d.getY(),
+                    params.passing()
+                        ? 0.0
+                        : FieldConstants.Hub.topCenterPoint.getZ())) // Based on FieldConstants
+        .withTargetTolerance(new edu.wpi.first.math.geometry.Translation3d(0.5, 1.2, 0.3))
+        .withProjectileTrajectoryDisplayCallBack(
+            (pose3ds) ->
+                Logger.recordOutput(
+                    "Flywheel/FuelProjectileSuccessfulShot",
+                    pose3ds.toArray(new edu.wpi.first.math.geometry.Pose3d[0])),
+            (pose3ds) ->
+                Logger.recordOutput(
+                    "Flywheel/FuelProjectileUnsuccessfulShot",
+                    pose3ds.toArray(new edu.wpi.first.math.geometry.Pose3d[0])))
+        .enableBecomesGamePieceOnFieldAfterTouchGround();
+
+    SimulatedArena.getInstance().addGamePieceProjectile(fuelOnFly);
   }
 
   public void resetSimulation() {

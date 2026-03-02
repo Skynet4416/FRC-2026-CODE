@@ -3,7 +3,6 @@ package frc.robot.subsystems.shooter.flywheel;
 import static edu.wpi.first.units.Units.Volts;
 
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.subsystems.shooter.LaunchCalculator;
@@ -67,21 +66,19 @@ public class FlywheelSubsystem extends SubsystemBase {
   }
 
   public Command runFlywheelCommand() {
-    return Commands.runEnd(() -> setTargetRPM(targetRpm.get()), () -> stop(), this);
+    return run(() -> setTargetRPM(targetRpm.get()));
   }
 
   public Command runFlywheelAtFixedSpeedCommand(double speedRPM) {
-    return Commands.runEnd(() -> setTargetRPM(speedRPM), () -> stop(), this);
+    return run(() -> setTargetRPM(speedRPM));
   }
 
   public Command runAtSpeedRADSCommand(DoubleSupplier speedRADS) {
-    return Commands.runEnd(() -> setTargetRADS(speedRADS.getAsDouble()), () -> stop(), this);
+    return run(() -> setTargetRADS(speedRADS.getAsDouble()));
   }
 
   public Command runTrackTargetCommand() {
-    return runEnd(
-        () -> setTargetRADS(LaunchCalculator.getInstance().getParameters().flywheelSpeed()),
-        this::stop);
+    return run(() -> setTargetRADS(LaunchCalculator.getInstance().getParameters().flywheelSpeed()));
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
