@@ -2,7 +2,7 @@ package frc.robot.subsystems.shooter.hood;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.DutyCycleOut;
-import com.ctre.phoenix6.controls.PositionTorqueCurrentFOC;
+import com.ctre.phoenix6.controls.PositionVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -14,7 +14,7 @@ import frc.robot.Constants;
 public class HoodSubsystemIOTalonFX implements HoodSubsystemIO {
 
   private final TalonFX motor;
-  private final PositionTorqueCurrentFOC positionRequest = new PositionTorqueCurrentFOC(0);
+  private final PositionVoltage positionRequest = new PositionVoltage(0).withEnableFOC(true);
   private final VoltageOut voltageRequest = new VoltageOut(0);
   private final DutyCycleOut dutyCycleRequest = new DutyCycleOut(0);
   private final Alert motorDisconnected;

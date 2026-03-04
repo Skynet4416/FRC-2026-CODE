@@ -18,7 +18,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   private final TalonFX leaderMotor;
   private final TalonFX followerMotor;
 
-  private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
+  private final VelocityVoltage velocityRequest = new VelocityVoltage(0).withEnableFOC(true);
   private final VoltageOut voltageRequest = new VoltageOut(0);
 
   private final Alert leaderDisconnected;
