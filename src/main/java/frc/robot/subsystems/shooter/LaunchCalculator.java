@@ -344,6 +344,8 @@ public class LaunchCalculator {
     Logger.recordOutput("LaunchCalculator/LookaheadPose", lookaheadRobotPose);
     Logger.recordOutput(
         "LaunchCalculator/LauncherToTargetDistance", lookaheadLauncherToTargetDistance);
+    Logger.recordOutput(
+        "LaunchCalculator/RobotToLauncher", new edu.wpi.first.math.geometry.Pose3d(Drive.getInstance().getPose()).transformBy(robotToLauncher));
 
     return latestParameters;
   }
@@ -360,7 +362,7 @@ public class LaunchCalculator {
                     -1.0,
                     1.0)));
     Rotation2d driveAngle =
-        fieldToHubAngle.plus(hubAngle).plus(robotToLauncher.getRotation().toRotation2d());
+        fieldToHubAngle.minus(hubAngle).plus(robotToLauncher.getRotation().toRotation2d());
     return driveAngle;
   }
 

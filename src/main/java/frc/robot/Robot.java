@@ -8,6 +8,9 @@
 package frc.robot;
 
 import edu.wpi.first.hal.AllianceStationID;
+import edu.wpi.first.math.MathShared;
+import edu.wpi.first.math.MathSharedStore;
+import edu.wpi.first.math.MathUsageId;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -104,7 +107,6 @@ public class Robot extends LoggedRobot {
     DriverStation.silenceJoystickConnectionWarning(true);
 
     // Silence Rotation2d warnings
-    /*
     var mathShared = MathSharedStore.getMathShared();
     MathSharedStore.setMathShared(
         new MathShared() {
@@ -126,7 +128,6 @@ public class Robot extends LoggedRobot {
             return mathShared.getTimestamp();
           }
         });
-      */
 
     // Log active commands
     Map<String, Integer> commandCounts = new HashMap<>();
