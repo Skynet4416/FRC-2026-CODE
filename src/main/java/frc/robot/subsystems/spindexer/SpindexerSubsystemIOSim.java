@@ -1,85 +1,101 @@
 package frc.robot.subsystems.spindexer;
 
-import com.revrobotics.PersistMode;
-import com.revrobotics.ResetMode;
-import com.revrobotics.sim.SparkMaxSim;
-import com.revrobotics.spark.SparkBase.ControlType;
-import com.revrobotics.spark.SparkLowLevel.MotorType;
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.config.ClosedLoopConfig;
-import com.revrobotics.spark.config.FeedForwardConfig;
-import com.revrobotics.spark.config.SparkBaseConfig;
-import com.revrobotics.spark.config.SparkMaxConfig;
+import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.hardware.TalonFX;
+import com.ctre.phoenix6.signals.InvertedValue;
+import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.sim.TalonFXSimState;
+import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
 import edu.wpi.first.math.util.Units;
+import edu.wpi.first.wpilibj.Alert;
+import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import frc.robot.Constants;
 
 public class SpindexerSubsystemIOSim implements SpindexerSubsystemIO {
-  private final SparkMax motor;
-  DCMotor maxGearbox = DCMotor.getKrakenX44Foc(1);
 
-  private final SparkMaxConfig motorConfig;
-  private final ClosedLoopConfig closedLoopConfig;
-  private final SparkMaxSim motorSim;
-  private final DCMotorSim dcMotorSim;
+  private final TalonFX motor;
+  private final VelocityVoltage velocityVoltageRequest = new VelocityVoltage(0).withEnableFOC(true);
+  private final VoltageOut voltageRequest = new VoltageOut(0);
+
+  private final Debouncer motorConnectedDebouncer =
+      new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+  private final Alert motorDisconnectedAlert =
+      new Alert("Spindexer motor disconnected!", AlertType.kWarning);
   private double currentSetpoint = 0.0;
 
-  public SpindexerSubsystemIOSim() {
-    this.motor = new SparkMax(Constants.Subsystem.Spindexer.Id.Motor.INDEXER, MotorType.kBrushless);
-    this.closedLoopConfig =
-        new ClosedLoopConfig()
-            .p(Constants.Subsystem.Spindexer.ClosedLoop.KP)
-            .i(Constants.Subsystem.Spindexer.ClosedLoop.KI)
-            .d(Constants.Subsystem.Spindexer.ClosedLoop.KD)
-            .apply(
-                new FeedForwardConfig()
-                    .kV(Constants.Subsystem.Spindexer.ClosedLoop.KV)
-                    .kS(Constants.Subsystem.Spindexer.ClosedLoop.KS));
-    this.motorConfig = new SparkMaxConfig();
-    motorConfig
-        .idleMode(
-            Constants.Subsystem.Spindexer.ROLLER_BREAK
-                ? SparkBaseConfig.IdleMode.kBrake
-                : SparkBaseConfig.IdleMode.kCoast)
-        .smartCurrentLimit(40)
-        .voltageCompensation(12)
-        .apply(closedLoopConfig);
+  private final DCMotor maxGearbox = DCMotor.getKrakenX60Foc(1);
+  private final DCMotorSim dcMotorSim;
+  private final TalonFXSimState motorSim;
 
-    this.motor.configure(
-        motorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
+  public SpindexerSubsystemIOSim() {
+    motor = new TalonFX(Constants.Subsystem.Spindexer.Id.Motor.INDEXER);
+
+    TalonFXConfiguration config = new TalonFXConfiguration();
+
+    config.Slot0.kP = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KP;
+    config.Slot0.kI = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KI;
+    config.Slot0.kD = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KD;
+    config.Slot0.kS = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KS;
+    config.Slot0.kV = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KV;
+
+    config.CurrentLimits.SupplyCurrentLimitEnable =
+        Constants.Subsystem.Spindexer.CurrentLimits.SUPPLY_ENABLED;
+    config.CurrentLimits.SupplyCurrentLimit =
+        Constants.Subsystem.Spindexer.CurrentLimits.SUPPLY_LIMIT_AMPS;
+
+    config.CurrentLimits.StatorCurrentLimitEnable =
+        Constants.Subsystem.Spindexer.CurrentLimits.STATOR_ENABLED;
+    config.CurrentLimits.StatorCurrentLimit =
+        Constants.Subsystem.Spindexer.CurrentLimits.STATOR_LIMIT_AMPS;
+
+    config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Default
+    config.MotorOutput.NeutralMode =
+        Constants.Subsystem.Spindexer.ROLLER_BREAK
+            ? NeutralModeValue.Brake
+            : NeutralModeValue.Coast;
+
+    motor.getConfigurator().apply(config);
 
     // Sim related
-    this.motorSim = new SparkMaxSim(motor, maxGearbox);
+    this.motorSim = motor.getSimState();
     this.dcMotorSim =
         new DCMotorSim(LinearSystemId.createDCMotorSystem(maxGearbox, 0.005, 1.0), maxGearbox);
   }
 
   @Override
   public void updateInputs(SpindexerIOInputs inputs) {
-    this.motorSim.iterate(
-        Units.radiansPerSecondToRotationsPerMinute(this.dcMotorSim.getAngularVelocityRadPerSec()),
-        this.motor.getBusVoltage(),
-        0.02);
-    this.dcMotorSim.setInputVoltage(this.motorSim.getAppliedOutput() * this.motor.getBusVoltage());
+    // 0.02 is loop time
+    this.dcMotorSim.setInputVoltage(this.motorSim.getMotorVoltage());
     this.dcMotorSim.update(0.02);
 
-    inputs.velocityRPM = this.motorSim.getVelocity();
-    inputs.appliedVolts = this.motorSim.getAppliedOutput() * this.motor.getBusVoltage();
-    inputs.supplyCurrentAmps = this.motorSim.getMotorCurrent();
-    inputs.connected = true;
+    this.motorSim.setRawRotorPosition(
+        Units.radiansToRotations(this.dcMotorSim.getAngularPositionRad()));
+    this.motorSim.setRotorVelocity(
+        Units.radiansToRotations(this.dcMotorSim.getAngularVelocityRadPerSec()));
+    this.motorSim.setSupplyVoltage(12.0);
+
+    inputs.velocityRPM = motor.getVelocity().getValueAsDouble() * 60.0;
+    inputs.appliedVolts = motor.getMotorVoltage().getValueAsDouble();
+    inputs.supplyCurrentAmps = motor.getStatorCurrent().getValueAsDouble();
+
+    inputs.connected = motorConnectedDebouncer.calculate(motor.isConnected());
+    motorDisconnectedAlert.set(!inputs.connected);
     inputs.setpointRPM = this.currentSetpoint;
   }
 
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
-    this.motor.getClosedLoopController().setSetpoint(rpm, ControlType.kVelocity);
+    motor.setControl(velocityVoltageRequest.withVelocity(rpm / 60.0));
   }
 
   @Override
   public void setVoltage(double volts) {
-    this.motor.setVoltage(volts);
+    motor.setControl(voltageRequest.withOutput(volts));
   }
 }
