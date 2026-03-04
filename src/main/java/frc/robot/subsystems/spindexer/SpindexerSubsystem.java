@@ -36,7 +36,7 @@ public class SpindexerSubsystem extends SubsystemBase {
   }
 
   public Command runIndexerCommand() {
-    return Commands.runEnd(() -> setTargetRPM(targetRpm.get()), () -> stop(), this);
+    return Commands.run(() -> setTargetRPM(targetRpm.get()));
   }
 
   @Override
