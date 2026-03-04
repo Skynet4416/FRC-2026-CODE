@@ -1,7 +1,7 @@
 package frc.robot.subsystems.spindexer;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
+import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -14,7 +14,7 @@ import frc.robot.Constants;
 public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
 
   private final TalonFX motor;
-  private final VelocityTorqueCurrentFOC torqueVelocityRequest = new VelocityTorqueCurrentFOC(0);
+  private final VelocityVoltage velocityVoltageRequest = new VelocityVoltage(0);
   private final VoltageOut voltageRequest = new VoltageOut(0);
 
   private final Debouncer motorConnectedDebouncer =
@@ -67,7 +67,7 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
-    motor.setControl(torqueVelocityRequest.withVelocity(rpm / 60.0));
+    motor.setControl(velocityVoltageRequest.withVelocity(rpm / 60.0));
   }
 
   @Override
