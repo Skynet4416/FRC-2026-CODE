@@ -48,7 +48,7 @@ public final class Constants {
     SIMBOT
   }
 
-  public static class Subsystem {
+  public static class Subsystems {
 
     public static final class Shooter {
       public static final class Flywheel {

@@ -33,13 +33,13 @@ public class SpindexerSubsystemIOSim implements SpindexerSubsystemIO {
   private final TalonFXSimState motorSim;
 
   public SpindexerSubsystemIOSim() {
-    motor = new TalonFX(Constants.Subsystem.Spindexer.Id.Motor.INDEXER);
+    motor = new TalonFX(Constants.Subsystems.Spindexer.Id.Motor.INDEXER);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
 
-    config.Slot0.kP = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KP;
-    config.Slot0.kI = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KI;
-    config.Slot0.kD = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KD;
+    config.Slot0.kP = Constants.Subsystems.Spindexer.TalonFXClosedLoop.KP;
+    config.Slot0.kI = Constants.Subsystems.Spindexer.TalonFXClosedLoop.KI;
+    config.Slot0.kD = Constants.Subsystems.Spindexer.TalonFXClosedLoop.KD;
     config.Slot0.kS = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KS;
     config.Slot0.kV = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KV;
 
