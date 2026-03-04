@@ -21,7 +21,34 @@ public final class Constants {
   public static final boolean tuningMode = true;
   public static final double loopPeriodSecs = 0.02;
 
-  public static final class Subsystems {
+  // Disables hardware stuff
+  public static boolean disableHAL = false;
+
+  public static Mode getMode() {
+    return switch (robot) {
+      case COMPBOT, ALPHABOT -> RobotBase.isReal() ? Mode.REAL : Mode.REPLAY;
+      case SIMBOT -> Mode.SIM;
+    };
+  }
+
+  public static enum Mode {
+    /** Running on a real robot. */
+    REAL,
+
+    /** Running a physics simulator. */
+    SIM,
+
+    /** Replaying from a log file. */
+    REPLAY
+  }
+
+  public enum RobotType {
+    COMPBOT,
+    ALPHABOT,
+    SIMBOT
+  }
+
+  public static class Subsystems {
 
     public static final class Shooter {
       public static final class Flywheel {
@@ -95,32 +122,46 @@ public final class Constants {
         }
       }
     }
-  }
 
-  // Disables hardware stuff
-  public static boolean disableHAL = false;
+    public static class Spindexer {
+      public static final boolean ROLLER_BREAK = true;
 
-  public static Mode getMode() {
-    return switch (robot) {
-      case COMPBOT, ALPHABOT -> RobotBase.isReal() ? Mode.REAL : Mode.REPLAY;
-      case SIMBOT -> Mode.SIM;
-    };
-  }
+      public static class Id {
+        public static class Motor {
+          public static final int INDEXER = 0;
+        }
+      }
 
-  public static enum Mode {
-    /** Running on a real robot. */
-    REAL,
+      public static class ClosedLoop {
+        public static final double KP = 0.003;
+        public static final double KI = 0.0001;
+        public static final double KD = 0.00001;
+        public static final double KS = 0.0;
+        public static final double KV = 0.0;
+      }
 
-    /** Running a physics simulator. */
-    SIM,
+      public static class TalonFXClosedLoop {
+        public static final double KP = 8.0;
+        public static final double KI = 0.0;
+        public static final double KD = 0.0;
+        public static final double KS = 0.0;
+        public static final double KV = 0.0;
+      }
 
-    /** Replaying from a log file. */
-    REPLAY
-  }
+      public static final class CurrentLimits {
 
-  public enum RobotType {
-    COMPBOT,
-    ALPHABOT,
-    SIMBOT
+        // Supply Limit: Protects the Battery (Prevents Brownouts)
+        // Highly recommended for Shooters.
+        public static final boolean SUPPLY_ENABLED = true;
+
+        // TODO tune this value
+        public static final double SUPPLY_LIMIT_AMPS = 40; // Holding limit
+
+        // Stator Limit: Protects the Motor (Prevents Burnout)
+        // Keep this HIGH for Shooters to allow fast spin-up.
+        public static final boolean STATOR_ENABLED = false;
+        public static final double STATOR_LIMIT_AMPS = 0.0;
+      }
+    }
   }
 }

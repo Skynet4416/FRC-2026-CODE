@@ -39,6 +39,10 @@ import frc.robot.subsystems.shooter.hood.HoodSubsystem;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIO;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOSim;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
+import frc.robot.subsystems.spindexer.SpindexerSubsystem;
+import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
+import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
+import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
 import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
@@ -61,6 +65,7 @@ public class RobotContainer {
   private final Drive drive;
   private final FlywheelSubsystem flywheelSubsystem;
   private final HoodSubsystem hoodSubsystem;
+  private final SpindexerSubsystem spindexerSubsystem;
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
   private SwerveDriveSimulation driveSimulation = null;
@@ -99,6 +104,8 @@ public class RobotContainer {
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
+
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOTalonFX());
         break;
 
       case SIM:
@@ -127,6 +134,8 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOSim());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
         hoodSubsystem.zero();
+
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
         break;
 
       default:
@@ -143,6 +152,9 @@ public class RobotContainer {
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIO() {});
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIO() {});
+
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIO() {});
+
         break;
     }
 
@@ -240,6 +252,8 @@ public class RobotContainer {
         .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
         .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
         .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
+        .whileTrue(spindexerSubsystem.runIndexerCommand())
+        .onFalse(Commands.runOnce(() -> spindexerSubsystem.stop(), spindexerSubsystem))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
