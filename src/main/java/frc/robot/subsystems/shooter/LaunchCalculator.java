@@ -345,7 +345,9 @@ public class LaunchCalculator {
     Logger.recordOutput(
         "LaunchCalculator/LauncherToTargetDistance", lookaheadLauncherToTargetDistance);
     Logger.recordOutput(
-        "LaunchCalculator/RobotToLauncher", new edu.wpi.first.math.geometry.Pose3d(Drive.getInstance().getPose()).transformBy(robotToLauncher));
+        "LaunchCalculator/RobotToLauncher",
+        new edu.wpi.first.math.geometry.Pose3d(Drive.getInstance().getPose())
+            .transformBy(robotToLauncher));
 
     return latestParameters;
   }
