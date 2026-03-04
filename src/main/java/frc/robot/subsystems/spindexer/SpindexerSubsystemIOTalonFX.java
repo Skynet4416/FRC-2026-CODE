@@ -14,7 +14,7 @@ import frc.robot.Constants;
 public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
 
   private final TalonFX motor;
-  private final VelocityVoltage velocityVoltageRequest = new VelocityVoltage(0);
+  private final VelocityVoltage velocityVoltageRequest = new VelocityVoltage(0).withEnableFOC(true);
   private final VoltageOut voltageRequest = new VoltageOut(0);
 
   private final Debouncer motorConnectedDebouncer =
