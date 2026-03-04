@@ -27,20 +27,21 @@ public class SpindexerSubsystemIOSparkMaxSim implements SpindexerSubsystemIO {
   private double currentSetpoint = 0.0;
 
   public SpindexerSubsystemIOSparkMaxSim() {
-    this.motor = new SparkMax(Constants.Subsystem.Spindexer.Id.Motor.INDEXER, MotorType.kBrushless);
+    this.motor =
+        new SparkMax(Constants.Subsystems.Spindexer.Id.Motor.INDEXER, MotorType.kBrushless);
     this.closedLoopConfig =
         new ClosedLoopConfig()
-            .p(Constants.Subsystem.Spindexer.ClosedLoop.KP)
-            .i(Constants.Subsystem.Spindexer.ClosedLoop.KI)
-            .d(Constants.Subsystem.Spindexer.ClosedLoop.KD)
+            .p(Constants.Subsystems.Spindexer.ClosedLoop.KP)
+            .i(Constants.Subsystems.Spindexer.ClosedLoop.KI)
+            .d(Constants.Subsystems.Spindexer.ClosedLoop.KD)
             .apply(
                 new FeedForwardConfig()
-                    .kV(Constants.Subsystem.Spindexer.ClosedLoop.KV)
-                    .kS(Constants.Subsystem.Spindexer.ClosedLoop.KS));
+                    .kV(Constants.Subsystems.Spindexer.ClosedLoop.KV)
+                    .kS(Constants.Subsystems.Spindexer.ClosedLoop.KS));
     this.motorConfig = new SparkMaxConfig();
     motorConfig
         .idleMode(
-            Constants.Subsystem.Spindexer.ROLLER_BREAK
+            Constants.Subsystems.Spindexer.ROLLER_BREAK
                 ? SparkBaseConfig.IdleMode.kBrake
                 : SparkBaseConfig.IdleMode.kCoast)
         .smartCurrentLimit(40)

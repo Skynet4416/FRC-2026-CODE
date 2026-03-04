@@ -40,22 +40,22 @@ public class SpindexerSubsystemIOSim implements SpindexerSubsystemIO {
     config.Slot0.kP = Constants.Subsystems.Spindexer.TalonFXClosedLoop.KP;
     config.Slot0.kI = Constants.Subsystems.Spindexer.TalonFXClosedLoop.KI;
     config.Slot0.kD = Constants.Subsystems.Spindexer.TalonFXClosedLoop.KD;
-    config.Slot0.kS = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KS;
-    config.Slot0.kV = Constants.Subsystem.Spindexer.TalonFXClosedLoop.KV;
+    config.Slot0.kS = Constants.Subsystems.Spindexer.TalonFXClosedLoop.KS;
+    config.Slot0.kV = Constants.Subsystems.Spindexer.TalonFXClosedLoop.KV;
 
     config.CurrentLimits.SupplyCurrentLimitEnable =
-        Constants.Subsystem.Spindexer.CurrentLimits.SUPPLY_ENABLED;
+        Constants.Subsystems.Spindexer.CurrentLimits.SUPPLY_ENABLED;
     config.CurrentLimits.SupplyCurrentLimit =
-        Constants.Subsystem.Spindexer.CurrentLimits.SUPPLY_LIMIT_AMPS;
+        Constants.Subsystems.Spindexer.CurrentLimits.SUPPLY_LIMIT_AMPS;
 
     config.CurrentLimits.StatorCurrentLimitEnable =
-        Constants.Subsystem.Spindexer.CurrentLimits.STATOR_ENABLED;
+        Constants.Subsystems.Spindexer.CurrentLimits.STATOR_ENABLED;
     config.CurrentLimits.StatorCurrentLimit =
-        Constants.Subsystem.Spindexer.CurrentLimits.STATOR_LIMIT_AMPS;
+        Constants.Subsystems.Spindexer.CurrentLimits.STATOR_LIMIT_AMPS;
 
     config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Default
     config.MotorOutput.NeutralMode =
-        Constants.Subsystem.Spindexer.ROLLER_BREAK
+        Constants.Subsystems.Spindexer.ROLLER_BREAK
             ? NeutralModeValue.Brake
             : NeutralModeValue.Coast;
 
