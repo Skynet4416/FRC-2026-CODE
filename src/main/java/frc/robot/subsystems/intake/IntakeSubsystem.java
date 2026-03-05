@@ -1,5 +1,7 @@
 package frc.robot.subsystems.intake;
 
+import static edu.wpi.first.units.Units.Volts;
+
 import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
@@ -9,6 +11,7 @@ import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.util.LoggedTunableNumber;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.mechanism.LoggedMechanism2d;
@@ -23,6 +26,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
   private final IntakeSubsystemIO io;
   private final IntakeSide side;
+  private final SysIdRoutine sysIdRoutine;
   private final LoggedTunableNumber targetRpm;
   protected final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
 
@@ -34,6 +38,16 @@ public class IntakeSubsystem extends SubsystemBase {
   public IntakeSubsystem(IntakeSubsystemIO io, IntakeSide side) {
     this.io = io;
     this.side = side;
+
+    String prefix = side == IntakeSide.LEFT ? "IntakeLeft" : "IntakeRight";
+    sysIdRoutine =
+        new SysIdRoutine(
+            new SysIdRoutine.Config(
+                null,
+                null,
+                null,
+                (state) -> Logger.recordOutput(prefix + "/SysIdTestState", state.toString())),
+            new SysIdRoutine.Mechanism((voltage) -> runVolts(voltage.in(Volts)), null, this));
 
     this.targetRpm =
         new LoggedTunableNumber("RollerRPM" + (side == IntakeSide.LEFT ? "Left" : "Right"), 500.0);
@@ -85,6 +99,18 @@ public class IntakeSubsystem extends SubsystemBase {
 
   public Command toggleIntakeCommand() {
     return Commands.runOnce(() -> setLowered(!inputs.lowered), this);
+  }
+
+  public void runVolts(double volts) {
+    io.setVoltage(volts);
+  }
+
+  public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
+    return sysIdRoutine.quasistatic(direction);
+  }
+
+  public Command sysIdDynamic(SysIdRoutine.Direction direction) {
+    return sysIdRoutine.dynamic(direction);
   }
 
   @Override
