@@ -91,6 +91,9 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     inputs.lowered = (this.solenoidSim.get() == DoubleSolenoid.Value.kForward);
     inputs.connected = true;
     inputs.setpointRPM = this.currentSetpoint;
+    inputs.atSetpoint =
+        Math.abs(inputs.velocityRPM - inputs.setpointRPM)
+            <= Constants.Subsystems.Intake.RPM_TOLERANCE;
   }
 
   @Override
@@ -107,5 +110,11 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   @Override
   public void setLowered(boolean lowered) {
     this.solenoidSim.set(lowered ? DoubleSolenoid.Value.kForward : DoubleSolenoid.Value.kReverse);
+  }
+
+  @Override
+  public void stop() {
+    setVoltage(0);
+    this.currentSetpoint = 0.0;
   }
 }

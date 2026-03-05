@@ -109,4 +109,10 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   public void setVoltage(double volts) {
     leaderMotor.setControl(voltageRequest.withOutput(volts));
   }
+
+  @Override
+  public void stop() {
+    setVoltage(0);
+    this.targetRPM = 0.0;
+  }
 }

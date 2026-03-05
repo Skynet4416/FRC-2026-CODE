@@ -32,7 +32,7 @@ public class SpindexerSubsystem extends SubsystemBase {
   }
 
   public void stop() {
-    io.setVoltage(0);
+    io.stop();
   }
 
   public Command runIndexerCommand() {

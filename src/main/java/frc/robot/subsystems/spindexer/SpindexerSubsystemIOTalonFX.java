@@ -62,6 +62,9 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
     inputs.connected = motorConnectedDebouncer.calculate(motor.isConnected());
     motorDisconnectedAlert.set(!inputs.connected);
     inputs.setpointRPM = this.currentSetpoint;
+    inputs.atSetpoint =
+        Math.abs(inputs.velocityRPM - inputs.setpointRPM)
+            <= Constants.Subsystems.Spindexer.RPM_TOLERANCE;
   }
 
   @Override
@@ -73,5 +76,11 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
   @Override
   public void setVoltage(double volts) {
     motor.setControl(voltageRequest.withOutput(volts));
+  }
+
+  @Override
+  public void stop() {
+    setVoltage(0);
+    this.currentSetpoint = 0.0;
   }
 }

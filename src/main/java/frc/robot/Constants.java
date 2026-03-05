@@ -153,12 +153,13 @@ public final class Constants {
 
     public static class Spindexer {
       public static final boolean ROLLER_BREAK = true;
+      public static final double RPM_TOLERANCE = 20.0;
 
-        public static class Id {
-          public static class Motor {
-            public static final int INDEXER = 43;
-          }
+      public static class Id {
+        public static class Motor {
+          public static final int INDEXER = 43;
         }
+      }
 
       public static class ClosedLoop {
         public static final double KP = 0.003;
@@ -194,6 +195,7 @@ public final class Constants {
 
     public static class Intake {
       public static final boolean ROLLER_BREAK = true;
+      public static final double RPM_TOLERANCE = 20.0;
 
       public static class Id {
         public static class Motor {

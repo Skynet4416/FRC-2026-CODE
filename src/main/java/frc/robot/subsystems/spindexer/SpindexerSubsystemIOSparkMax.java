@@ -60,6 +60,9 @@ public class SpindexerSubsystemIOSparkMax implements SpindexerSubsystemIO {
     inputs.connected = motorConnectedDebouncer.calculate(this.motor.getFirmwareVersion() != 0);
     motorDisconnectedAlert.set(!inputs.connected);
     inputs.setpointRPM = this.currentSetpoint;
+    inputs.atSetpoint =
+        Math.abs(inputs.velocityRPM - inputs.setpointRPM)
+            <= Constants.Subsystems.Spindexer.RPM_TOLERANCE;
   }
 
   @Override
@@ -71,5 +74,11 @@ public class SpindexerSubsystemIOSparkMax implements SpindexerSubsystemIO {
   @Override
   public void setVoltage(double volts) {
     this.motor.setVoltage(volts);
+  }
+
+  @Override
+  public void stop() {
+    setVoltage(0);
+    this.currentSetpoint = 0.0;
   }
 }

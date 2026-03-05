@@ -58,7 +58,7 @@ public class FlywheelSubsystem extends SubsystemBase {
   }
 
   public void stop() {
-    io.setVoltage(0.0);
+    io.stop();
   }
 
   public void runVolts(double volts) {

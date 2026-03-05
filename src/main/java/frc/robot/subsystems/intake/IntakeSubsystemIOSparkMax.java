@@ -78,6 +78,9 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
     inputs.connected = motorConnectedDebouncer.calculate(this.motor.getFirmwareVersion() != 0);
     motorDisconnectedAlert.set(!inputs.connected);
     inputs.setpointRPM = this.currentSetpoint;
+    inputs.atSetpoint =
+        Math.abs(inputs.velocityRPM - inputs.setpointRPM)
+            <= Constants.Subsystems.Intake.RPM_TOLERANCE;
   }
 
   @Override
@@ -94,5 +97,11 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
   @Override
   public void setLowered(boolean lowered) {
     this.solenoid.set(lowered ? DoubleSolenoid.Value.kForward : DoubleSolenoid.Value.kReverse);
+  }
+
+  @Override
+  public void stop() {
+    setVoltage(0);
+    this.currentSetpoint = 0.0;
   }
 }

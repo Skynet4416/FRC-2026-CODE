@@ -113,4 +113,10 @@ public class FlywheelSubsystemIOSim implements FlywheelSubsystemIO {
   public void setVoltage(double volts) {
     talonFX.setControl(voltageRequest.withOutput(volts));
   }
+
+  @Override
+  public void stop() {
+    setVoltage(0);
+    this.targetRPM = 0.0;
+  }
 }

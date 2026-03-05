@@ -22,4 +22,8 @@ public interface FlywheelSubsystemIO {
   default void setTargetRADS(double radiansPerSecond) {}
 
   default void setVoltage(double volts) {}
+
+  default void stop() {
+    setVoltage(0);
+  }
 }

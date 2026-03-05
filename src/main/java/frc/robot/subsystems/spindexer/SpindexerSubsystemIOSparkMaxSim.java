@@ -83,4 +83,10 @@ public class SpindexerSubsystemIOSparkMaxSim implements SpindexerSubsystemIO {
   public void setVoltage(double volts) {
     this.motor.setVoltage(volts);
   }
+
+  @Override
+  public void stop() {
+    setVoltage(0);
+    this.currentSetpoint = 0.0;
+  }
 }

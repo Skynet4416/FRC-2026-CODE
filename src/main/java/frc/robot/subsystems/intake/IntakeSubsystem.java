@@ -76,7 +76,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void stop() {
-    io.setVoltage(0);
+    io.stop();
   }
 
   public Command runRollerCommand() {

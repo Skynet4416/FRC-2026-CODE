@@ -81,6 +81,9 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
     inputs.connected = motorConnectedDebouncer.calculate(motor.isConnected());
     motorDisconnectedAlert.set(!inputs.connected);
     inputs.setpointRPM = this.currentSetpoint;
+    inputs.atSetpoint =
+        Math.abs(inputs.velocityRPM - inputs.setpointRPM)
+            <= Constants.Subsystems.Intake.RPM_TOLERANCE;
   }
 
   @Override
@@ -97,5 +100,11 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   @Override
   public void setLowered(boolean lowered) {
     solenoid.set(lowered ? DoubleSolenoid.Value.kForward : DoubleSolenoid.Value.kReverse);
+  }
+
+  @Override
+  public void stop() {
+    setVoltage(0);
+    this.currentSetpoint = 0.0;
   }
 }
