@@ -50,6 +50,34 @@ public final class Constants {
 
   public static class Subsystems {
 
+    public static final class Drive {
+      public static final int PIGEON_ID = 10;
+
+      public static final class FrontLeft {
+        public static final int DRIVE_ID = 11;
+        public static final int STEER_ID = 12;
+        public static final int ENCODER_ID = 13;
+      }
+
+      public static final class FrontRight {
+        public static final int DRIVE_ID = 14;
+        public static final int STEER_ID = 15;
+        public static final int ENCODER_ID = 16;
+      }
+
+      public static final class BackLeft {
+        public static final int DRIVE_ID = 17;
+        public static final int STEER_ID = 18;
+        public static final int ENCODER_ID = 19;
+      }
+
+      public static final class BackRight {
+        public static final int DRIVE_ID = 20;
+        public static final int STEER_ID = 21;
+        public static final int ENCODER_ID = 22;
+      }
+    }
+
     public static final class Shooter {
       public static final class Flywheel {
         public static final double GEAR_RATIO = 72 / 56;
@@ -60,8 +88,8 @@ public final class Constants {
         public static final double RPM_TOLERANCE = 20.0;
 
         public static class Id {
-          public static final int LEADER_ID = 12;
-          public static final int FOLLOWER_ID = 17;
+          public static final int LEADER_ID = 40;
+          public static final int FOLLOWER_ID = 41;
         }
 
         public static final class ClosedLoop {
@@ -102,7 +130,7 @@ public final class Constants {
         public static final double HOMING_VELOCITY_THRESHOLD_RPM = 5.0;
 
         public static class Id {
-          public static final int MOTOR_ID = 20; // TODO: Set ID
+          public static final int MOTOR_ID = 42;
         }
 
         public static final class ClosedLoop {
@@ -126,11 +154,11 @@ public final class Constants {
     public static class Spindexer {
       public static final boolean ROLLER_BREAK = true;
 
-      public static class Id {
-        public static class Motor {
-          public static final int INDEXER = 0;
+        public static class Id {
+          public static class Motor {
+            public static final int INDEXER = 43;
+          }
         }
-      }
 
       public static class ClosedLoop {
         public static final double KP = 0.003;
@@ -169,8 +197,8 @@ public final class Constants {
 
       public static class Id {
         public static class Motor {
-          public static final int LEFT_ROLLER = 0;
-          public static final int RIGHT_ROLLER = 1;
+          public static final int LEFT_ROLLER = 30;
+          public static final int RIGHT_ROLLER = 31;
         }
 
         public static class Pneumatics {
@@ -202,6 +230,14 @@ public final class Constants {
         // Keep this HIGH for Shooters to allow fast spin-up.
         public static final boolean STATOR_ENABLED = false;
         public static final double STATOR_LIMIT_AMPS = 0.0;
+      }
+    }
+
+    public static class Climber {
+      public static class Id {
+        public static final int LEFT_MOTOR = 50;
+        public static final int RIGHT_MOTOR = 51;
+        public static final int THIRD_MOTOR = 52;
       }
     }
   }
