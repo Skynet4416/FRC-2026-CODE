@@ -329,6 +329,7 @@ public class RobotContainer {
         .leftTrigger()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
+        .whileTrue(hoodSubsystem.runTrackTargetCommand())
         .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
         .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
         .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
@@ -371,7 +372,8 @@ public class RobotContainer {
                 () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
             disableFlywheelAutoSpinup));
 
-    hoodSubsystem.setDefaultCommand(hoodSubsystem.runTrackTargetCommand());
+    hoodSubsystem.setDefaultCommand(
+        Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0), hoodSubsystem));
   }
 
   /** Update dashboard outputs. */
