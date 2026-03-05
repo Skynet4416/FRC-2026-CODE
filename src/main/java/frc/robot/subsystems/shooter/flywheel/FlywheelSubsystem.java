@@ -13,7 +13,7 @@ import org.littletonrobotics.junction.Logger;
 public class FlywheelSubsystem extends SubsystemBase {
   private final FlywheelSubsystemIO io;
   private final SysIdRoutine sysIdRoutine;
-  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("FlywheelRPM", 4500.0);
+  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("FlywheelRPM", 2000.0);
 
   protected final FlywheelIOInputsAutoLogged inputs = new FlywheelIOInputsAutoLogged();
 

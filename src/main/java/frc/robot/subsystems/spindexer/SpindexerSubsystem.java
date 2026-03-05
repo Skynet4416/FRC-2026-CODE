@@ -43,6 +43,10 @@ public class SpindexerSubsystem extends SubsystemBase {
     return inputs.supplyCurrentAmps;
   }
 
+  public void setShooterIndexer(double percentage) {
+    io.setShooterIndexer(percentage);
+  }
+
   public void stop() {
     io.stop();
   }

@@ -404,15 +404,18 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    flywheelSubsystem.setDefaultCommand(
-        new ContinuousConditionalCommand(
-            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-            flywheelSubsystem.runAtSpeedRADSCommand(
-                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-            disableFlywheelAutoSpinup));
+    // flywheelSubsystem.setDefaultCommand(
+    //     new ContinuousConditionalCommand(
+    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+    //         flywheelSubsystem.runAtSpeedRADSCommand(
+    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+    //         disableFlywheelAutoSpinup));
+
+    spindexerSubsystem.setDefaultCommand(
+        Commands.runOnce(() -> spindexerSubsystem.setShooterIndexer(0), spindexerSubsystem));
 
     hoodSubsystem.setDefaultCommand(
-        Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0), hoodSubsystem));
+        Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
   }
 
   /** Update dashboard outputs. */

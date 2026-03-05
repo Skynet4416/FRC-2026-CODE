@@ -2,7 +2,7 @@ package frc.robot.subsystems.shooter.flywheel;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
-import com.ctre.phoenix6.controls.VelocityVoltage;
+import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -18,7 +18,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   private final TalonFX leaderMotor;
   private final TalonFX followerMotor;
 
-  private final VelocityVoltage velocityRequest = new VelocityVoltage(0).withEnableFOC(true);
+  private final VelocityTorqueCurrentFOC velocityRequest = new VelocityTorqueCurrentFOC(0);
   private final VoltageOut voltageRequest = new VoltageOut(0);
 
   private final Alert leaderDisconnected;
