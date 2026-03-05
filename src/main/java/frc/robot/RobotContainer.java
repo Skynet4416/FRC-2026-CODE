@@ -18,6 +18,7 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
@@ -30,7 +31,10 @@ import frc.robot.subsystems.drive.ModuleIOTalonFX;
 import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.intake.IntakeSubsystemIO;
 import frc.robot.subsystems.intake.IntakeSubsystemIOSim;
-import frc.robot.subsystems.intake.IntakeSubsystemIOSparkMax;
+import frc.robot.subsystems.intake.IntakeSubsystemIOTalonFX;
+import frc.robot.util.LoggedTunableNumber;
+import frc.robot.util.SuppliedWaitCommand;
+import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 /**
@@ -42,7 +46,15 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 public class RobotContainer {
   // Subsystems
   private final Drive drive;
-  private final IntakeSubsystem intakeSubsystem;
+  private final IntakeSubsystem leftIntake;
+  private final IntakeSubsystem rightIntake;
+
+  private static final LoggedTunableNumber intakeSwitchDelay =
+      new LoggedTunableNumber("IntakeSwitchDelay", 0.5);
+  private static final LoggedTunableNumber confusionZoneMinAngle =
+      new LoggedTunableNumber("ConfusionZoneMinAngle", 85.0);
+  private static final LoggedTunableNumber confusionZoneMaxAngle =
+      new LoggedTunableNumber("ConfusionZoneMaxAngle", 95.0);
 
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
@@ -54,6 +66,18 @@ public class RobotContainer {
 
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
+  private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
+
+  private static final LoggedTunableNumber intakeFoldDelay =
+      new LoggedTunableNumber("IntakeFoldDelay", 1.0);
+
+  // Triggers
+  private final Trigger inConfusionZone;
+  private final Trigger leftIntakeLowered;
+  private final Trigger rightIntakeLowered;
+
+  // Cached state for confusion zone stationary fallback
+  private double lastKnownForwardBackwardJoystick = 0.0;
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -70,7 +94,14 @@ public class RobotContainer {
                 new ModuleIOTalonFX(TunerConstants.BackLeft),
                 new ModuleIOTalonFX(TunerConstants.BackRight));
 
-        this.intakeSubsystem = new IntakeSubsystem(new IntakeSubsystemIOSparkMax());
+        this.leftIntake =
+            new IntakeSubsystem(
+                new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.LEFT),
+                IntakeSubsystem.IntakeSide.LEFT);
+        this.rightIntake =
+            new IntakeSubsystem(
+                new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.RIGHT),
+                IntakeSubsystem.IntakeSide.RIGHT);
 
         // The ModuleIOTalonFXS implementation provides an example implementation for
         // TalonFXS controller connected to a CANdi with a PWM encoder. The
@@ -101,7 +132,14 @@ public class RobotContainer {
                 new ModuleIOSim(TunerConstants.BackLeft),
                 new ModuleIOSim(TunerConstants.BackRight));
 
-        this.intakeSubsystem = new IntakeSubsystem(new IntakeSubsystemIOSim());
+        this.leftIntake =
+            new IntakeSubsystem(
+                new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.LEFT),
+                IntakeSubsystem.IntakeSide.LEFT);
+        this.rightIntake =
+            new IntakeSubsystem(
+                new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.RIGHT),
+                IntakeSubsystem.IntakeSide.RIGHT);
         break;
 
       default:
@@ -113,12 +151,30 @@ public class RobotContainer {
                 new ModuleIO() {},
                 new ModuleIO() {},
                 new ModuleIO() {});
-        this.intakeSubsystem = new IntakeSubsystem(new IntakeSubsystemIO() {});
+
+        this.leftIntake =
+            new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.LEFT);
+        this.rightIntake =
+            new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.RIGHT);
         break;
     }
 
+    inConfusionZone =
+        new Trigger(
+            () -> {
+              double absAngle = Math.abs(drive.getPose().getRotation().getDegrees());
+              return absAngle > confusionZoneMinAngle.get()
+                  && absAngle < confusionZoneMaxAngle.get();
+            });
+
+    leftIntakeLowered = new Trigger(leftIntake::isLowered);
+    rightIntakeLowered = new Trigger(rightIntake::isLowered);
+
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
+    runWheelsWhenFoldingChooser = new LoggedDashboardChooser<>("Run Wheels When Folding");
+    runWheelsWhenFoldingChooser.addDefaultOption("Yes", true);
+    runWheelsWhenFoldingChooser.addOption("No", false);
 
     // Set up SysId routines
     autoChooser.addOption(
@@ -136,8 +192,6 @@ public class RobotContainer {
     autoChooser.addOption(
         "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
-    this.intakeSubsystem.setDefaultCommand(this.intakeSubsystem.runRollerCommand());
-
     // Configure the button bindings
     configureButtonBindings();
   }
@@ -149,6 +203,23 @@ public class RobotContainer {
    * edu.wpi.first.wpilibj2.command.button.JoystickButton}.
    */
   private void configureButtonBindings() {
+    // Intake logic: start spinning when lowered, and stop on false (after an optional delay)
+    leftIntakeLowered
+        .onTrue(leftIntake.runRollerCommand())
+        .onFalse(
+            Commands.sequence(
+                new SuppliedWaitCommand(() -> intakeFoldDelay.get())
+                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
+                Commands.runOnce(leftIntake::stop, leftIntake)));
+
+    rightIntakeLowered
+        .onTrue(rightIntake.runRollerCommand())
+        .onFalse(
+            Commands.sequence(
+                new SuppliedWaitCommand(() -> intakeFoldDelay.get())
+                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
+                Commands.runOnce(rightIntake::stop, rightIntake)));
+
     // Default command, normal field-relative drive
     drive.setDefaultCommand(
         DriveCommands.joystickDrive(
@@ -170,6 +241,9 @@ public class RobotContainer {
     // Switch to X pattern when X button is pressed
     driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
 
+    driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+
     // Reset gyro to 0° when B button is pressed
     //     driveController
     //         .b()
@@ -181,7 +255,6 @@ public class RobotContainer {
     //                     drive)
     //                 .ignoringDisable(true));
 
-    driveController.b().onTrue(intakeSubsystem.toggleIntakeCommand());
   }
 
   /** Update dashboard outputs. */
@@ -194,6 +267,15 @@ public class RobotContainer {
         !DriverStation.isJoystickConnected(driveController.getHID().getPort()));
     mechanismControllerDisconnected.set(
         !DriverStation.isJoystickConnected(mechanismController.getHID().getPort()));
+
+    // Cache the driver's forward/backward intent for our "Last Known Velocity" stationary fallback
+    double currentVY = -driveController.getLeftY();
+    if (Math.abs(currentVY) >= 0.05) {
+      lastKnownForwardBackwardJoystick = currentVY;
+    }
+
+    // Log the Intake Confusion Zone Trigger
+    Logger.recordOutput("In Intake Direction Confusion Zone", inConfusionZone);
   }
   /**
    * Use this to pass the autonomous command to the main {@link Robot} class.
@@ -202,5 +284,70 @@ public class RobotContainer {
    */
   public Command getAutonomousCommand() {
     return autoChooser.get();
+  }
+
+  private Command smartIntakeCommand(IntakeSubsystem.IntakeSide bumperSide) {
+    return Commands.either(
+        switchIntakeCommand(leftIntake, rightIntake),
+        switchIntakeCommand(rightIntake, leftIntake),
+        () -> getDesiredIntakeSide(bumperSide) == IntakeSubsystem.IntakeSide.LEFT);
+  }
+
+  private IntakeSubsystem.IntakeSide getDesiredIntakeSide(IntakeSubsystem.IntakeSide bumperSide) {
+    if (!inConfusionZone.getAsBoolean()) {
+      // OUT OF CONFUSION ZONE -> Use bumper field-relative logic
+      boolean facingBackwards = Math.abs(drive.getPose().getRotation().getDegrees()) > 90.0;
+      boolean isLeftBumper = bumperSide == IntakeSubsystem.IntakeSide.LEFT;
+      boolean wantsLeft = isLeftBumper ? !facingBackwards : facingBackwards;
+      return wantsLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
+    }
+
+    // IN CONFUSION ZONE -> Use velocity vector (bumper choice doesn't matter)
+    // Positive is pushing the joystick forward (away from driver)
+    double vX = -driveController.getLeftY();
+
+    // Are we facing left (+90 degrees)?
+    boolean facingLeft = drive.getPose().getRotation().getDegrees() > 0;
+
+    // If stationary (no forward/backward input), fallback to the "Last Known Velocity"
+    if (Math.abs(vX) < 0.05) {
+      vX = lastKnownForwardBackwardJoystick;
+    }
+
+    if (vX > 0) {
+      // Going Forward (Away from driver)
+      // If facing left (+90), right intake is away. If facing right (-90), left intake is
+      // away.
+      return !facingLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
+    } else {
+      // Going Backward (Closer to driver)
+      // If facing left (+90), left intake is closer. If facing right (-90), right intake is
+      // closer.
+      return facingLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
+    }
+  }
+
+  /** Command that intelligently switches between intakes to ensure both are never open at once. */
+  private Command switchIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
+    return Commands.defer(
+        () -> {
+          boolean targetIsOpen = targetIntake.isLowered();
+          boolean otherIsOpen = otherIntake.isLowered();
+
+          if (targetIsOpen) {
+            // If target is already open, just close it (toggle behavior)
+            return Commands.runOnce(() -> targetIntake.setLowered(false));
+          } else if (otherIsOpen) {
+            // Other is open: close it, wait, open target
+            return Commands.sequence(
+                Commands.runOnce(() -> otherIntake.setLowered(false)),
+                new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
+                Commands.runOnce(() -> targetIntake.setLowered(true)));
+          } else {
+            // Other is closed: just open target
+            return Commands.runOnce(() -> targetIntake.setLowered(true));
+          }
+        },
+        java.util.Set.of());
   }
 }

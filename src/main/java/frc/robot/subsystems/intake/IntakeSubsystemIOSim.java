@@ -30,13 +30,23 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   private final DCMotorSim dcMotorSim;
   private double currentSetpoint = 0.0;
 
-  public IntakeSubsystemIOSim() {
-    this.motor = new SparkMax(Constants.Subsystem.Intake.Id.Motor.ROLLER, MotorType.kBrushless);
+  public IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide side) {
+    int motorId =
+        side == IntakeSubsystem.IntakeSide.LEFT
+            ? Constants.Subsystem.Intake.Id.Motor.LEFT_ROLLER
+            : Constants.Subsystem.Intake.Id.Motor.RIGHT_ROLLER;
+    int forwardChannel =
+        side == IntakeSubsystem.IntakeSide.LEFT
+            ? Constants.Subsystem.Intake.Id.Pneumatics.LEFT_FORWARDS
+            : Constants.Subsystem.Intake.Id.Pneumatics.RIGHT_FORWARDS;
+    int reverseChannel =
+        side == IntakeSubsystem.IntakeSide.LEFT
+            ? Constants.Subsystem.Intake.Id.Pneumatics.LEFT_REVERSE
+            : Constants.Subsystem.Intake.Id.Pneumatics.RIGHT_REVERSE;
+
+    this.motor = new SparkMax(motorId, MotorType.kBrushless);
     this.solenoidSim =
-        new DoubleSolenoidSim(
-            PneumaticsModuleType.REVPH,
-            Constants.Subsystem.Intake.Id.Pneumatics.FORWARDS,
-            Constants.Subsystem.Intake.Id.Pneumatics.REVERSE);
+        new DoubleSolenoidSim(PneumaticsModuleType.REVPH, forwardChannel, reverseChannel);
     this.closedLoopConfig =
         new ClosedLoopConfig()
             .p(Constants.Subsystem.Intake.ClosedLoop.KP)

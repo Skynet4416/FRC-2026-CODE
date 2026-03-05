@@ -16,24 +16,43 @@ import org.littletonrobotics.junction.mechanism.LoggedMechanismLigament2d;
 import org.littletonrobotics.junction.mechanism.LoggedMechanismRoot2d;
 
 public class IntakeSubsystem extends SubsystemBase {
+  public enum IntakeSide {
+    LEFT,
+    RIGHT
+  }
+
   private final IntakeSubsystemIO io;
-  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("RollerRPM", 500.0);
+  private final IntakeSide side;
+  private final LoggedTunableNumber targetRpm;
   protected final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
 
   // Mechanism2d
-  private final LoggedMechanism2d mech =
-      new LoggedMechanism2d(1.0, 1.0, new Color8Bit(Color.kBlack));
-  private final LoggedMechanismRoot2d root = mech.getRoot("IntakePivot", 0, 0);
-  private final LoggedMechanismLigament2d arm =
-      root.append(
-          new LoggedMechanismLigament2d("IntakeArm", 0.7, 0, 10, new Color8Bit(Color.kOrange)));
+  private final LoggedMechanism2d mech;
+  private final LoggedMechanismRoot2d root;
+  private final LoggedMechanismLigament2d arm;
 
-  public IntakeSubsystem(IntakeSubsystemIO io) {
+  public IntakeSubsystem(IntakeSubsystemIO io, IntakeSide side) {
     this.io = io;
+    this.side = side;
+
+    this.targetRpm =
+        new LoggedTunableNumber("RollerRPM" + (side == IntakeSide.LEFT ? "Left" : "Right"), 500.0);
+
+    String mechName = side == IntakeSide.LEFT ? "IntakeLeft" : "IntakeRight";
+    this.mech = new LoggedMechanism2d(1.0, 1.0, new Color8Bit(Color.kBlack));
+    this.root = mech.getRoot(mechName + "Pivot", 0, 0);
+    this.arm =
+        root.append(
+            new LoggedMechanismLigament2d(
+                mechName + "Arm", 0.7, 0, 10, new Color8Bit(Color.kOrange)));
   }
 
   public void setTargetRPM(double rpm) {
     io.setTargetRPM(rpm);
+  }
+
+  public double getTargetRPM() {
+    return targetRpm.get();
   }
 
   public void setLowered(boolean lowered) {
@@ -61,7 +80,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public Command runRollerCommand() {
-    return Commands.runEnd(() -> setTargetRPM(targetRpm.get()), () -> stop(), this);
+    return Commands.run(() -> setTargetRPM(targetRpm.get()), this);
   }
 
   public Command toggleIntakeCommand() {
@@ -71,7 +90,8 @@ public class IntakeSubsystem extends SubsystemBase {
   @Override
   public void periodic() {
     io.updateInputs(inputs);
-    Logger.processInputs("Intake", inputs);
+    String prefix = side == IntakeSide.LEFT ? "IntakeLeft" : "IntakeRight";
+    Logger.processInputs(prefix, inputs);
 
     // Code for displaying intake mechanism in AdvantageScope
     // Update Mechanism2d
@@ -79,28 +99,22 @@ public class IntakeSubsystem extends SubsystemBase {
 
     arm.setAngle(armAngle);
 
-    Logger.recordOutput("Intake/Mechanism", mech);
-    Logger.recordOutput(
-        "Intake/Components/Mech3d", mech.generate3dMechanism().toArray(new Pose3d[0]));
+    Logger.recordOutput(prefix + "/Mechanism", mech);
 
-    // Intake1 Base Pose
-    double intake1X = 0.0;
-    double intake1Y = 0.2;
-    double intake1Z = 0.35;
-    double intake1Yaw = 0.0;
+    // Intake Base Pose
+    double intakeX = 0.0;
+    double intakeY = side == IntakeSide.LEFT ? 0.2 : -0.2;
+    double intakeZ = 0.35;
+    double intakeYaw = side == IntakeSide.LEFT ? 0.0 : 180.0;
 
-    // Intake 1
-    // Manual correct location pose calculation
-    // Start with the pivot pose the tunable location
+    // Pivot pose
     Pose3d pivotPose =
         new Pose3d(
             new Translation3d(
-                intake1X, inputs.lowered ? intake1Y : 0.0, inputs.lowered ? intake1Z : 0.0),
-            new Rotation3d(0.0, 0.0, Math.toRadians(intake1Yaw))); // Original orientation
+                intakeX, inputs.lowered ? intakeY : 0.0, inputs.lowered ? intakeZ : 0.0),
+            new Rotation3d(0.0, 0.0, Math.toRadians(intakeYaw)));
 
     // Create a rotation transform based on the state
-    // Lowered (true) -> 0 degrees
-    // Raised (false) -> 90 degrees (Up via Roll)
     double targetX = inputs.lowered ? 0.0 : Math.toRadians(90.0);
 
     Transform3d armRotation =
@@ -108,32 +122,6 @@ public class IntakeSubsystem extends SubsystemBase {
 
     // Apply the transform to the pivot pose
     Pose3d correctLocation = pivotPose.plus(armRotation);
-    Logger.recordOutput("Intake/IntakePose1", correctLocation);
-
-    // Intake 2
-    // Mirrored from Intake 1
-    double setpoint2XVal = intake1X;
-    double setpoint2YVal = -intake1Y; // Mirror Y
-    double setpoint2ZVal = intake1Z;
-    double setpoint2YawVal = intake1Yaw + 180.0; // Rotate 180
-
-    // Same position but rotated 180 degrees Yaw
-    Pose3d pivotPose2 =
-        new Pose3d(
-            new Translation3d(
-                setpoint2XVal,
-                inputs.lowered ? setpoint2YVal : 0.0,
-                inputs.lowered ? setpoint2ZVal : 0.0),
-            new Rotation3d(0.0, 0.0, Math.toRadians(setpoint2YawVal)));
-
-    // Use same targetX because both fold "Up" in their local frame
-    double targetX2 = inputs.lowered ? 0.0 : Math.toRadians(90.0);
-
-    Transform3d armRotation2 =
-        new Transform3d(new Translation3d(), new Rotation3d(targetX2, 0.0, 0.0));
-
-    Pose3d correctLocation2 = pivotPose2.plus(armRotation2);
-
-    Logger.recordOutput("Intake/IntakePose2", correctLocation2);
+    Logger.recordOutput(prefix + "/Pose", correctLocation);
   }
 }

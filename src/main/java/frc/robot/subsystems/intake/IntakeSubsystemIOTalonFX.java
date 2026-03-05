@@ -27,13 +27,22 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
       new Alert("Intake motor disconnected!", AlertType.kWarning);
   private double currentSetpoint = 0.0;
 
-  public IntakeSubsystemIOTalonFX() {
-    motor = new TalonFX(Constants.Subsystem.Intake.Id.Motor.ROLLER);
-    solenoid =
-        new DoubleSolenoid(
-            PneumaticsModuleType.REVPH,
-            Constants.Subsystem.Intake.Id.Pneumatics.FORWARDS,
-            Constants.Subsystem.Intake.Id.Pneumatics.REVERSE);
+  public IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide side) {
+    int motorId =
+        side == IntakeSubsystem.IntakeSide.LEFT
+            ? Constants.Subsystem.Intake.Id.Motor.LEFT_ROLLER
+            : Constants.Subsystem.Intake.Id.Motor.RIGHT_ROLLER;
+    int forwardChannel =
+        side == IntakeSubsystem.IntakeSide.LEFT
+            ? Constants.Subsystem.Intake.Id.Pneumatics.LEFT_FORWARDS
+            : Constants.Subsystem.Intake.Id.Pneumatics.RIGHT_FORWARDS;
+    int reverseChannel =
+        side == IntakeSubsystem.IntakeSide.LEFT
+            ? Constants.Subsystem.Intake.Id.Pneumatics.LEFT_REVERSE
+            : Constants.Subsystem.Intake.Id.Pneumatics.RIGHT_REVERSE;
+
+    motor = new TalonFX(motorId);
+    solenoid = new DoubleSolenoid(PneumaticsModuleType.REVPH, forwardChannel, reverseChannel);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
 
