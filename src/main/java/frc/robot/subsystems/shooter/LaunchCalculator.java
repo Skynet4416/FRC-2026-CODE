@@ -121,8 +121,8 @@ public class LaunchCalculator {
   private static final double hubPassLine =
       // TODO: verify 20 inches is correct
       FieldConstants.LinesHorizontal.rightBumpStart - Units.inchesToMeters(20) / 2.0;
-  private static final double xPassTarget = Units.inchesToMeters(25);
-  private static final double yPassTarget = Units.inchesToMeters(50);
+  private static final double xPassTarget = Units.inchesToMeters(37);
+  private static final double yPassTarget = Units.inchesToMeters(80);
   // Boxes of bad
   // Under tower
   private static final Bounds towerBound =
