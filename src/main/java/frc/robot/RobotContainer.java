@@ -512,7 +512,10 @@ public class RobotContainer {
   private Command openIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
     return Commands.sequence(
         Commands.runOnce(() -> otherIntake.setLowered(false), otherIntake),
-        new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
+        Commands.either(
+            new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
+            Commands.none(),
+            otherIntake::isLowered),
         Commands.runOnce(() -> targetIntake.setLowered(true), targetIntake));
   }
 
