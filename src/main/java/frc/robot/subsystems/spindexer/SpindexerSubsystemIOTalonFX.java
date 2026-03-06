@@ -6,12 +6,6 @@ import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.revrobotics.PersistMode;
-import com.revrobotics.ResetMode;
-import com.revrobotics.spark.SparkLowLevel.MotorType;
-import com.revrobotics.spark.SparkMax;
-import com.revrobotics.spark.config.SparkBaseConfig;
-import com.revrobotics.spark.config.SparkMaxConfig;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
@@ -20,10 +14,6 @@ import frc.robot.Constants;
 public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
 
   private final TalonFX motor;
-
-  private final SparkMax shooterIndexMotor;
-  private final SparkMaxConfig motorConfig;
-
   private final VelocityVoltage velocityVoltageRequest = new VelocityVoltage(0).withEnableFOC(true);
   private final VoltageOut voltageRequest = new VoltageOut(0);
 
@@ -61,21 +51,6 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
             : NeutralModeValue.Coast;
 
     motor.getConfigurator().apply(config);
-
-    this.shooterIndexMotor =
-        new SparkMax(Constants.Subsystems.Spindexer.Id.Motor.SHOOTER_INDEXER, MotorType.kBrushless);
-
-    this.motorConfig = new SparkMaxConfig();
-    motorConfig
-        .idleMode(
-            Constants.Subsystems.Intake.ROLLER_BREAK
-                ? SparkBaseConfig.IdleMode.kBrake
-                : SparkBaseConfig.IdleMode.kCoast)
-        .smartCurrentLimit(40)
-        .voltageCompensation(12);
-
-    this.shooterIndexMotor.configure(
-        motorConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
   }
 
   @Override
@@ -90,11 +65,6 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
     inputs.atSetpoint =
         Math.abs(inputs.velocityRPM - inputs.setpointRPM)
             <= Constants.Subsystems.Spindexer.RPM_TOLERANCE;
-  }
-
-  @Override
-  public void setShooterIndexer(double percentage) {
-    this.shooterIndexMotor.set(percentage);
   }
 
   @Override

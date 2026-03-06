@@ -45,6 +45,9 @@ import frc.robot.subsystems.shooter.hood.HoodSubsystem;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIO;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOSim;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIO;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSim;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSparkMax;
 import frc.robot.subsystems.spindexer.SpindexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
@@ -134,7 +137,9 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
 
-        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOTalonFX());
+        spindexerSubsystem =
+            new SpindexerSubsystem(
+                new SpindexerSubsystemIOTalonFX(), new ShooterIndexerIOSparkMax());
 
         leftIntake =
             new IntakeSubsystem(
@@ -177,7 +182,8 @@ public class RobotContainer {
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
         hoodSubsystem.zero();
 
-        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
+        spindexerSubsystem =
+            new SpindexerSubsystem(new SpindexerSubsystemIOSim(), new ShooterIndexerIOSim());
 
         leftIntake =
             new IntakeSubsystem(
@@ -205,7 +211,8 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIO() {});
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIO() {});
 
-        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIO() {});
+        spindexerSubsystem =
+            new SpindexerSubsystem(new SpindexerSubsystemIO() {}, new ShooterIndexerIO() {});
 
         leftIntake =
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.LEFT);
@@ -423,7 +430,7 @@ public class RobotContainer {
     //         disableFlywheelAutoSpinup));
 
     spindexerSubsystem.setDefaultCommand(
-        Commands.runOnce(() -> spindexerSubsystem.setShooterIndexer(0), spindexerSubsystem));
+        Commands.runOnce(() -> spindexerSubsystem.setShooterIndexer(1), spindexerSubsystem));
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));

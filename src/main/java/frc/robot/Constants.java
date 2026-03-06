@@ -156,7 +156,6 @@ public final class Constants {
       public static class Id {
         public static class Motor {
           public static final int INDEXER = 43;
-          public static final int SHOOTER_INDEXER = 44;
         }
       }
 
@@ -189,6 +188,22 @@ public final class Constants {
         // Keep this HIGH for Shooters to allow fast spin-up.
         public static final boolean STATOR_ENABLED = false;
         public static final double STATOR_LIMIT_AMPS = 0.0;
+      }
+    }
+
+    public static class ShooterIndexer {
+      public static final boolean ROLLER_BREAK = true;
+      public static final double RPM_TOLERANCE = 20.0;
+
+      public static class Id {
+        public static class Motor {
+          public static final int MOTOR = 44;
+        }
+      }
+
+      public static final class CurrentLimits {
+        public static final boolean SUPPLY_ENABLED = true;
+        public static final double SUPPLY_LIMIT_AMPS = 40.0;
       }
     }
 

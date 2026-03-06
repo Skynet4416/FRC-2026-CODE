@@ -22,6 +22,4 @@ public interface SpindexerSubsystemIO {
   default void stop() {
     setVoltage(0);
   }
-
-  default void setShooterIndexer(double percentage) {}
 }
