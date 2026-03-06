@@ -18,7 +18,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   private final TalonFX motor;
   private final DoubleSolenoid solenoid;
 
-  private final VelocityVoltage velocityRequest = new VelocityVoltage(0).withEnableFOC(true);
+  private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
   private final VoltageOut voltageRequest = new VoltageOut(0);
 
   private final Debouncer motorConnectedDebouncer =
