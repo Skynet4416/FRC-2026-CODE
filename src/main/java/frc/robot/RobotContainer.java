@@ -353,7 +353,7 @@ public class RobotContainer {
                 Commands.runOnce(rightIntake::stop, rightIntake)));
 
     // Default command, normal field-relative drive
-    // drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
+    drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
     // Lock to 0 when A button is held
     driveController

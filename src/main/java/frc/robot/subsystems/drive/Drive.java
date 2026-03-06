@@ -313,6 +313,18 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
     return run(() -> runCharacterization(0.0)).withTimeout(1.0).andThen(sysId.dynamic(direction));
   }
 
+  /** Returns the bounded module states (turn angles and drive velocities) for all of the modules. */
+  @AutoLogOutput(key = "Tuning/SwerveStates/MeasuredOptimized")
+  private SwerveModuleState[] getModuleStatesOptimized() {
+    SwerveModuleState[] states = new SwerveModuleState[4];
+    for (int i = 0; i < 4; i++) {
+      SwerveModuleState state = modules[i].getState();
+      state.angle = new edu.wpi.first.math.geometry.Rotation2d(edu.wpi.first.math.MathUtil.angleModulus(state.angle.getRadians()));
+      states[i] = state;
+    }
+    return states;
+  }
+
   /** Returns the module states (turn angles and drive velocities) for all of the modules. */
   @AutoLogOutput(key = "SwerveStates/Measured")
   private SwerveModuleState[] getModuleStates() {
