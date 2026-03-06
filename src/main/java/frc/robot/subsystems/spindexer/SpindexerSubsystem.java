@@ -6,15 +6,22 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerSubsystem;
+import frc.robot.util.LoggedTunableNumber;
 import org.littletonrobotics.junction.Logger;
 
 public class SpindexerSubsystem extends SubsystemBase {
   private final SpindexerSubsystemIO io;
   private final SysIdRoutine sysIdRoutine;
   protected final SpindexerIOInputsAutoLogged inputs = new SpindexerIOInputsAutoLogged();
+  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("IndexRPM", 500.0);
+  private final ShooterIndexerSubsystem shooterIndexer;
 
-  public SpindexerSubsystem(SpindexerSubsystemIO io) {
+  public SpindexerSubsystem(
+      SpindexerSubsystemIO io,
+      frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIO shooterIndexerIO) {
     this.io = io;
+    this.shooterIndexer = new ShooterIndexerSubsystem(shooterIndexerIO);
     sysIdRoutine =
         new SysIdRoutine(
             new SysIdRoutine.Config(
@@ -26,7 +33,6 @@ public class SpindexerSubsystem extends SubsystemBase {
   }
 
   public void setTargetRPM(double rpm) {
-    setShooterIndexer(rpm > 0 ? 1 : 0);
     io.setTargetRPM(rpm);
   }
 
@@ -43,26 +49,27 @@ public class SpindexerSubsystem extends SubsystemBase {
   }
 
   public void setShooterIndexer(double percentage) {
-    io.setShooterIndexer(percentage);
+    shooterIndexer.setShooterIndexer(percentage);
   }
 
   public void stop() {
-    setShooterIndexer(0.0);
-    io.stop();
+    shooterIndexer.setShooterIndexer(0);
   }
 
   public Command runIndexerCommand() {
-    return Commands.run(() -> run(1.0));
+    return Commands.run(() -> io.set(1.0));
+  }
+
+  public Command runShooterIndexerCommand() {
+    return Commands.run(() -> setShooterIndexer(1.0));
   }
 
   public void runVolts(double volts) {
-    setShooterIndexer(volts > 0 ? 1 : 0);
     io.setVoltage(volts);
   }
 
-  public void run(double percentage) {
-    setShooterIndexer(percentage);
-    io.set(percentage);
+  public void stopShooterIndexer() {
+    shooterIndexer.stop();
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {

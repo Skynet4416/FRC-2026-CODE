@@ -19,7 +19,7 @@ public interface SpindexerSubsystemIO {
 
   default void setVoltage(double volts) {}
 
-  default void set(double volts) {}
+  default void set(double percentage) {}
 
   default void stop() {
     setVoltage(0);

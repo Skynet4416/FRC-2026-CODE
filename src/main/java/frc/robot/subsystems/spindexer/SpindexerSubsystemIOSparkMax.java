@@ -81,4 +81,9 @@ public class SpindexerSubsystemIOSparkMax implements SpindexerSubsystemIO {
     setVoltage(0);
     this.currentSetpoint = 0.0;
   }
+
+  @Override
+  public void set(double percentage) {
+    motor.set(percentage);
+  }
 }

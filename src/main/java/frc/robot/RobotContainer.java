@@ -45,6 +45,9 @@ import frc.robot.subsystems.shooter.hood.HoodSubsystem;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIO;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOSim;
 import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIO;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSim;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSparkMax;
 import frc.robot.subsystems.spindexer.SpindexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
@@ -134,8 +137,9 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
 
-        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOTalonFX());
-
+        spindexerSubsystem =
+            new SpindexerSubsystem(
+                new SpindexerSubsystemIOTalonFX(), new ShooterIndexerIOSparkMax());
         leftIntake =
             new IntakeSubsystem(
                 new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.LEFT),
@@ -177,8 +181,8 @@ public class RobotContainer {
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
         hoodSubsystem.zero();
 
-        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
-
+        spindexerSubsystem =
+            new SpindexerSubsystem(new SpindexerSubsystemIOSim(), new ShooterIndexerIOSim());
         leftIntake =
             new IntakeSubsystem(
                 new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.LEFT),
@@ -205,7 +209,8 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIO() {});
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIO() {});
 
-        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIO() {});
+        spindexerSubsystem =
+            new SpindexerSubsystem(new SpindexerSubsystemIO() {}, new ShooterIndexerIO() {});
 
         leftIntake =
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.LEFT);
@@ -403,12 +408,13 @@ public class RobotContainer {
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
-    SmartDashboard.putData("Run Indexer", spindexerSubsystem.runIndexerCommand());
+    SmartDashboard.putData("Run both Indexers", Commands.sequence(spindexerSubsystem.runIndexerCommand(), spindexerSubsystem.runShooterIndexerCommand()));
     SmartDashboard.putData(
-        "Stop Indexer",
-        Commands.run(
+        "Stop both Indexers",
+        Commands.runOnce(
             () -> {
               spindexerSubsystem.stop();
+              spindexerSubsystem.stopShooterIndexer();
             }));
 
     // Reset gyro to 0° when B button is pressed
@@ -462,12 +468,10 @@ public class RobotContainer {
   }
 
   private Command smartIntakeCommand(IntakeSubsystem.IntakeSide bumperSide) {
-    return Commands.runOnce(
-        () -> {
-          if (getDesiredIntakeSide(bumperSide) == IntakeSubsystem.IntakeSide.LEFT)
-            openIntakeCommand(leftIntake, rightIntake);
-          else openIntakeCommand(rightIntake, leftIntake);
-        });
+    return Commands.either(
+        openIntakeCommand(leftIntake, rightIntake),
+        openIntakeCommand(rightIntake, leftIntake),
+        () -> getDesiredIntakeSide(bumperSide) == IntakeSubsystem.IntakeSide.LEFT);
   }
 
   private IntakeSubsystem.IntakeSide getDesiredIntakeSide(IntakeSubsystem.IntakeSide bumperSide) {
@@ -505,9 +509,11 @@ public class RobotContainer {
   }
 
   /** Command that intelligently switches between intakes to ensure both are never open at once. */
-  private void openIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
-    targetIntake.setLowered(true);
-    otherIntake.setLowered(false);
+  private Command openIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
+    return Commands.sequence(
+        Commands.runOnce(() -> otherIntake.setLowered(false), otherIntake),
+        new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
+        Commands.runOnce(() -> targetIntake.setLowered(true), targetIntake));
   }
 
   private void closeIntake(IntakeSubsystem intake) {

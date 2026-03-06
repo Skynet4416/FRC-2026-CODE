@@ -72,7 +72,6 @@ public class IntakeSubsystem extends SubsystemBase {
   public void setLowered(boolean lowered) {
     System.out.println("SETTING LOEWRED: " + lowered);
     io.setLowered(lowered);
-    io.set(lowered ? 0.8 : 0);
   }
 
   public double getVelocityRPM() {
