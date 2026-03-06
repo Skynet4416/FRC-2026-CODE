@@ -85,7 +85,7 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     this.dcMotorSim.setInputVoltage(this.motorSim.getAppliedOutput() * this.motor.getBusVoltage());
     this.dcMotorSim.update(0.02);
 
-    inputs.velocityRPM = this.motorSim.getVelocity();
+    inputs.velocityRPM = this.motorSim.getVelocity() / Constants.Subsystems.Intake.GEAR_RATIO;
     inputs.appliedVolts = this.motorSim.getAppliedOutput() * this.motor.getBusVoltage();
     inputs.supplyCurrentAmps = this.motorSim.getMotorCurrent();
     inputs.lowered = (this.solenoidSim.get() == DoubleSolenoid.Value.kForward);
@@ -99,7 +99,9 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
-    this.motor.getClosedLoopController().setSetpoint(rpm, ControlType.kVelocity);
+    this.motor
+        .getClosedLoopController()
+        .setSetpoint(rpm * Constants.Subsystems.Intake.GEAR_RATIO, ControlType.kVelocity);
   }
 
   @Override

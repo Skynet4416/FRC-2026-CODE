@@ -209,6 +209,7 @@ public final class Constants {
     }
 
     public static class Intake {
+      public static final double GEAR_RATIO = 2.0;
       public static final boolean ROLLER_BREAK = true;
       public static final double RPM_TOLERANCE = 20.0;
 

@@ -73,7 +73,8 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
 
   @Override
   public void updateInputs(IntakeIOInputs inputs) {
-    inputs.velocityRPM = motor.getVelocity().getValueAsDouble() * 60.0;
+    inputs.velocityRPM =
+        (motor.getVelocity().getValueAsDouble() * 60.0) / Constants.Subsystems.Intake.GEAR_RATIO;
     inputs.appliedVolts = motor.getMotorVoltage().getValueAsDouble();
     inputs.supplyCurrentAmps = motor.getStatorCurrent().getValueAsDouble();
     inputs.lowered = (solenoid.get() == DoubleSolenoid.Value.kForward);
@@ -89,7 +90,8 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
-    motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
+    motor.setControl(
+        velocityRequest.withVelocity((rpm * Constants.Subsystems.Intake.GEAR_RATIO) / 60.0));
   }
 
   @Override
