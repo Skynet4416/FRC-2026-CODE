@@ -40,10 +40,6 @@ import org.littletonrobotics.junction.Logger;
 
 public class DriveCommands {
   private static final double DEADBAND = 0.1;
-  private static final double ANGLE_KP = 5.0;
-  private static final double ANGLE_KD = 0.4;
-  private static final double ANGLE_MAX_VELOCITY = 8.0;
-  private static final double ANGLE_MAX_ACCELERATION = 20.0;
   private static final double FF_START_DELAY = 2.0; // Secs
   private static final double FF_RAMP_RATE = 0.1; // Volts/Sec
   private static final double WHEEL_RADIUS_MAX_VELOCITY = 0.25; // Rad/Sec
@@ -51,17 +47,43 @@ public class DriveCommands {
 
   // For the joystickDriveWhileLaunching
   private static final LoggedTunableNumber driveLaunchKp =
-      new LoggedTunableNumber("DriveCommands/Launching/kP", 8.0);
+      new LoggedTunableNumber("DriveCommands/Launching/kP", Constants.AutoAlignment.Launcher.KP);
   private static final LoggedTunableNumber driveLaunchKd =
-      new LoggedTunableNumber("DriveCommands/Launching/kD", 0.5);
+      new LoggedTunableNumber("DriveCommands/Launching/kD", Constants.AutoAlignment.Launcher.KD);
   private static final LoggedTunableNumber driveLaunchToleranceDeg =
-      new LoggedTunableNumber("DriveCommands/Launching/ToleranceDeg", 10.0);
+      new LoggedTunableNumber(
+          "DriveCommands/Launching/ToleranceDeg", Constants.AutoAlignment.Launcher.TOLERANCE_DEG);
   private static final LoggedTunableNumber driveLaunchMaxPolarVelocityRadPerSec =
-      new LoggedTunableNumber("DriveCommands/Launching/MaxPolarVelocityRadPerSec", 0.6);
+      new LoggedTunableNumber(
+          "DriveCommands/Launching/MaxPolarVelocityRadPerSec",
+          Constants.AutoAlignment.Launcher.MAX_POLAR_VELOCITY_RAD_PER_SEC);
   private static final LoggedTunableNumber driveLauncherCORMinErrorDeg =
-      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMinErrorDeg", 15.0);
+      new LoggedTunableNumber(
+          "DriveCommands/Launching/DriveLauncherCORMinErrorDeg",
+          Constants.AutoAlignment.Launcher.COR_MIN_ERROR_DEG);
   private static final LoggedTunableNumber driveLauncherCORMaxErrorDeg =
-      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMaxErrorDeg", 30.0);
+      new LoggedTunableNumber(
+          "DriveCommands/Launching/DriveLauncherCORMaxErrorDeg",
+          Constants.AutoAlignment.Launcher.COR_MAX_ERROR_DEG);
+
+  private static final LoggedTunableNumber autoTrenchMaxStrength =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/MaxStrength", Constants.AutoAlignment.Trench.MAX_STRENGTH);
+  private static final LoggedTunableNumber autoTrenchExp =
+      new LoggedTunableNumber("DriveCommands/Trench/Exp", Constants.AutoAlignment.Trench.EXP);
+  private static final LoggedTunableNumber autoTrenchThreshold =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/ThresholdMeters", Constants.AutoAlignment.Trench.THRESHOLD_METERS);
+  private static final LoggedTunableNumber autoTrenchYp =
+      new LoggedTunableNumber("DriveCommands/Trench/kP_Y", Constants.AutoAlignment.Trench.KP_Y);
+  private static final LoggedTunableNumber autoTrenchYd =
+      new LoggedTunableNumber("DriveCommands/Trench/kD_Y", Constants.AutoAlignment.Trench.KD_Y);
+  private static final LoggedTunableNumber autoTrenchAngleP =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/kP_Angle", Constants.AutoAlignment.Trench.KP_ANGLE);
+  private static final LoggedTunableNumber autoTrenchAngleD =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/kD_Angle", Constants.AutoAlignment.Trench.KD_ANGLE);
 
   private DriveCommands() {}
 
@@ -302,10 +324,12 @@ public class DriveCommands {
     // Create PID controller
     ProfiledPIDController angleController =
         new ProfiledPIDController(
-            ANGLE_KP,
+            Constants.AutoAlignment.AlignmentCommand.KP,
             0.0,
-            ANGLE_KD,
-            new TrapezoidProfile.Constraints(ANGLE_MAX_VELOCITY, ANGLE_MAX_ACCELERATION));
+            Constants.AutoAlignment.AlignmentCommand.KD,
+            new TrapezoidProfile.Constraints(
+                Constants.AutoAlignment.AlignmentCommand.MAX_VELOCITY,
+                Constants.AutoAlignment.AlignmentCommand.MAX_ACCELERATION));
     angleController.enableContinuousInput(-Math.PI, Math.PI);
     // Construct command
     return Commands.run(
@@ -339,6 +363,157 @@ public class DriveCommands {
 
         // Reset PID controller when command starts
         .beforeStarting(() -> angleController.reset(drive.getRotation().getRadians()));
+  }
+
+  /**
+   * Field relative drive command that automatically centers the robot in the trench while allowing
+   * the driver to control the speed through it.
+   */
+  public static Command autoTrenchAssist(
+      Drive drive,
+      DoubleSupplier xSupplier,
+      DoubleSupplier ySupplier,
+      DoubleSupplier omegaSupplier) {
+
+    ProfiledPIDController angleController =
+        new ProfiledPIDController(
+            autoTrenchAngleP.get(),
+            0.0,
+            autoTrenchAngleD.get(),
+            new TrapezoidProfile.Constraints(
+                Constants.AutoAlignment.AlignmentCommand.MAX_VELOCITY * 1.5,
+                Constants.AutoAlignment.AlignmentCommand.MAX_ACCELERATION * 1.5));
+    angleController.enableContinuousInput(-Math.PI, Math.PI);
+
+    ProfiledPIDController yController =
+        new ProfiledPIDController(
+            autoTrenchYp.get(),
+            0.0,
+            autoTrenchYd.get(),
+            new TrapezoidProfile.Constraints(
+                drive.getMaxLinearSpeedMetersPerSec(), drive.getMaxLinearSpeedMetersPerSec() * 2));
+
+    return Commands.run(
+            () -> {
+              boolean isFlipped =
+                  DriverStation.getAlliance().isPresent()
+                      && DriverStation.getAlliance().get() == Alliance.Red;
+                      
+              if (!Constants.AutoAlignment.Trench.ENABLE) {
+                Translation2d linearVelocity =
+                    getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble());
+                double omega = MathUtil.applyDeadband(omegaSupplier.getAsDouble(), DEADBAND);
+                omega = Math.copySign(omega * omega, omega);
+
+                ChassisSpeeds speeds =
+                    new ChassisSpeeds(
+                        linearVelocity.getX() * drive.getMaxLinearSpeedMetersPerSec(),
+                        linearVelocity.getY() * drive.getMaxLinearSpeedMetersPerSec(),
+                        omega * drive.getMaxAngularSpeedRadPerSec());
+
+                drive.runVelocity(
+                    ChassisSpeeds.fromFieldRelativeSpeeds(
+                        speeds,
+                        isFlipped
+                            ? drive.getRotation().plus(new Rotation2d(Math.PI))
+                            : drive.getRotation()));
+                return;
+              }
+
+              double currentY = drive.getPose().getY();
+
+              boolean inRightTrench = currentY < FieldConstants.LinesHorizontal.center;
+
+              double rightCenterY = FieldConstants.LinesHorizontal.rightTrenchOpenStart / 2.0;
+              double leftCenterY =
+                  (FieldConstants.LinesHorizontal.leftTrenchOpenEnd + FieldConstants.fieldWidth)
+                      / 2.0;
+
+              Translation2d trenchCenter =
+                  new Translation2d(
+                      FieldConstants.LinesVertical.hubCenter,
+                      inRightTrench ? rightCenterY : leftCenterY);
+
+              Translation2d trenchCenterActual = AllianceFlipUtil.apply(trenchCenter);
+
+              double dist = drive.getPose().getTranslation().getDistance(trenchCenterActual);
+
+              double threshold = autoTrenchThreshold.get();
+              double maxStr = autoTrenchMaxStrength.get();
+              double exp = autoTrenchExp.get();
+
+              double strength = 0.0;
+              if (dist < threshold) {
+                double base = Math.pow(maxStr, 1.0 / exp);
+                double val = base - base * (dist / threshold);
+                if (val > 0) {
+                  strength = Math.pow(val, exp);
+                }
+              }
+              strength = MathUtil.clamp(strength, 0.0, 1.0);
+
+              Logger.recordOutput("DriveCommands/Trench/Strength", strength);
+              Logger.recordOutput("DriveCommands/Trench/Distance", dist);
+
+              yController.setP(autoTrenchYp.get());
+              yController.setD(autoTrenchYd.get());
+              double pidFieldY = yController.calculate(currentY, trenchCenterActual.getY());
+
+              Translation2d linearVelocity =
+                  getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble())
+                      .times(drive.getMaxLinearSpeedMetersPerSec());
+
+              if (isFlipped) {
+                linearVelocity = linearVelocity.rotateBy(new Rotation2d(Math.PI));
+              }
+
+              // Blend True Field Y
+              double blendedFieldY =
+                  linearVelocity.getY() * (1.0 - strength) + pidFieldY * strength;
+              Translation2d blendedFieldVelocity =
+                  new Translation2d(linearVelocity.getX(), blendedFieldY);
+
+              if (isFlipped) {
+                blendedFieldVelocity = blendedFieldVelocity.rotateBy(new Rotation2d(Math.PI));
+              }
+
+              // Snap to hub side
+              Rotation2d targetRotation =
+                  AllianceFlipUtil.apply(Rotation2d.fromDegrees(inRightTrench ? 90.0 : -90.0));
+
+              Logger.recordOutput(
+                  "AutoAlignment/TargetPose", new Pose2d(trenchCenterActual, targetRotation));
+
+              angleController.setP(autoTrenchAngleP.get());
+              angleController.setD(autoTrenchAngleD.get());
+              double pidOmega =
+                  angleController.calculate(
+                      drive.getRotation().getRadians(), targetRotation.getRadians());
+
+              double rawOmega = MathUtil.applyDeadband(omegaSupplier.getAsDouble(), DEADBAND);
+              double driverOmega =
+                  Math.copySign(rawOmega * rawOmega, rawOmega)
+                      * drive.getMaxAngularSpeedRadPerSec();
+
+              double blendedOmega = driverOmega * (1.0 - strength) + pidOmega * strength;
+
+              ChassisSpeeds speeds =
+                  new ChassisSpeeds(
+                      blendedFieldVelocity.getX(), blendedFieldVelocity.getY(), blendedOmega);
+
+              drive.runVelocity(
+                  ChassisSpeeds.fromFieldRelativeSpeeds(
+                      speeds,
+                      isFlipped
+                          ? drive.getRotation().plus(new Rotation2d(Math.PI))
+                          : drive.getRotation()));
+            },
+            drive)
+        .beforeStarting(
+            () -> {
+              angleController.reset(drive.getRotation().getRadians());
+              yController.reset(drive.getPose().getY());
+            });
   }
 
   /**

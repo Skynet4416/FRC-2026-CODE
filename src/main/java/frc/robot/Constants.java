@@ -258,4 +258,35 @@ public final class Constants {
       }
     }
   }
+
+  public static class AutoAlignment {
+    public static class AlignmentCommand {
+      public static final double KP = 5.0;
+      public static final double KD = 0.4;
+      public static final double MAX_VELOCITY = 8.0;
+      public static final double MAX_ACCELERATION = 20.0;
+    }
+
+    public static class Launcher {
+      public static final double KP = 8.0;
+      public static final double KD = 0.5;
+      public static final double TOLERANCE_DEG = 10.0;
+      public static final double MAX_POLAR_VELOCITY_RAD_PER_SEC = 0.6;
+      public static final double COR_MIN_ERROR_DEG = 15.0;
+      public static final double COR_MAX_ERROR_DEG = 30.0;
+    }
+
+    public static class Trench {
+      public static final boolean ENABLE = true;
+      public static final double MAX_STRENGTH = 1.0;
+      public static final double EXP = 2.0;
+      public static final double THRESHOLD_METERS = 1.5;
+
+      public static final double KP_Y = 10.0;
+      public static final double KD_Y = 1.0;
+
+      public static final double KP_ANGLE = 15.0;
+      public static final double KD_ANGLE = 1.0;
+    }
+  }
 }

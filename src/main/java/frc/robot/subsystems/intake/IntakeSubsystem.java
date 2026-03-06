@@ -28,6 +28,7 @@ public class IntakeSubsystem extends SubsystemBase {
   private final IntakeSide side;
   private final SysIdRoutine sysIdRoutine;
   private final LoggedTunableNumber targetRpm;
+  private final LoggedTunableNumber gearRatio;
   protected final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
 
   // Mechanism2d
@@ -51,6 +52,9 @@ public class IntakeSubsystem extends SubsystemBase {
 
     this.targetRpm =
         new LoggedTunableNumber("RollerRPM" + (side == IntakeSide.LEFT ? "Left" : "Right"), 500.0);
+    this.gearRatio =
+        new LoggedTunableNumber(
+            "RollerGearRatio" + (side == IntakeSide.LEFT ? "Left" : "Right"), 2.0);
 
     String mechName = side == IntakeSide.LEFT ? "IntakeLeft" : "IntakeRight";
     this.mech = new LoggedMechanism2d(1.0, 1.0, new Color8Bit(Color.kBlack));
@@ -62,7 +66,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void setTargetRPM(double rpm) {
-    io.setTargetRPM(rpm);
+    io.setTargetRPM(rpm * gearRatio.get());
   }
 
   public double getTargetRPM() {
@@ -75,7 +79,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public double getVelocityRPM() {
-    return inputs.velocityRPM;
+    return inputs.velocityRPM / gearRatio.get();
   }
 
   public double getAppliedVolts() {

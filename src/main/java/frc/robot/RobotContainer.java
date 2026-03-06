@@ -104,14 +104,19 @@ public class RobotContainer {
 
   private static final LoggedTunableNumber intakeFoldDelay =
       new LoggedTunableNumber("IntakeFoldDelay", 1.0);
+  private static final LoggedTunableNumber trenchExtension =
+      new LoggedTunableNumber("TrenchExtension", 0.5);
 
   // Triggers
   private final Trigger inConfusionZone;
   private final Trigger leftIntakeLowered;
   private final Trigger rightIntakeLowered;
+  private final Trigger autoAlignmentOverride;
 
   // Cached state for confusion zone stationary fallback
   private double lastKnownForwardBackwardJoystick = 0.0;
+
+  private boolean autoAlignmentOverrideState = false;
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -232,6 +237,7 @@ public class RobotContainer {
 
     leftIntakeLowered = new Trigger(leftIntake::isLowered);
     rightIntakeLowered = new Trigger(rightIntake::isLowered);
+    autoAlignmentOverride = new Trigger(() -> autoAlignmentOverrideState);
 
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
@@ -335,6 +341,26 @@ public class RobotContainer {
     DoubleSupplier driverY = () -> -driveController.getLeftX();
     DoubleSupplier driverOmega = () -> -driveController.getRightX();
 
+    double robotHalfWidth = Units.inchesToMeters(20.0) / 2.0;
+    Trigger nearTrench =
+        new Trigger(
+            () -> {
+              double x = frc.robot.util.geometry.AllianceFlipUtil.applyX(drive.getPose().getX());
+              double y = drive.getPose().getY();
+
+              boolean inTrenchX =
+                  x > (FieldConstants.LeftBump.nearLeftCorner.getX() - trenchExtension.get())
+                      && x < (FieldConstants.LeftBump.farLeftCorner.getX() + trenchExtension.get());
+              boolean inRightTrench =
+                  y > robotHalfWidth
+                      && y < (FieldConstants.LinesHorizontal.rightTrenchOpenStart - robotHalfWidth);
+              boolean inLeftTrench =
+                  y > (FieldConstants.LinesHorizontal.leftTrenchOpenEnd + robotHalfWidth)
+                      && y < (FieldConstants.fieldWidth - robotHalfWidth);
+
+              return inTrenchX && (inRightTrench || inLeftTrench);
+            });
+
     // Intake logic: start spinning when lowered, and stop on false (after an optional delay)
     leftIntakeLowered
         .onTrue(leftIntake.runRollerCommand())
@@ -354,6 +380,15 @@ public class RobotContainer {
 
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
+
+    nearTrench
+        .and(driveController.leftTrigger().negate())
+        .and(autoAlignmentOverride.negate())
+        .whileTrue(DriveCommands.autoTrenchAssist(drive, driverX, driverY, driverOmega));
+
+    driveController
+        .rightStick()
+        .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
 
     // Lock to 0 when A button is held
     driveController
@@ -405,8 +440,8 @@ public class RobotContainer {
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
-    // driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    // driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
@@ -438,6 +473,7 @@ public class RobotContainer {
 
   /** Update dashboard outputs. */
   public void updateDashboardOutputs() {
+    Logger.recordOutput("AutoAlignment/OverrideToggle", autoAlignmentOverrideState);
     // Publish match time
     SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
 
