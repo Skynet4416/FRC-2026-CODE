@@ -5,6 +5,7 @@ import static edu.wpi.first.units.Units.Volts;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.Constants;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.util.LoggedTunableNumber;
 import java.util.function.DoubleSupplier;
@@ -13,7 +14,7 @@ import org.littletonrobotics.junction.Logger;
 public class FlywheelSubsystem extends SubsystemBase {
   private final FlywheelSubsystemIO io;
   private final SysIdRoutine sysIdRoutine;
-  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("FlywheelRPM", 2000.0);
+  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("FlywheelRPM", Constants.Subsystems.Shooter.Flywheel.DEFAULT_TARGET_RPM);
 
   protected final FlywheelIOInputsAutoLogged inputs = new FlywheelIOInputsAutoLogged();
 
