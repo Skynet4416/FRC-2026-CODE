@@ -103,6 +103,7 @@ public class RobotContainer {
   private final LoggedDashboardChooser<Command> autoChooser;
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
 
+  //How much time in seconds to run the wheels when folding
   private static final LoggedTunableNumber intakeFoldDelay =
       new LoggedTunableNumber("IntakeFoldDelay", 1.0);
 
