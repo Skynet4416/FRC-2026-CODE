@@ -92,12 +92,12 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
-    // motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
+    motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
   }
 
   @Override
   public void setVoltage(double volts) {
-    // motor.setControl(voltageRequest.withOutput(volts));
+    motor.setControl(voltageRequest.withOutput(volts));
   }
 
   @Override

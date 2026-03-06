@@ -106,6 +106,10 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setVoltage(volts);
   }
 
+  public void set (double percentage){
+    io.set(percentage);
+  }
+
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
     return sysIdRoutine.quasistatic(direction);
   }

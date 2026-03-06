@@ -53,6 +53,7 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
+import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -96,7 +97,7 @@ public class RobotContainer {
   private final Alert mechanismControllerDisconnected =
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
-  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> false);
+  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> true);
   private final Trigger ignoreHubState = new Trigger(() -> false);
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
@@ -150,8 +151,7 @@ public class RobotContainer {
                 IntakeSubsystem.IntakeSide.RIGHT);
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        // compressor.enableAnalog(10, 30);
-        compressor.disable();
+        compressor.enableAnalog(10, 30);
         break;
 
       case SIM:
@@ -335,7 +335,7 @@ public class RobotContainer {
 
     // Intake logic: start spinning when lowered, and stop on false (after an optional delay)
     leftIntakeLowered
-        .onTrue(leftIntake.runRollerCommand())
+        .onTrue(Commands.runOnce(() -> leftIntake.set(1), leftIntake))
         .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeFoldDelay.get())
@@ -343,8 +343,8 @@ public class RobotContainer {
                 Commands.runOnce(leftIntake::stop, leftIntake)));
 
     rightIntakeLowered
-        .onTrue(rightIntake.runRollerCommand())
-        .onFalse(
+    .onTrue(Commands.runOnce(() -> rightIntake.set(1), rightIntake))
+    .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeFoldDelay.get())
                     .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
@@ -403,12 +403,16 @@ public class RobotContainer {
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
-    // driveController.leftBumper().whileTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    // driveController.rightBumper().whileTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+
+    driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
-    SmartDashboard.putData("Run both Indexers", Commands.sequence(spindexerSubsystem.runIndexerCommand(), spindexerSubsystem.runShooterIndexerCommand()));
+    SmartDashboard.putData(
+        "Run both Indexers",
+        Commands.sequence(
+            spindexerSubsystem.runIndexerCommand(), spindexerSubsystem.runShooterIndexerCommand()));
     SmartDashboard.putData(
         "Stop both Indexers",
         Commands.runOnce(
@@ -428,12 +432,12 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    // flywheelSubsystem.setDefaultCommand(
-    //     new ContinuousConditionalCommand(
-    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-    //         flywheelSubsystem.runAtSpeedRADSCommand(
-    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-    //         disableFlywheelAutoSpinup));
+    flywheelSubsystem.setDefaultCommand(
+        new ContinuousConditionalCommand(
+            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+            flywheelSubsystem.runAtSpeedRADSCommand(
+                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+            disableFlywheelAutoSpinup));
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
