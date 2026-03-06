@@ -398,11 +398,18 @@ public class RobotContainer {
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
-    // driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    // driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    // driveController.leftBumper().whileTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    // driveController.rightBumper().whileTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    SmartDashboard.putData("Run Indexer", spindexerSubsystem.runIndexerCommand());
+    SmartDashboard.putData(
+        "Stop Indexer",
+        Commands.run(
+            () -> {
+              spindexerSubsystem.stop();
+            }));
 
     // Reset gyro to 0° when B button is pressed
     driveController
@@ -421,9 +428,6 @@ public class RobotContainer {
     //         flywheelSubsystem.runAtSpeedRADSCommand(
     //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
     //         disableFlywheelAutoSpinup));
-
-    spindexerSubsystem.setDefaultCommand(
-        Commands.runOnce(() -> spindexerSubsystem.setShooterIndexer(0), spindexerSubsystem));
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
@@ -458,10 +462,12 @@ public class RobotContainer {
   }
 
   private Command smartIntakeCommand(IntakeSubsystem.IntakeSide bumperSide) {
-    return Commands.either(
-        switchIntakeCommand(leftIntake, rightIntake),
-        switchIntakeCommand(rightIntake, leftIntake),
-        () -> getDesiredIntakeSide(bumperSide) == IntakeSubsystem.IntakeSide.LEFT);
+    return Commands.runOnce(
+        () -> {
+          if (getDesiredIntakeSide(bumperSide) == IntakeSubsystem.IntakeSide.LEFT)
+            openIntakeCommand(leftIntake, rightIntake);
+          else openIntakeCommand(rightIntake, leftIntake);
+        });
   }
 
   private IntakeSubsystem.IntakeSide getDesiredIntakeSide(IntakeSubsystem.IntakeSide bumperSide) {
@@ -499,27 +505,13 @@ public class RobotContainer {
   }
 
   /** Command that intelligently switches between intakes to ensure both are never open at once. */
-  private Command switchIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
-    return Commands.defer(
-        () -> {
-          boolean targetIsOpen = targetIntake.isLowered();
-          boolean otherIsOpen = otherIntake.isLowered();
+  private void openIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
+    targetIntake.setLowered(true);
+    otherIntake.setLowered(false);
+  }
 
-          if (targetIsOpen) {
-            // If target is already open, just close it (toggle behavior)
-            return Commands.runOnce(() -> targetIntake.setLowered(false));
-          } else if (otherIsOpen) {
-            // Other is open: close it, wait, open target
-            return Commands.sequence(
-                Commands.runOnce(() -> otherIntake.setLowered(false)),
-                new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
-                Commands.runOnce(() -> targetIntake.setLowered(true)));
-          } else {
-            // Other is closed: just open target
-            return Commands.runOnce(() -> targetIntake.setLowered(true));
-          }
-        },
-        java.util.Set.of());
+  private void closeIntake(IntakeSubsystem intake) {
+    intake.setLowered(false);
   }
 
   private void launchSimulatedProjectile() {

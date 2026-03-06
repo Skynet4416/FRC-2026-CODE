@@ -109,6 +109,11 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
   }
 
   @Override
+  public void set(double percentage) {
+    motor.set(percentage);
+  }
+
+  @Override
   public void stop() {
     setVoltage(0);
     this.currentSetpoint = 0.0;

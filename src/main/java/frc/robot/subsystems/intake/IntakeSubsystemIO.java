@@ -20,6 +20,8 @@ public interface IntakeSubsystemIO {
 
   default void setVoltage(double volts) {}
 
+  default void set(double percentage) {}
+
   default void setLowered(boolean lowered) {}
 
   default void stop() {

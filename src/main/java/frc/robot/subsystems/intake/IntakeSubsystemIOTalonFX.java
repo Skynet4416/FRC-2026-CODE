@@ -62,7 +62,10 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
     config.CurrentLimits.StatorCurrentLimit =
         Constants.Subsystems.Intake.CurrentLimits.STATOR_LIMIT_AMPS;
 
-    config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Default
+    config.MotorOutput.Inverted =
+        side == IntakeSubsystem.IntakeSide.LEFT
+            ? InvertedValue.Clockwise_Positive
+            : InvertedValue.CounterClockwise_Positive; // Default
     config.MotorOutput.NeutralMode =
         Constants.Subsystems.Intake.ROLLER_BREAK ? NeutralModeValue.Brake : NeutralModeValue.Coast;
 
@@ -89,24 +92,21 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
-    motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
+    // motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
   }
 
   @Override
   public void setVoltage(double volts) {
-    motor.setControl(voltageRequest.withOutput(volts));
+    // motor.setControl(voltageRequest.withOutput(volts));
+  }
+
+  @Override
+  public void set(double percentage) {
+    motor.set(percentage);
   }
 
   @Override
   public void setLowered(boolean lowered) {
-    System.out.println(
-        "Setting Soleoind to "
-            + lowered
-            + " ("
-            + solenoid.getFwdChannel()
-            + " / "
-            + solenoid.getRevChannel()
-            + ")");
     solenoid.set(lowered ? DoubleSolenoid.Value.kForward : DoubleSolenoid.Value.kReverse);
   }
 
