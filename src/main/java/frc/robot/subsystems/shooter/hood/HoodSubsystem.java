@@ -29,12 +29,10 @@ public class HoodSubsystem extends SubsystemBase {
   private boolean hoodZeroed = false;
 
   private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 0.0);
-  private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.5);
+  private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.1);
   public static final LoggedTunableNumber toleranceDeg =
       new LoggedTunableNumber("Hood/ToleranceDeg", 1.0);
 
-  private static final LoggedTunableNumber homingVolts =
-      new LoggedTunableNumber("Hood/Homing/Volts", -2);
   private static final LoggedTunableNumber homingVelocityThreshold =
       new LoggedTunableNumber("Hood/Homing/VelocityThreshold", 0.05);
 
@@ -137,7 +135,7 @@ public class HoodSubsystem extends SubsystemBase {
    * position to MIN_ANGLE. Includes a tunable delay to ignore initial inrush.
    */
   public Command zeroCommand() {
-    return run(() -> io.setVoltage(homingVolts.get()))
+    return run(() -> io.setVoltage(Constants.Subsystems.Shooter.Hood.HOMING_VOLTS))
         .raceWith(
             Commands.waitSeconds(zeroWait.get())
                 .andThen(

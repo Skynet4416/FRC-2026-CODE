@@ -146,7 +146,8 @@ public class RobotContainer {
                 IntakeSubsystem.IntakeSide.RIGHT);
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        compressor.enableAnalog(20, 40);
+        // compressor.enableAnalog(10, 30);
+        compressor.disable();
         break;
 
       case SIM:
@@ -400,8 +401,8 @@ public class RobotContainer {
     // driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     // driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
-    SmartDashboard.putData("leftIntakeSet", switchIntakeCommand(leftIntake, rightIntake));
-    SmartDashboard.putData("rightIntakeSet", switchIntakeCommand(rightIntake, leftIntake));
+    SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
     // Reset gyro to 0° when B button is pressed
     driveController

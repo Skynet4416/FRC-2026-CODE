@@ -122,19 +122,17 @@ public final class Constants {
       public static final class Hood {
         public static final double GEAR_RATIO = 875.0 / 38.0;
         public static final boolean INVERTED = false;
-        public static final double ZERO_SPEED = -0.1; // Duty Cycle
         public static final double STALL_CURRENT_LIMIT = 20.0; // Amps
         public static final double MAX_ANGLE_DEG = 68.0;
         public static final double MIN_ANGLE_DEG = 0.0;
         public static final double HOMING_VOLTS = -2.0;
-        public static final double HOMING_VELOCITY_THRESHOLD_RPM = 5.0;
 
         public static class Id {
           public static final int MOTOR_ID = 42;
         }
 
         public static final class ClosedLoop {
-          public static final double KP = 2;
+          public static final double KP = 10;
           public static final double KI = 0.0;
           public static final double KD = 0.0;
           public static final double KS = 0.0;
