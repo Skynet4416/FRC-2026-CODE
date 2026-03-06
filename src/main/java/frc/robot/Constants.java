@@ -253,9 +253,39 @@ public final class Constants {
 
     public static class Climber {
       public static class Id {
-        public static final int LEFT_MOTOR = 50;
-        public static final int RIGHT_MOTOR = 51;
-        public static final int THIRD_MOTOR = 52;
+        public static class Motor {
+          public static final int LEFT_NEO = 50;
+          public static final int RIGHT_NEO = 51;
+          public static final int KRAKEN = 52;
+        }
+
+        public static class Pneumatics {
+          public static final int CLIMB_REVERSE = 13; // mock defaults
+          public static final int CLIMB_FORWARDS = 0;
+        }
+      }
+
+      public static final double NEO_GEAR_RATIO = 8.0;
+      public static final double KRAKEN_GEAR_RATIO = 240.0;
+
+      public static class NeoClosedLoop {
+        public static final double KP = 0.0;
+        public static final double KI = 0.0;
+        public static final double KD = 0.0;
+      }
+
+      public static class KrakenClosedLoop {
+        public static final double KP = 0.0;
+        public static final double KI = 0.0;
+        public static final double KD = 0.0;
+      }
+      
+      public static final class CurrentLimits {
+        public static final boolean SUPPLY_ENABLED = true;
+        public static final int NEO_SUPPLY_LIMIT_AMPS = 40;
+        public static final int KRAKEN_SUPPLY_LIMIT_AMPS = 40;
+        public static final boolean STATOR_ENABLED = false;
+        public static final int STATOR_LIMIT_AMPS = 0.0;
       }
     }
   }
