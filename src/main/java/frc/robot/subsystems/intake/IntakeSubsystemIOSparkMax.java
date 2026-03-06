@@ -71,7 +71,8 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
 
   @Override
   public void updateInputs(IntakeIOInputs inputs) {
-    inputs.velocityRPM = this.motor.getEncoder().getVelocity();
+    inputs.velocityRPM =
+        this.motor.getEncoder().getVelocity() / Constants.Subsystems.Intake.GEAR_RATIO;
     inputs.appliedVolts = this.motor.getAppliedOutput() * this.motor.getBusVoltage();
     inputs.supplyCurrentAmps = this.motor.getOutputCurrent();
     inputs.lowered = (this.solenoid.get() == DoubleSolenoid.Value.kForward);
@@ -87,7 +88,9 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
-    this.motor.getClosedLoopController().setSetpoint(rpm, ControlType.kVelocity);
+    this.motor
+        .getClosedLoopController()
+        .setSetpoint(rpm * Constants.Subsystems.Intake.GEAR_RATIO, ControlType.kVelocity);
   }
 
   @Override

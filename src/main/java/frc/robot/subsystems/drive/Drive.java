@@ -134,6 +134,8 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
   private final Consumer<Pose2d> resetSimulationPoseCallBack;
 
   private ChassisSpeeds robotSetpointVelocity = new ChassisSpeeds();
+  private boolean xStopEnabled = true;
+  private boolean lastCommandWasZero = false;
 
   public Drive(
       GyroIO gyroIO,
@@ -212,6 +214,14 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
       Logger.recordOutput("SwerveStates/SetpointsOptimized", new SwerveModuleState[] {});
     }
 
+    // Automatically X-stop when enabled and no velocity is commanded
+    if (xStopEnabled && lastCommandWasZero && DriverStation.isEnabled()) {
+      stopWithX();
+      Logger.recordOutput("Drive/AutoXStop", true);
+    } else {
+      Logger.recordOutput("Drive/AutoXStop", false);
+    }
+
     // Update odometry
     double[] sampleTimestamps =
         modules[0].getOdometryTimestamps(); // All signals are sampled together
@@ -254,6 +264,12 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
    * @param speeds Speeds in meters/sec
    */
   public void runVelocity(ChassisSpeeds speeds) {
+    // Track whether this command is zero (for auto X-stop in periodic)
+    lastCommandWasZero =
+        speeds.vxMetersPerSecond == 0.0
+            && speeds.vyMetersPerSecond == 0.0
+            && speeds.omegaRadiansPerSecond == 0.0;
+
     // Calculate module setpoints
     ChassisSpeeds discreteSpeeds = ChassisSpeeds.discretize(speeds, 0.02);
     SwerveModuleState[] setpointStates = kinematics.toSwerveModuleStates(discreteSpeeds);
@@ -273,6 +289,20 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
 
     // Log optimized setpoints (runSetpoint mutates each state)
     Logger.recordOutput("SwerveStates/SetpointsOptimized", setpointStates);
+  }
+
+  /**
+   * Enables or disables the automatic X-stop behavior. When enabled (default), the drive will
+   * automatically lock modules into an X pattern whenever zero velocity is commanded. Disable this
+   * for autonomous paths or characterization routines where zero-speed is a valid transient state.
+   */
+  public void setXStopEnabled(boolean enabled) {
+    this.xStopEnabled = enabled;
+  }
+
+  /** Returns whether automatic X-stop is currently enabled. */
+  public boolean isXStopEnabled() {
+    return xStopEnabled;
   }
 
   /** Runs the drive in a straight line with the specified drive output. */
@@ -311,6 +341,22 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
   /** Returns a command to run a dynamic test in the specified direction. */
   public Command sysIdDynamic(SysIdRoutine.Direction direction) {
     return run(() -> runCharacterization(0.0)).withTimeout(1.0).andThen(sysId.dynamic(direction));
+  }
+
+  /**
+   * Returns the bounded module states (turn angles and drive velocities) for all of the modules.
+   */
+  @AutoLogOutput(key = "Tuning/SwerveStates/MeasuredOptimized")
+  private SwerveModuleState[] getModuleStatesOptimized() {
+    SwerveModuleState[] states = new SwerveModuleState[4];
+    for (int i = 0; i < 4; i++) {
+      SwerveModuleState state = modules[i].getState();
+      state.angle =
+          new edu.wpi.first.math.geometry.Rotation2d(
+              edu.wpi.first.math.MathUtil.angleModulus(state.angle.getRadians()));
+      states[i] = state;
+    }
+    return states;
   }
 
   /** Returns the module states (turn angles and drive velocities) for all of the modules. */

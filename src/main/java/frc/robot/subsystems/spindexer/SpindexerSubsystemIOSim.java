@@ -28,7 +28,7 @@ public class SpindexerSubsystemIOSim implements SpindexerSubsystemIO {
       new Alert("Spindexer motor disconnected!", AlertType.kWarning);
   private double currentSetpoint = 0.0;
 
-  private final DCMotor maxGearbox = DCMotor.getKrakenX60Foc(1);
+  private final DCMotor maxGearbox = DCMotor.getNEO(1);
   private final DCMotorSim dcMotorSim;
   private final TalonFXSimState motorSim;
 

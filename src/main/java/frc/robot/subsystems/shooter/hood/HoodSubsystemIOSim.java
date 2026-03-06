@@ -12,6 +12,7 @@ import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.sim.TalonFXSimState;
 import edu.wpi.first.math.system.plant.DCMotor;
 import edu.wpi.first.math.system.plant.LinearSystemId;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.RobotController;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import frc.robot.Constants;
@@ -72,8 +73,20 @@ public class HoodSubsystemIOSim implements HoodSubsystemIO {
   public void updateInputs(HoodIOInputs inputs) {
     talonFXSim.setSupplyVoltage(RobotController.getBatteryVoltage());
 
-    motorSim.setInputVoltage(talonFXSim.getMotorVoltage());
+    double motorVoltage = talonFXSim.getMotorVoltage();
+    motorSim.setInputVoltage(motorVoltage);
     motorSim.update(0.02);
+
+    // Hard stop simulation
+    double currentAngleDeg = Units.radiansToDegrees(motorSim.getAngularPositionRad());
+    if (currentAngleDeg <= Constants.Subsystems.Shooter.Hood.MIN_ANGLE_DEG && motorVoltage < 0) {
+      motorSim.setState(
+          Units.degreesToRadians(Constants.Subsystems.Shooter.Hood.MIN_ANGLE_DEG), 0.0);
+    } else if (currentAngleDeg >= Constants.Subsystems.Shooter.Hood.MAX_ANGLE_DEG
+        && motorVoltage > 0) {
+      motorSim.setState(
+          Units.degreesToRadians(Constants.Subsystems.Shooter.Hood.MAX_ANGLE_DEG), 0.0);
+    }
 
     talonFXSim.setRotorVelocity(
         RotationsPerSecond.of(

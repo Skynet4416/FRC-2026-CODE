@@ -51,30 +51,31 @@ public final class Constants {
   public static class Subsystems {
 
     public static final class Drive {
-      public static final int PIGEON_ID = 10;
+      // Unsed ID's - only for organization
+      public static final int PIGEON_ID = 3;
 
       public static final class FrontLeft {
-        public static final int DRIVE_ID = 11;
-        public static final int STEER_ID = 12;
-        public static final int ENCODER_ID = 13;
+        public static final int DRIVE_ID = 13;
+        public static final int ENCODER_ID = 14;
+        public static final int STEER_ID = 15;
       }
 
       public static final class FrontRight {
-        public static final int DRIVE_ID = 14;
-        public static final int STEER_ID = 15;
-        public static final int ENCODER_ID = 16;
+        public static final int DRIVE_ID = 10;
+        public static final int ENCODER_ID = 11;
+        public static final int STEER_ID = 12;
       }
 
       public static final class BackLeft {
-        public static final int DRIVE_ID = 17;
+        public static final int DRIVE_ID = 16;
+        public static final int ENCODER_ID = 17;
         public static final int STEER_ID = 18;
-        public static final int ENCODER_ID = 19;
       }
 
       public static final class BackRight {
-        public static final int DRIVE_ID = 20;
+        public static final int DRIVE_ID = 19;
+        public static final int ENCODER_ID = 20;
         public static final int STEER_ID = 21;
-        public static final int ENCODER_ID = 22;
       }
     }
 
@@ -156,7 +157,6 @@ public final class Constants {
       public static class Id {
         public static class Motor {
           public static final int INDEXER = 43;
-          public static final int SHOOTER_INDEXER = 44;
         }
       }
 
@@ -192,7 +192,24 @@ public final class Constants {
       }
     }
 
+    public static class ShooterIndexer {
+      public static final boolean ROLLER_BREAK = true;
+      public static final double RPM_TOLERANCE = 20.0;
+
+      public static class Id {
+        public static class Motor {
+          public static final int MOTOR = 44;
+        }
+      }
+
+      public static final class CurrentLimits {
+        public static final boolean SUPPLY_ENABLED = true;
+        public static final double SUPPLY_LIMIT_AMPS = 40.0;
+      }
+    }
+
     public static class Intake {
+      public static final double GEAR_RATIO = 2.0;
       public static final boolean ROLLER_BREAK = true;
       public static final double RPM_TOLERANCE = 20.0;
 
