@@ -289,54 +289,6 @@ public class DriveCommands {
   }
 
   /**
-   * Field relative drive command using two joysticks (controlling linear and angular velocities).
-   * Automatically stops the robot in an X pattern when the joysticks are released and inputs are
-   * zero.
-   */
-  public static Command joystickDriveWithXStop(
-      Drive drive,
-      DoubleSupplier xSupplier,
-      DoubleSupplier ySupplier,
-      DoubleSupplier omegaSupplier) {
-    return Commands.run(
-        () -> {
-          // Get linear velocity
-          Translation2d linearVelocity =
-              getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble());
-
-          // Apply rotation deadband
-          double omega = MathUtil.applyDeadband(omegaSupplier.getAsDouble(), DEADBAND);
-
-          // Square rotation value for more precise control
-          omega = Math.copySign(omega * omega, omega);
-
-          // Convert to field relative speeds & send command
-          ChassisSpeeds speeds =
-              new ChassisSpeeds(
-                  linearVelocity.getX() * drive.getMaxLinearSpeedMetersPerSec(),
-                  linearVelocity.getY() * drive.getMaxLinearSpeedMetersPerSec(),
-                  omega * drive.getMaxAngularSpeedRadPerSec());
-
-          if (speeds.vxMetersPerSecond == 0.0
-              && speeds.vyMetersPerSecond == 0.0
-              && speeds.omegaRadiansPerSecond == 0.0) {
-            drive.stopWithX();
-          } else {
-            boolean isFlipped =
-                DriverStation.getAlliance().isPresent()
-                    && DriverStation.getAlliance().get() == Alliance.Red;
-            drive.runVelocity(
-                ChassisSpeeds.fromFieldRelativeSpeeds(
-                    speeds,
-                    isFlipped
-                        ? drive.getRotation().plus(new Rotation2d(Math.PI))
-                        : drive.getRotation()));
-          }
-        },
-        drive);
-  }
-
-  /**
    * Field relative drive command using joystick for linear control and PID for angular control.
    * Possible use cases include snapping to an angle, aiming at a vision target, or controlling
    * absolute rotation with a joystick.
@@ -355,7 +307,6 @@ public class DriveCommands {
             ANGLE_KD,
             new TrapezoidProfile.Constraints(ANGLE_MAX_VELOCITY, ANGLE_MAX_ACCELERATION));
     angleController.enableContinuousInput(-Math.PI, Math.PI);
-
     // Construct command
     return Commands.run(
             () -> {
