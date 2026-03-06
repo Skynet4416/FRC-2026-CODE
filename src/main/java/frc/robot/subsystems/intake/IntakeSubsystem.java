@@ -70,6 +70,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void setLowered(boolean lowered) {
+    System.out.println("Setting Intake Lowered: " + lowered);
     io.setLowered(lowered);
   }
 

@@ -42,7 +42,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
             : Constants.Subsystems.Intake.Id.Pneumatics.RIGHT_REVERSE;
 
     motor = new TalonFX(motorId);
-    solenoid = new DoubleSolenoid(PneumaticsModuleType.REVPH, forwardChannel, reverseChannel);
+    solenoid = new DoubleSolenoid(4, PneumaticsModuleType.REVPH, forwardChannel, reverseChannel);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
 
@@ -99,6 +99,14 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
 
   @Override
   public void setLowered(boolean lowered) {
+    System.out.println(
+        "Setting Soleoind to "
+            + lowered
+            + " ("
+            + solenoid.getFwdChannel()
+            + " / "
+            + solenoid.getRevChannel()
+            + ")");
     solenoid.set(lowered ? DoubleSolenoid.Value.kForward : DoubleSolenoid.Value.kReverse);
   }
 

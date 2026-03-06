@@ -43,7 +43,8 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
             : Constants.Subsystems.Intake.Id.Pneumatics.RIGHT_REVERSE;
 
     this.motor = new SparkMax(motorId, MotorType.kBrushless);
-    this.solenoid = new DoubleSolenoid(PneumaticsModuleType.REVPH, forwardChannel, reverseChannel);
+    this.solenoid =
+        new DoubleSolenoid(4, PneumaticsModuleType.REVPH, forwardChannel, reverseChannel);
     this.closedLoopConfig =
         new ClosedLoopConfig()
             .p(Constants.Subsystems.Intake.ClosedLoop.KP)

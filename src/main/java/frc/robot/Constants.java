@@ -205,10 +205,10 @@ public final class Constants {
         }
 
         public static class Pneumatics {
-          public static final int LEFT_REVERSE = 1;
-          public static final int LEFT_FORWARDS = 0;
-          public static final int RIGHT_REVERSE = 3;
-          public static final int RIGHT_FORWARDS = 2;
+          public static final int LEFT_REVERSE = 1; //
+          public static final int LEFT_FORWARDS = 15;
+          public static final int RIGHT_REVERSE = 2; //
+          public static final int RIGHT_FORWARDS = 14;
         }
       }
 

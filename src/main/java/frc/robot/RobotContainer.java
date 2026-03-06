@@ -18,8 +18,10 @@ import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
+import edu.wpi.first.wpilibj.Compressor;
 import edu.wpi.first.wpilibj.DriverStation;
 import edu.wpi.first.wpilibj.GenericHID;
+import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -48,7 +50,6 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
-import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -71,6 +72,7 @@ public class RobotContainer {
   private final Drive drive;
   private final IntakeSubsystem leftIntake;
   private final IntakeSubsystem rightIntake;
+  private final Compressor compressor;
 
   private static final LoggedTunableNumber intakeSwitchDelay =
       new LoggedTunableNumber("IntakeSwitchDelay", 0.5);
@@ -142,6 +144,9 @@ public class RobotContainer {
             new IntakeSubsystem(
                 new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.RIGHT),
                 IntakeSubsystem.IntakeSide.RIGHT);
+
+        compressor = new Compressor(4, PneumaticsModuleType.REVPH);
+        compressor.enableAnalog(20, 40);
         break;
 
       case SIM:
@@ -181,6 +186,7 @@ public class RobotContainer {
             new IntakeSubsystem(
                 new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.RIGHT),
                 IntakeSubsystem.IntakeSide.RIGHT);
+        compressor = null;
         break;
 
       default:
@@ -204,6 +210,7 @@ public class RobotContainer {
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.LEFT);
         rightIntake =
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.RIGHT);
+        compressor = null;
         break;
     }
 
@@ -338,7 +345,7 @@ public class RobotContainer {
                 Commands.runOnce(rightIntake::stop, rightIntake)));
 
     // Default command, normal field-relative drive
-    drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
+    // drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
     // Lock to 0 when A button is held
     driveController
@@ -390,8 +397,11 @@ public class RobotContainer {
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
-    driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    // driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    // driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+
+    SmartDashboard.putData("leftIntakeSet", switchIntakeCommand(leftIntake, rightIntake));
+    SmartDashboard.putData("rightIntakeSet", switchIntakeCommand(rightIntake, leftIntake));
 
     // Reset gyro to 0° when B button is pressed
     driveController
