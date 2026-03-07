@@ -380,14 +380,21 @@ public class RobotContainer {
     // Align and auto-launch
     driveController
         .leftTrigger()
-        .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
+        // .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand())
         .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
         .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
         .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
-        .whileTrue(spindexerSubsystem.runIndexerCommand())
+        .onTrue(
+            Commands.sequence(
+                spindexerSubsystem.runIndexerCommand(),
+                spindexerSubsystem.runShooterIndexerCommand(),
+                Commands.run(() -> leftIntake.set(0.2), leftIntake),
+                Commands.run(() -> rightIntake.set(0.2), rightIntake)))
         .onFalse(Commands.runOnce(() -> spindexerSubsystem.stop(), spindexerSubsystem))
+        .onFalse(
+            Commands.runOnce(() -> spindexerSubsystem.stopShooterIndexer(), spindexerSubsystem))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
@@ -473,10 +480,40 @@ public class RobotContainer {
   }
 
   private Command smartIntakeCommand(IntakeSubsystem.IntakeSide bumperSide) {
-    return Commands.either(
-        openIntakeCommand(leftIntake, rightIntake),
-        openIntakeCommand(rightIntake, leftIntake),
-        () -> getDesiredIntakeSide(bumperSide) == IntakeSubsystem.IntakeSide.LEFT);
+    return Commands.defer(
+            () -> {
+              IntakeSubsystem.IntakeSide desired = getDesiredIntakeSide(bumperSide);
+              IntakeSubsystem target =
+                  desired == IntakeSubsystem.IntakeSide.LEFT ? leftIntake : rightIntake;
+              IntakeSubsystem other =
+                  desired == IntakeSubsystem.IntakeSide.LEFT ? rightIntake : leftIntake;
+
+              if (target.isLowered()) {
+                // Target already open → toggle it closed
+                return Commands.runOnce(() -> target.setLowered(false));
+              } else if (other.isLowered()) {
+                // Other is open → close it, wait, then open target
+                // We handle rollers directly here because kCancelIncoming blocks the
+                // onFalse/onTrue triggers from firing while this command holds the subsystems
+                return Commands.sequence(
+                    Commands.runOnce(
+                        () -> {
+                          other.setLowered(false);
+                          other.stop();
+                        }),
+                    new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
+                    Commands.runOnce(
+                        () -> {
+                          target.setLowered(true);
+                          target.set(1);
+                        }));
+              } else {
+                // Neither open → just open target
+                return Commands.runOnce(() -> target.setLowered(true));
+              }
+            },
+            java.util.Set.of(leftIntake, rightIntake))
+        .withInterruptBehavior(Command.InterruptionBehavior.kCancelIncoming);
   }
 
   private IntakeSubsystem.IntakeSide getDesiredIntakeSide(IntakeSubsystem.IntakeSide bumperSide) {
@@ -511,25 +548,6 @@ public class RobotContainer {
       // closer.
       return facingLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
     }
-  }
-
-  /** Command that intelligently switches between intakes to ensure both are never open at once. */
-  private Command openIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
-    return Commands.either(
-        // Target is already lowered → just raise it (toggle off)
-        Commands.runOnce(() -> targetIntake.setLowered(false), targetIntake),
-        // Target is not lowered → close other if needed, then lower target
-        Commands.sequence(
-            Commands.either(
-                // Other intake is currently lowered → close it and wait for retraction
-                Commands.sequence(
-                    Commands.runOnce(() -> otherIntake.setLowered(false), otherIntake),
-                    new SuppliedWaitCommand(() -> intakeSwitchDelay.get())),
-                // Other intake is already raised → no-op
-                Commands.none(),
-                otherIntake::isLowered),
-            Commands.runOnce(() -> targetIntake.setLowered(true), targetIntake)),
-        targetIntake::isLowered);
   }
 
   private void launchSimulatedProjectile() {
