@@ -1,5 +1,6 @@
 package frc.robot.commands;
 
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.Command;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
@@ -73,7 +74,10 @@ public class TestShootCommand extends Command {
       shooterIndexer.setShooterIndexer(1.0);
       spindexer.setPercentage(1.0);
       if (!hasPrintedShot) {
-        System.out.println("[TestShoot] SHOOTING! Flywheel & hood at setpoint.");
+        System.out.println(
+            "[TestShoot] SHOOTING at t="
+                + String.format("%.3f", Timer.getFPGATimestamp())
+                + "s | Flywheel & hood at setpoint.");
         hasPrintedShot = true;
       }
     }
