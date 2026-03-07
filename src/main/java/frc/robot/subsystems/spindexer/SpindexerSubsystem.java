@@ -27,6 +27,10 @@ public class SpindexerSubsystem extends SubsystemBase {
             new SysIdRoutine.Mechanism((voltage) -> runVolts(voltage.in(Volts)), null, this));
   }
 
+  public void setPercentage(double percentage) {
+    io.set(percentage);
+  }
+
   public void setTargetRPM(double rpm) {
     io.setTargetRPM(rpm);
   }
