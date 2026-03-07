@@ -81,7 +81,8 @@ public class FlywheelSubsystem extends SubsystemBase {
   }
 
   public Command runTrackTargetCommand() {
-    return run(() -> setTargetRADS(LaunchCalculator.getInstance().getParameters().flywheelSpeed()));
+    return run(
+        () -> setTargetRADS(LaunchCalculator.getInstance().getParameters().flywheelSpeed() / 4));
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {

@@ -64,8 +64,8 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
 
     config.MotorOutput.Inverted =
         side == IntakeSubsystem.IntakeSide.LEFT
-            ? InvertedValue.Clockwise_Positive
-            : InvertedValue.CounterClockwise_Positive; // Default
+            ? InvertedValue.CounterClockwise_Positive
+            : InvertedValue.Clockwise_Positive; // Default
     config.MotorOutput.NeutralMode =
         Constants.Subsystems.Intake.ROLLER_BREAK ? NeutralModeValue.Brake : NeutralModeValue.Coast;
 
@@ -92,12 +92,12 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
-    // motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
+    motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
   }
 
   @Override
   public void setVoltage(double volts) {
-    // motor.setControl(voltageRequest.withOutput(volts));
+    motor.setControl(voltageRequest.withOutput(volts));
   }
 
   @Override

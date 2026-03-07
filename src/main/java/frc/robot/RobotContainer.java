@@ -54,6 +54,7 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
+import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -98,12 +99,13 @@ public class RobotContainer {
   private final Alert mechanismControllerDisconnected =
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
-  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> false);
+  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> true);
   private final Trigger ignoreHubState = new Trigger(() -> false);
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
 
+  // How much time in seconds to run the wheels when folding
   private static final LoggedTunableNumber intakeFoldDelay =
       new LoggedTunableNumber("IntakeFoldDelay", 1.0);
 
@@ -151,8 +153,7 @@ public class RobotContainer {
                 IntakeSubsystem.IntakeSide.RIGHT);
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        // compressor.enableAnalog(10, 30);
-        compressor.disable();
+        compressor.enableAnalog(40, 80);
         break;
 
       case SIM:
@@ -336,7 +337,7 @@ public class RobotContainer {
 
     // Intake logic: start spinning when lowered, and stop on false (after an optional delay)
     leftIntakeLowered
-        .onTrue(leftIntake.runRollerCommand())
+        .onTrue(Commands.runOnce(() -> leftIntake.set(1), leftIntake))
         .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeFoldDelay.get())
@@ -344,7 +345,7 @@ public class RobotContainer {
                 Commands.runOnce(leftIntake::stop, leftIntake)));
 
     rightIntakeLowered
-        .onTrue(rightIntake.runRollerCommand())
+        .onTrue(Commands.runOnce(() -> rightIntake.set(1), rightIntake))
         .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeFoldDelay.get())
@@ -380,14 +381,21 @@ public class RobotContainer {
     // Align and auto-launch
     driveController
         .leftTrigger()
-        .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
+        // .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand())
         .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
         .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
         .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
-        .whileTrue(spindexerSubsystem.runIndexerCommand())
+        .onTrue(
+            Commands.sequence(
+                spindexerSubsystem.runIndexerCommand(),
+                spindexerSubsystem.runShooterIndexerCommand(),
+                Commands.run(() -> leftIntake.set(0.2), leftIntake),
+                Commands.run(() -> rightIntake.set(0.2), rightIntake)))
         .onFalse(Commands.runOnce(() -> spindexerSubsystem.stop(), spindexerSubsystem))
+        .onFalse(
+            Commands.runOnce(() -> spindexerSubsystem.stopShooterIndexer(), spindexerSubsystem))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
@@ -404,8 +412,9 @@ public class RobotContainer {
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
-    // driveController.leftBumper().whileTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    // driveController.rightBumper().whileTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+
+    driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
@@ -435,12 +444,12 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    // flywheelSubsystem.setDefaultCommand(
-    //     new ContinuousConditionalCommand(
-    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-    //         flywheelSubsystem.runAtSpeedRADSCommand(
-    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-    //         disableFlywheelAutoSpinup));
+    flywheelSubsystem.setDefaultCommand(
+        new ContinuousConditionalCommand(
+            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+            flywheelSubsystem.runAtSpeedRADSCommand(
+                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+            disableFlywheelAutoSpinup));
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
@@ -475,10 +484,40 @@ public class RobotContainer {
   }
 
   private Command smartIntakeCommand(IntakeSubsystem.IntakeSide bumperSide) {
-    return Commands.either(
-        openIntakeCommand(leftIntake, rightIntake),
-        openIntakeCommand(rightIntake, leftIntake),
-        () -> getDesiredIntakeSide(bumperSide) == IntakeSubsystem.IntakeSide.LEFT);
+    return Commands.defer(
+            () -> {
+              IntakeSubsystem.IntakeSide desired = getDesiredIntakeSide(bumperSide);
+              IntakeSubsystem target =
+                  desired == IntakeSubsystem.IntakeSide.LEFT ? leftIntake : rightIntake;
+              IntakeSubsystem other =
+                  desired == IntakeSubsystem.IntakeSide.LEFT ? rightIntake : leftIntake;
+
+              if (target.isLowered()) {
+                // Target already open → toggle it closed
+                return Commands.runOnce(() -> target.setLowered(false));
+              } else if (other.isLowered()) {
+                // Other is open → close it, wait, then open target
+                // We handle rollers directly here because kCancelIncoming blocks the
+                // onFalse/onTrue triggers from firing while this command holds the subsystems
+                return Commands.sequence(
+                    Commands.runOnce(
+                        () -> {
+                          other.setLowered(false);
+                          other.stop();
+                        }),
+                    new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
+                    Commands.runOnce(
+                        () -> {
+                          target.setLowered(true);
+                          target.set(1);
+                        }));
+              } else {
+                // Neither open → just open target
+                return Commands.runOnce(() -> target.setLowered(true));
+              }
+            },
+            java.util.Set.of(leftIntake, rightIntake))
+        .withInterruptBehavior(Command.InterruptionBehavior.kCancelIncoming);
   }
 
   private IntakeSubsystem.IntakeSide getDesiredIntakeSide(IntakeSubsystem.IntakeSide bumperSide) {
@@ -513,21 +552,6 @@ public class RobotContainer {
       // closer.
       return facingLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
     }
-  }
-
-  /** Command that intelligently switches between intakes to ensure both are never open at once. */
-  private Command openIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
-    return Commands.sequence(
-        Commands.runOnce(() -> otherIntake.setLowered(false), otherIntake),
-        Commands.either(
-            new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
-            Commands.none(),
-            otherIntake::isLowered),
-        Commands.runOnce(() -> targetIntake.setLowered(true), targetIntake));
-  }
-
-  private void closeIntake(IntakeSubsystem intake) {
-    intake.setLowered(false);
   }
 
   private void launchSimulatedProjectile() {
