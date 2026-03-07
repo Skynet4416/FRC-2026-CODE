@@ -103,7 +103,7 @@ public class RobotContainer {
   private final LoggedDashboardChooser<Command> autoChooser;
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
 
-  //How much time in seconds to run the wheels when folding
+  // How much time in seconds to run the wheels when folding
   private static final LoggedTunableNumber intakeFoldDelay =
       new LoggedTunableNumber("IntakeFoldDelay", 1.0);
 
@@ -152,7 +152,7 @@ public class RobotContainer {
                 IntakeSubsystem.IntakeSide.RIGHT);
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        compressor.enableAnalog(10, 30);
+        compressor.enableAnalog(40, 80);
         break;
 
       case SIM:
@@ -344,8 +344,8 @@ public class RobotContainer {
                 Commands.runOnce(leftIntake::stop, leftIntake)));
 
     rightIntakeLowered
-    .onTrue(Commands.runOnce(() -> rightIntake.set(1), rightIntake))
-    .onFalse(
+        .onTrue(Commands.runOnce(() -> rightIntake.set(1), rightIntake))
+        .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeFoldDelay.get())
                     .onlyIf(() -> runWheelsWhenFoldingChooser.get()),

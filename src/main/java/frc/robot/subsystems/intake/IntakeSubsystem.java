@@ -106,7 +106,7 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setVoltage(volts);
   }
 
-  public void set (double percentage){
+  public void set(double percentage) {
     io.set(percentage);
   }
 
