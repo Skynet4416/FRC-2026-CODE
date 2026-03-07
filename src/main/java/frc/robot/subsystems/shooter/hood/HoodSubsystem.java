@@ -83,6 +83,8 @@ public class HoodSubsystem extends SubsystemBase {
               new Transform3d(poses.get(i).getTranslation(), poses.get(i).getRotation())));
     }
     Logger.recordOutput("Hood/Components/HoodPose3d", poses.toArray(new Pose3d[0]));
+
+    Logger.recordOutput("Hood/HasZeroed", isZeroed());
   }
 
   public void setTargetAngle(double degrees) {
@@ -147,5 +149,9 @@ public class HoodSubsystem extends SubsystemBase {
   public void zero() {
     io.setAngle(Constants.Subsystems.Shooter.Hood.MIN_ANGLE_DEG);
     hoodZeroed = true;
+  }
+
+  public boolean isZeroed() {
+    return hoodZeroed;
   }
 }
