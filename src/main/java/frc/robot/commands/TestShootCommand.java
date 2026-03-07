@@ -94,6 +94,6 @@ public class TestShootCommand extends Command {
 
   @Override
   public boolean isFinished() {
-    return false;
+    return hasPrintedShot;
   }
 }
