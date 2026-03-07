@@ -18,6 +18,7 @@ public class TestShootCommand extends Command {
   private final SpindexerSubsystem spindexer;
   private final double targetRPM;
   private final double targetHoodAngleDeg;
+  private boolean hasPrintedShot = false;
 
   /**
    * Creates a new TestShootCommand.
@@ -48,9 +49,17 @@ public class TestShootCommand extends Command {
 
   @Override
   public void initialize() {
-    System.out.println("=== TestShootCommand START ===");
-    System.out.println("Target RPM: " + targetRPM);
-    System.out.println("Target Hood Angle (deg): " + targetHoodAngleDeg);
+    hasPrintedShot = false;
+    var params = LaunchCalculator.getInstance().getParameters();
+    double launcherToTargetDistance = params.distanceNoLookahead();
+    System.out.println(
+        "[TestShoot] START | distance="
+            + String.format("%.2f", launcherToTargetDistance)
+            + "m | RPM="
+            + String.format("%.1f", targetRPM)
+            + " | hoodAngle="
+            + String.format("%.1f", targetHoodAngleDeg)
+            + "deg");
   }
 
   @Override
@@ -59,25 +68,14 @@ public class TestShootCommand extends Command {
     flywheel.setTargetRPM(targetRPM);
     hood.setTargetAngle(targetHoodAngleDeg);
 
-    // Get current launch parameters to print distance info
-    var params = LaunchCalculator.getInstance().getParameters();
-    double launcherToTargetDistance = params.distanceNoLookahead();
-
-    // Print calibration data
-    System.out.println(
-        "[TestShoot] distance="
-            + String.format("%.2f", launcherToTargetDistance)
-            + "m | RPM="
-            + String.format("%.1f", targetRPM)
-            + " | hoodAngle="
-            + String.format("%.1f", targetHoodAngleDeg)
-            + "deg");
-
     // Feed the ball once flywheel and hood are ready
     if (flywheel.atSetpoint() && hood.atSetpoint()) {
       shooterIndexer.setShooterIndexer(1.0);
       spindexer.setPercentage(1.0);
-      System.out.println("[TestShoot] SHOOTING! Flywheel & hood at setpoint.");
+      if (!hasPrintedShot) {
+        System.out.println("[TestShoot] SHOOTING! Flywheel & hood at setpoint.");
+        hasPrintedShot = true;
+      }
     }
   }
 
@@ -87,7 +85,7 @@ public class TestShootCommand extends Command {
     hood.stop();
     shooterIndexer.stop();
     spindexer.stop();
-    System.out.println("=== TestShootCommand END (interrupted=" + interrupted + ") ===");
+    System.out.println("[TestShoot] END (interrupted=" + interrupted + ")");
   }
 
   @Override
