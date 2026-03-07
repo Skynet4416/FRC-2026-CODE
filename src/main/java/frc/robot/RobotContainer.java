@@ -515,17 +515,21 @@ public class RobotContainer {
 
   /** Command that intelligently switches between intakes to ensure both are never open at once. */
   private Command openIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
-    return Commands.sequence(
-        Commands.runOnce(() -> otherIntake.setLowered(false), otherIntake),
-        Commands.either(
-            new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
-            Commands.none(),
-            otherIntake::isLowered),
-        Commands.runOnce(() -> targetIntake.setLowered(true), targetIntake));
-  }
-
-  private void closeIntake(IntakeSubsystem intake) {
-    intake.setLowered(false);
+    return Commands.either(
+        // Target is already lowered → just raise it (toggle off)
+        Commands.runOnce(() -> targetIntake.setLowered(false), targetIntake),
+        // Target is not lowered → close other if needed, then lower target
+        Commands.sequence(
+            Commands.either(
+                // Other intake is currently lowered → close it and wait for retraction
+                Commands.sequence(
+                    Commands.runOnce(() -> otherIntake.setLowered(false), otherIntake),
+                    new SuppliedWaitCommand(() -> intakeSwitchDelay.get())),
+                // Other intake is already raised → no-op
+                Commands.none(),
+                otherIntake::isLowered),
+            Commands.runOnce(() -> targetIntake.setLowered(true), targetIntake)),
+        targetIntake::isLowered);
   }
 
   private void launchSimulatedProjectile() {
