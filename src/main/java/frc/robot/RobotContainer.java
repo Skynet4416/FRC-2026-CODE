@@ -106,8 +106,8 @@ public class RobotContainer {
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
 
   // How much time in seconds to run the wheels when folding
-  private static final LoggedTunableNumber intakeFoldDelay =
-      new LoggedTunableNumber("IntakeFoldDelay", 1.0);
+  private static final LoggedTunableNumber intakeRunWheelsWhileFoldingDelay =
+      new LoggedTunableNumber("IntakeRunWheelsWhileFoldingDelay", 1.0);
 
   // Triggers
   private final Trigger inConfusionZone;
@@ -340,7 +340,7 @@ public class RobotContainer {
         .onTrue(Commands.runOnce(() -> leftIntake.set(1), leftIntake))
         .onFalse(
             Commands.sequence(
-                new SuppliedWaitCommand(() -> intakeFoldDelay.get())
+                new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
                     .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
                 Commands.runOnce(leftIntake::stop, leftIntake)));
 
@@ -348,7 +348,7 @@ public class RobotContainer {
         .onTrue(Commands.runOnce(() -> rightIntake.set(1), rightIntake))
         .onFalse(
             Commands.sequence(
-                new SuppliedWaitCommand(() -> intakeFoldDelay.get())
+                new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
                     .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
                 Commands.runOnce(rightIntake::stop, rightIntake)));
 
