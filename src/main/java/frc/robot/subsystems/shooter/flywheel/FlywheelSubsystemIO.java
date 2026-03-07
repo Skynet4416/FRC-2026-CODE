@@ -23,6 +23,8 @@ public interface FlywheelSubsystemIO {
 
   default void setVoltage(double volts) {}
 
+  default void configPID(double kP, double kI, double kD, double kS, double kV, double kA) {}
+
   default void stop() {
     setVoltage(0);
   }
