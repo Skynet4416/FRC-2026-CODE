@@ -83,15 +83,17 @@ public class HoodSubsystem extends SubsystemBase {
     io.updateInputs(inputs);
     Logger.processInputs("Hood", inputs);
 
-    LoggedTunableNumber.ifChanged(
-        hashCode(),
-        () -> io.configPID(kP.get(), kI.get(), kD.get(), kS.get(), kV.get(), kA.get()),
-        kP,
-        kI,
-        kD,
-        kS,
-        kV,
-        kA);
+    if (Constants.tuningMode) {
+      LoggedTunableNumber.ifChanged(
+          hashCode(),
+          () -> io.configPID(kP.get(), kI.get(), kD.get(), kS.get(), kV.get(), kA.get()),
+          kP,
+          kI,
+          kD,
+          kS,
+          kV,
+          kA);
+    }
 
     hood.setAngle(inputs.angle);
     Logger.recordOutput("Hood/Mechanism", mech);

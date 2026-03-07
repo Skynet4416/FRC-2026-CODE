@@ -111,15 +111,16 @@ public class FlywheelSubsystem extends SubsystemBase {
   public void periodic() {
     io.updateInputs(inputs);
     Logger.processInputs("Flywheel", inputs);
-
-    LoggedTunableNumber.ifChanged(
-        hashCode(),
-        () -> io.configPID(kP.get(), kI.get(), kD.get(), kS.get(), kV.get(), kA.get()),
-        kP,
-        kI,
-        kD,
-        kS,
-        kV,
-        kA);
+    if (Constants.tuningMode) {
+      LoggedTunableNumber.ifChanged(
+          hashCode(),
+          () -> io.configPID(kP.get(), kI.get(), kD.get(), kS.get(), kV.get(), kA.get()),
+          kP,
+          kI,
+          kD,
+          kS,
+          kV,
+          kA);
+    }
   }
 }
