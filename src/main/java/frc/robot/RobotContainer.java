@@ -48,6 +48,7 @@ import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIO;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSim;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSparkMax;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
@@ -86,6 +87,7 @@ public class RobotContainer {
   private final FlywheelSubsystem flywheelSubsystem;
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
+  private final ShooterIndexerSubsystem shooterIndexerSubsystem;
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
   private SwerveDriveSimulation driveSimulation = null;
@@ -137,9 +139,8 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
 
-        spindexerSubsystem =
-            new SpindexerSubsystem(
-                new SpindexerSubsystemIOTalonFX(), new ShooterIndexerIOSparkMax());
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOTalonFX());
+        shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSparkMax());
         leftIntake =
             new IntakeSubsystem(
                 new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.LEFT),
@@ -181,8 +182,8 @@ public class RobotContainer {
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
         hoodSubsystem.zero();
 
-        spindexerSubsystem =
-            new SpindexerSubsystem(new SpindexerSubsystemIOSim(), new ShooterIndexerIOSim());
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
+        shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSim());
         leftIntake =
             new IntakeSubsystem(
                 new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.LEFT),
@@ -209,8 +210,8 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIO() {});
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIO() {});
 
-        spindexerSubsystem =
-            new SpindexerSubsystem(new SpindexerSubsystemIO() {}, new ShooterIndexerIO() {});
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIO() {});
+        shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIO() {});
 
         leftIntake =
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.LEFT);
@@ -408,14 +409,20 @@ public class RobotContainer {
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
-    SmartDashboard.putData("Run both Indexers", Commands.sequence(spindexerSubsystem.runIndexerCommand(), spindexerSubsystem.runShooterIndexerCommand()));
+    SmartDashboard.putData(
+        "Run both Indexers",
+        Commands.parallel(
+            spindexerSubsystem.runIndexerCommand(),
+            shooterIndexerSubsystem.runShooterIndexerCommand()));
     SmartDashboard.putData(
         "Stop both Indexers",
         Commands.runOnce(
             () -> {
               spindexerSubsystem.stop();
-              spindexerSubsystem.stopShooterIndexer();
-            }));
+              shooterIndexerSubsystem.stop();
+            },
+            spindexerSubsystem,
+            shooterIndexerSubsystem));
 
     // Reset gyro to 0° when B button is pressed
     driveController

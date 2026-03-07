@@ -6,7 +6,6 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
-import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerSubsystem;
 import frc.robot.util.LoggedTunableNumber;
 import org.littletonrobotics.junction.Logger;
 
@@ -15,13 +14,9 @@ public class SpindexerSubsystem extends SubsystemBase {
   private final SysIdRoutine sysIdRoutine;
   protected final SpindexerIOInputsAutoLogged inputs = new SpindexerIOInputsAutoLogged();
   private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("IndexRPM", 500.0);
-  private final ShooterIndexerSubsystem shooterIndexer;
 
-  public SpindexerSubsystem(
-      SpindexerSubsystemIO io,
-      frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIO shooterIndexerIO) {
+  public SpindexerSubsystem(SpindexerSubsystemIO io) {
     this.io = io;
-    this.shooterIndexer = new ShooterIndexerSubsystem(shooterIndexerIO);
     sysIdRoutine =
         new SysIdRoutine(
             new SysIdRoutine.Config(
@@ -48,28 +43,16 @@ public class SpindexerSubsystem extends SubsystemBase {
     return inputs.supplyCurrentAmps;
   }
 
-  public void setShooterIndexer(double percentage) {
-    shooterIndexer.setShooterIndexer(percentage);
-  }
-
   public void stop() {
-    shooterIndexer.setShooterIndexer(0);
+    io.set(0);
   }
 
   public Command runIndexerCommand() {
-    return Commands.run(() -> io.set(1.0));
-  }
-
-  public Command runShooterIndexerCommand() {
-    return Commands.run(() -> setShooterIndexer(1.0));
+    return Commands.run(() -> io.set(1.0), this);
   }
 
   public void runVolts(double volts) {
     io.setVoltage(volts);
-  }
-
-  public void stopShooterIndexer() {
-    shooterIndexer.stop();
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {

@@ -33,6 +33,10 @@ public class ShooterIndexerSubsystem extends SubsystemBase {
     io.stop();
   }
 
+  public Command runShooterIndexerCommand() {
+    return Commands.run(() -> setShooterIndexer(1.0), this);
+  }
+
   public Command stopCommand() {
     return Commands.runOnce(this::stop, this);
   }
