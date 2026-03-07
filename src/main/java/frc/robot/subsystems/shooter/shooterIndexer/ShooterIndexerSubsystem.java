@@ -29,6 +29,10 @@ public class ShooterIndexerSubsystem extends SubsystemBase {
     return inputs.appliedVolts;
   }
 
+  public void set(double percentage) {
+    io.setPercentage(percentage);
+  }
+
   public void stop() {
     io.stop();
   }

@@ -40,6 +40,10 @@ public class FlywheelSubsystem extends SubsystemBase {
     io.setTargetRADS(rads);
   }
 
+  public void setVoltage(double voltage) {
+    io.setVoltage(voltage);
+  }
+
   public double getVelocityRPM() {
     return inputs.velocityRPM;
   }

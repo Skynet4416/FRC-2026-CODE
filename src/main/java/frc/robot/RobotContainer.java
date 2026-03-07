@@ -30,6 +30,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
+import frc.robot.commands.Indexing.RunIndexingCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
@@ -48,12 +49,12 @@ import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIO;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSim;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSparkMax;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
-import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -87,6 +88,7 @@ public class RobotContainer {
   private final FlywheelSubsystem flywheelSubsystem;
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
+  private final ShooterIndexerSubsystem shooterIndexerSubsystem;
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
   private SwerveDriveSimulation driveSimulation = null;
@@ -139,9 +141,8 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
 
-        spindexerSubsystem =
-            new SpindexerSubsystem(
-                new SpindexerSubsystemIOTalonFX(), new ShooterIndexerIOSparkMax());
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOTalonFX());
+        shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSparkMax());
         leftIntake =
             new IntakeSubsystem(
                 new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.LEFT),
@@ -180,10 +181,9 @@ public class RobotContainer {
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOSim());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
-        hoodSubsystem.zero();
 
-        spindexerSubsystem =
-            new SpindexerSubsystem(new SpindexerSubsystemIOSim(), new ShooterIndexerIOSim());
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
+        shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSim());
         leftIntake =
             new IntakeSubsystem(
                 new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.LEFT),
@@ -210,9 +210,8 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIO() {});
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIO() {});
 
-        spindexerSubsystem =
-            new SpindexerSubsystem(new SpindexerSubsystemIO() {}, new ShooterIndexerIO() {});
-
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIO() {});
+        shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIO() {});
         leftIntake =
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.LEFT);
         rightIntake =
@@ -254,18 +253,6 @@ public class RobotContainer {
     autoChooser.addOption(
         "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
     autoChooser.addOption(
-        "Hood SysId (Quasistatic Forward)",
-        hoodSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Hood SysId (Quasistatic Reverse)",
-        hoodSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Hood SysId (Dynamic Forward)",
-        hoodSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Hood SysId (Dynamic Reverse)",
-        hoodSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
         "Flywheel SysId (Quasistatic Forward)",
         flywheelSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
     autoChooser.addOption(
@@ -277,19 +264,6 @@ public class RobotContainer {
     autoChooser.addOption(
         "Flywheel SysId (Dynamic Reverse)",
         flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
-    autoChooser.addOption(
-        "Spindexer SysId (Quasistatic Forward)",
-        spindexerSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Spindexer SysId (Quasistatic Reverse)",
-        spindexerSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Spindexer SysId (Dynamic Forward)",
-        spindexerSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Spindexer SysId (Dynamic Reverse)",
-        spindexerSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
     autoChooser.addOption(
         "Left Intake SysId (Quasistatic Forward)",
@@ -386,15 +360,15 @@ public class RobotContainer {
         .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
         .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
         .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
-        .onTrue(
-            Commands.sequence(
-                spindexerSubsystem.runIndexerCommand(),
-                spindexerSubsystem.runShooterIndexerCommand(),
-                Commands.run(() -> leftIntake.set(0.2), leftIntake),
-                Commands.run(() -> rightIntake.set(0.2), rightIntake)))
+        // .onTrue(
+        //     Commands.sequence(
+        //         spindexerSubsystem.runIndexerCommand(),
+        //         spindexerSubsystem.runShooterIndexerCommand(),
+        //         Commands.run(() -> leftIntake.set(0.2), leftIntake),
+        //         Commands.run(() -> rightIntake.set(0.2), rightIntake)))
         .onFalse(Commands.runOnce(() -> spindexerSubsystem.stop(), spindexerSubsystem))
-        .onFalse(
-            Commands.runOnce(() -> spindexerSubsystem.stopShooterIndexer(), spindexerSubsystem))
+        // .onFalse(
+        //     Commands.runOnce(() -> spindexerSubsystem.stopShooterIndexer(), spindexerSubsystem))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
@@ -419,15 +393,13 @@ public class RobotContainer {
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
     SmartDashboard.putData(
         "Run both Indexers",
-        Commands.sequence(
-            spindexerSubsystem.runIndexerCommand(), spindexerSubsystem.runShooterIndexerCommand()));
-    SmartDashboard.putData(
-        "Stop both Indexers",
-        Commands.runOnce(
-            () -> {
-              spindexerSubsystem.stop();
-              spindexerSubsystem.stopShooterIndexer();
-            }));
+        Commands.parallel(
+            new RunIndexingCommand(
+                spindexerSubsystem, shooterIndexerSubsystem, leftIntake, rightIntake, 1.0),
+            Commands.run(
+                () -> {
+                  flywheelSubsystem.setVoltage(5);
+                })));
 
     // Reset gyro to 0° when B button is pressed
     driveController
@@ -440,12 +412,12 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    flywheelSubsystem.setDefaultCommand(
-        new ContinuousConditionalCommand(
-            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-            flywheelSubsystem.runAtSpeedRADSCommand(
-                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-            disableFlywheelAutoSpinup));
+    // flywheelSubsystem.setDefaultCommand(
+    //     new ContinuousConditionalCommand(
+    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+    //         flywheelSubsystem.runAtSpeedRADSCommand(
+    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+    //         disableFlywheelAutoSpinup));
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
