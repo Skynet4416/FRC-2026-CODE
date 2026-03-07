@@ -390,12 +390,11 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 spindexerSubsystem.runIndexerCommand(),
-                spindexerSubsystem.runShooterIndexerCommand(),
+                shooterIndexerSubsystem.runShooterIndexerCommand(),
                 Commands.run(() -> leftIntake.set(0.2), leftIntake),
                 Commands.run(() -> rightIntake.set(0.2), rightIntake)))
         .onFalse(Commands.runOnce(() -> spindexerSubsystem.stop(), spindexerSubsystem))
-        .onFalse(
-            Commands.runOnce(() -> spindexerSubsystem.stopShooterIndexer(), spindexerSubsystem))
+        .onFalse(Commands.runOnce(() -> shooterIndexerSubsystem.stop(), spindexerSubsystem))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
