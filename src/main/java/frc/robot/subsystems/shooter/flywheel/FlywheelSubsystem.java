@@ -51,6 +51,10 @@ public class FlywheelSubsystem extends SubsystemBase {
     io.setTargetRPM(rpm);
   }
 
+  public void set(double percentage) {
+    io.set(percentage);
+  }
+
   public void setTargetRADS(double rads) {
     io.setTargetRADS(rads);
   }

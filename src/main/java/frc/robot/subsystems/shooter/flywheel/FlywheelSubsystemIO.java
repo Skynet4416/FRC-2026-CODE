@@ -25,6 +25,8 @@ public interface FlywheelSubsystemIO {
 
   default void configPID(double kP, double kI, double kD, double kS, double kV, double kA) {}
 
+  default void set(double percentage) {}
+
   default void stop() {
     setVoltage(0);
   }

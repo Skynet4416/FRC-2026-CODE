@@ -34,7 +34,7 @@ public class ShooterIndexerSubsystem extends SubsystemBase {
   }
 
   public Command runShooterIndexerCommand() {
-    return Commands.run(() -> setShooterIndexer(1.0), this);
+    return Commands.run(() -> setShooterIndexer(1.0), this).finallyDo((interrupted) -> stop());
   }
 
   public Command stopCommand() {

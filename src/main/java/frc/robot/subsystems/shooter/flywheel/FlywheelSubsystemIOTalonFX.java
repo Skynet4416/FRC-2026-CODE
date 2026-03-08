@@ -128,4 +128,9 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
     setVoltage(0);
     this.targetRPM = 0.0;
   }
+
+  @Override
+  public void set(double percentage) {
+    leaderMotor.set(percentage);
+  }
 }

@@ -11,7 +11,6 @@ import static edu.wpi.first.units.Units.*;
 import static frc.robot.subsystems.vision.VisionConstants.*;
 
 import com.pathplanner.lib.auto.AutoBuilder;
-import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -54,7 +53,6 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
-import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -99,8 +97,8 @@ public class RobotContainer {
   private final Alert mechanismControllerDisconnected =
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
-  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> true);
-  private final Trigger ignoreHubState = new Trigger(() -> false);
+  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> false);
+  private final Trigger ignoreHubState = new Trigger(() -> true);
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
@@ -153,7 +151,7 @@ public class RobotContainer {
                 IntakeSubsystem.IntakeSide.RIGHT);
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        compressor.enableAnalog(40, 80);
+        compressor.enableAnalog(80, 100);
         break;
 
       case SIM:
@@ -337,7 +335,7 @@ public class RobotContainer {
 
     // Intake logic: start spinning when lowered, and stop on false (after an optional delay)
     leftIntakeLowered
-        .onTrue(Commands.runOnce(() -> leftIntake.set(1), leftIntake))
+        .whileTrue(Commands.runOnce(() -> leftIntake.set(1), leftIntake))
         .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
@@ -345,7 +343,7 @@ public class RobotContainer {
                 Commands.runOnce(leftIntake::stop, leftIntake)));
 
     rightIntakeLowered
-        .onTrue(Commands.runOnce(() -> rightIntake.set(1), rightIntake))
+        .whileTrue(Commands.runOnce(() -> rightIntake.set(1), rightIntake))
         .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
@@ -384,24 +382,21 @@ public class RobotContainer {
         // .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand())
-        .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
-        .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
-        .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
-        .onTrue(
-            Commands.sequence(
+        // .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
+        // .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+        // .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
+        .whileTrue(
+            Commands.parallel(
                 spindexerSubsystem.runIndexerCommand(),
                 shooterIndexerSubsystem.runShooterIndexerCommand(),
                 Commands.run(() -> leftIntake.set(0.2), leftIntake),
                 Commands.run(() -> rightIntake.set(0.2), rightIntake)))
-        .onFalse(Commands.runOnce(() -> spindexerSubsystem.stop(), spindexerSubsystem))
-        .onFalse(Commands.runOnce(() -> shooterIndexerSubsystem.stop(), spindexerSubsystem))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
 
     // Test specific button for simulated launch
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
-
 
     // Switch to X pattern when X button is pressed
     driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
@@ -442,15 +437,21 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    flywheelSubsystem.setDefaultCommand(
-        new ContinuousConditionalCommand(
-            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-            flywheelSubsystem.runAtSpeedRADSCommand(
-                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-            disableFlywheelAutoSpinup));
+    // flywheelSubsystem.setDefaultCommand(
+    //     new ContinuousConditionalCommand(
+    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+    //         flywheelSubsystem.runAtSpeedRADSCommand(
+    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+    //         disableFlywheelAutoSpinup));
+    // flywheelSubsystem.setDefaultCommand(
+    //     Commands.runOnce(() -> flywheelSubsystem.set(1), flywheelSubsystem));
 
+    flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
+
+    leftIntake.setDefaultCommand(Commands.runOnce(() -> leftIntake.set(0.2), leftIntake));
+    rightIntake.setDefaultCommand(Commands.runOnce(() -> rightIntake.set(0.2), rightIntake));
   }
 
   /** Update dashboard outputs. */

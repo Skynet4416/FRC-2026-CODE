@@ -52,7 +52,7 @@ public class SpindexerSubsystem extends SubsystemBase {
   }
 
   public Command runIndexerCommand() {
-    return Commands.run(() -> io.set(1.0), this);
+    return Commands.run(() -> io.set(1.0), this).finallyDo((interrupted) -> stop());
   }
 
   public void runVolts(double volts) {
