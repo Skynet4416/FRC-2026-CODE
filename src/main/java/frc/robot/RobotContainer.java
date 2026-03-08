@@ -338,7 +338,7 @@ public class RobotContainer {
 
     // Intake logic: start spinning when lowered, and stop on false (after an optional delay)
     leftIntakeLowered
-        .onTrue(Commands.runOnce(() -> leftIntake.set(1), leftIntake))
+        .onTrue(Commands.runOnce(() -> leftIntake.setPercentage(1), leftIntake))
         .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
@@ -346,7 +346,7 @@ public class RobotContainer {
                 Commands.runOnce(leftIntake::stop, leftIntake)));
 
     rightIntakeLowered
-        .onTrue(Commands.runOnce(() -> rightIntake.set(1), rightIntake))
+        .onTrue(Commands.runOnce(() -> rightIntake.setPercentage(1), rightIntake))
         .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
@@ -403,13 +403,16 @@ public class RobotContainer {
         .leftTrigger()
         .and(readyToShoot)
         .and(leftIntakeLowered.negate())
-        .whileTrue(Commands.startEnd(() -> leftIntake.set(0.2), leftIntake::stop, leftIntake));
+        .whileTrue(
+            Commands.startEnd(() -> leftIntake.setPercentage(0.2), leftIntake::stop, leftIntake));
 
     driveController
         .leftTrigger()
         .and(readyToShoot)
         .and(rightIntakeLowered.negate())
-        .whileTrue(Commands.startEnd(() -> rightIntake.set(0.2), rightIntake::stop, rightIntake));
+        .whileTrue(
+            Commands.startEnd(
+                () -> rightIntake.setPercentage(0.2), rightIntake::stop, rightIntake));
 
     // Test specific button for simulated launch
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
@@ -517,7 +520,7 @@ public class RobotContainer {
                     Commands.runOnce(
                         () -> {
                           target.setLowered(true);
-                          target.set(1);
+                          target.setPercentage(1);
                         }));
               } else {
                 // Neither open → just open target

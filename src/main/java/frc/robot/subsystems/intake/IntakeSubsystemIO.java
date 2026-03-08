@@ -12,6 +12,7 @@ public interface IntakeSubsystemIO {
     public boolean atSetpoint = false;
     public boolean lowered = false;
     public boolean connected = true;
+    public double requestedPercentage = 0.0;
   }
 
   default void updateInputs(IntakeIOInputs inputs) {}
@@ -20,7 +21,7 @@ public interface IntakeSubsystemIO {
 
   default void setVoltage(double volts) {}
 
-  default void set(double percentage) {}
+  default void setPercentage(double percentage) {}
 
   default void setLowered(boolean lowered) {}
 
