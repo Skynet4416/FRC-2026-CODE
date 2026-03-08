@@ -117,12 +117,8 @@ public class LaunchCalculator {
   private static final LoggedTunableNumber maxIdleSpeed =
       new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 200);
 
-  // Passing targets
-  private static final double hubPassLine =
-      // TODO: verify 20 inches is correct
-      FieldConstants.LinesHorizontal.rightBumpStart - Units.inchesToMeters(20) / 2.0;
   private static final double xPassTarget = Units.inchesToMeters(37);
-  private static final double yPassTarget = Units.inchesToMeters(80);
+  private static final double yPassTarget = Units.inchesToMeters(65);
   // Boxes of bad
   // Under tower
   private static final Bounds towerBound =
@@ -132,7 +128,7 @@ public class LaunchCalculator {
   private static final Bounds nearHubBound =
       new Bounds(
           FieldConstants.LinesVertical.neutralZoneNear,
-          FieldConstants.LinesVertical.neutralZoneNear + Units.inchesToMeters(65),
+          FieldConstants.LinesVertical.neutralZoneNear + Units.inchesToMeters(120),
           FieldConstants.LinesHorizontal.rightBumpStart,
           FieldConstants.LinesHorizontal.leftBumpEnd);
   private static final Bounds farHubBound =
@@ -379,21 +375,6 @@ public class LaunchCalculator {
   public Translation2d getPassingTarget() {
     double flippedY = AllianceFlipUtil.apply(Drive.getInstance().getPose()).getY();
     boolean mirror = flippedY > FieldConstants.LinesHorizontal.center;
-
-    // Check if we need to interpolate
-    if (FieldConstants.fieldWidth - hubPassLine > flippedY && flippedY > hubPassLine) {
-      double interpolateZoneAmount =
-          ((mirror ? FieldConstants.fieldWidth - flippedY : flippedY) - hubPassLine)
-              / (FieldConstants.LinesHorizontal.center - hubPassLine);
-      var unflippedPoseY =
-          mirror
-              ? FieldConstants.fieldWidth
-                  - MathUtil.interpolate(yPassTarget, passingMinDistance, interpolateZoneAmount)
-              : MathUtil.interpolate(yPassTarget, passingMinDistance, interpolateZoneAmount);
-      Translation2d flippedGoalTranslation =
-          AllianceFlipUtil.apply(new Translation2d(xPassTarget, unflippedPoseY));
-      return flippedGoalTranslation;
-    }
 
     // Fixed passing target
     Translation2d flippedGoalTranslation =
