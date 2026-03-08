@@ -461,17 +461,15 @@ public class RobotContainer {
     leftIntakeLowered
         .onTrue(Commands.runOnce(() -> leftIntake.setPercentage(1.0), leftIntake))
         .onFalse(
-            Commands.sequence(
-                new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
-                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
-                Commands.runOnce(leftIntake::stop, leftIntake)));
+            Commands.run(() -> leftIntake.setPercentage(1.0), leftIntake)
+                .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
+                .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
     rightIntakeLowered
         .onTrue(Commands.runOnce(() -> rightIntake.setPercentage(1.0), rightIntake))
         .onFalse(
-            Commands.sequence(
-                new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
-                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
-                Commands.runOnce(rightIntake::stop, rightIntake)));
+            Commands.run(() -> rightIntake.setPercentage(1.0), rightIntake)
+                .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
+                .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
   }
 
   /** Update dashboard outputs. */
