@@ -379,11 +379,12 @@ public class RobotContainer {
                     && flywheelSubsystem.atSetpoint()
                     && DriveCommands.atLaunchGoal());
 
-    Trigger isShooting = driveController
-        .leftTrigger()
-        .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
-        .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
-        .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+    Trigger isShooting =
+        driveController
+            .leftTrigger()
+            .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
+            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     // Align and auto-launch
     driveController
@@ -398,15 +399,16 @@ public class RobotContainer {
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
 
-    isShooting.and(leftIntakeLowered.negate())
+    isShooting
+        .and(leftIntakeLowered.negate())
         .whileTrue(Commands.startEnd(() -> leftIntake.set(0.2), leftIntake::stop, leftIntake));
 
-    isShooting.and(rightIntakeLowered.negate())
+    isShooting
+        .and(rightIntakeLowered.negate())
         .whileTrue(Commands.startEnd(() -> rightIntake.set(0.2), rightIntake::stop, rightIntake));
 
     // Test specific button for simulated launch
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
-
 
     // Switch to X pattern when X button is pressed
     driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
@@ -475,6 +477,7 @@ public class RobotContainer {
     // Log the Intake Confusion Zone Trigger
     Logger.recordOutput("In Intake Direction Confusion Zone", inConfusionZone);
   }
+
   /**
    * Use this to pass the autonomous command to the main {@link Robot} class.
    *
