@@ -31,7 +31,6 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.commands.RunBothIndexersCommand;
-import frc.robot.commands.ShootCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
@@ -380,19 +379,30 @@ public class RobotContainer {
                     && flywheelSubsystem.atSetpoint()
                     && DriveCommands.atLaunchGoal());
 
+    Trigger isShooting = driveController
+        .leftTrigger()
+        .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
+        .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+        .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+
     // Align and auto-launch
     driveController
         .leftTrigger()
         // .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
-        .whileTrue(hoodSubsystem.runTrackTargetCommand())
-        .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
-        .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
-        .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
-        .whileTrue(new ShootCommand(spindexerSubsystem, shooterIndexerSubsystem, leftIntake, rightIntake))
+        .whileTrue(hoodSubsystem.runTrackTargetCommand());
+
+    isShooting
+        .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
+
+    isShooting.and(leftIntakeLowered.negate())
+        .whileTrue(Commands.startEnd(() -> leftIntake.set(0.2), leftIntake::stop, leftIntake));
+
+    isShooting.and(rightIntakeLowered.negate())
+        .whileTrue(Commands.startEnd(() -> rightIntake.set(0.2), rightIntake::stop, rightIntake));
 
     // Test specific button for simulated launch
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
