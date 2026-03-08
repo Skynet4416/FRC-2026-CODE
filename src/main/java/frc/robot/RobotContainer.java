@@ -337,7 +337,7 @@ public class RobotContainer {
     DoubleSupplier driverOmega = () -> -driveController.getRightX();
 
     // Default command, normal field-relative drive
-    drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
+    // drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
     // Lock to 0 when A button is held
     driveController
@@ -368,15 +368,15 @@ public class RobotContainer {
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     // Align and auto-launch
-    driveController
-        .leftTrigger()
-        .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
-        .whileTrue(flywheelSubsystem.runTrackTargetCommand())
-        .whileTrue(hoodSubsystem.runTrackTargetCommand());
+    // driveController
+    //     .leftTrigger()
+    //     // .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
+    //     .whileTrue(flywheelSubsystem.runTrackTargetCommand())
+    //     .whileTrue(hoodSubsystem.runTrackTargetCommand());
 
     driveController
         .leftTrigger()
-        .and(readyToShoot)
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        // .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
@@ -423,26 +423,28 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    flywheelSubsystem.setDefaultCommand(
-        new ContinuousConditionalCommand(
-            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-            flywheelSubsystem.runAtSpeedRADSCommand(
-                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-            disableFlywheelAutoSpinup));
+    // flywheelSubsystem.setDefaultCommand(
+    //     new ContinuousConditionalCommand(
+    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+    //         flywheelSubsystem.runAtSpeedRADSCommand(
+    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+    //         disableFlywheelAutoSpinup));
+
+    flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
 
     // --- Intake roller logic ---
 
-    // Folded baseline: 0.2 when shooting (trigger held), 0 when idle
+    // Folded baseline: 0.5 when shooting (trigger held), 0 when idle
     leftIntake.setDefaultCommand(
         Commands.run(
             () -> {
               if (leftIntake.isLowered()) {
                 leftIntake.setPercentage(1.0);
               } else {
-                leftIntake.setPercentage(driveController.leftTrigger().getAsBoolean() ? 0.2 : 0.0);
+                leftIntake.setPercentage(driveController.leftTrigger().getAsBoolean() ? 0.5 : 0.0);
               }
             },
             leftIntake));
