@@ -395,11 +395,12 @@ public class RobotContainer {
     driveController
         .leftTrigger()
         .and(readyToShoot)
-        .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem))
-        .whileTrue(new RunIntakesForLaunchCommand(leftIntake, rightIntake))
         .whileTrue(
-            Commands.repeatingSequence(
-                Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
+            Commands.parallel(
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
+                new RunIntakesForLaunchCommand(leftIntake, rightIntake),
+                Commands.repeatingSequence(
+                    Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile))));
 
     // Test specific button for simulated launch
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));

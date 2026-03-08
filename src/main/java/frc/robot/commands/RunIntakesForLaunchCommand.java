@@ -10,28 +10,21 @@ public class RunIntakesForLaunchCommand extends Command {
   public RunIntakesForLaunchCommand(IntakeSubsystem leftIntake, IntakeSubsystem rightIntake) {
     this.leftIntake = leftIntake;
     this.rightIntake = rightIntake;
-    // We intentionally do not require the intake subsystems here so we don't
-    // interrupt any state-transition commands (like toggling).
+    addRequirements(leftIntake, rightIntake);
   }
 
   @Override
   public void execute() {
-    if (!leftIntake.isLowered()) {
-      leftIntake.setPercentage(0.2);
-    }
-    if (!rightIntake.isLowered()) {
-      rightIntake.setPercentage(0.2);
-    }
+    // If the intake is lowered, run it at full speed so we can still intake while launching.
+    // If folded, run at 20% holding speed to help feed the ball up.
+    leftIntake.setPercentage(leftIntake.isLowered() ? 1.0 : 0.2);
+    rightIntake.setPercentage(rightIntake.isLowered() ? 1.0 : 0.2);
   }
 
   @Override
   public void end(boolean interrupted) {
-    if (!leftIntake.isLowered()) {
-      leftIntake.stop();
-    }
-    if (!rightIntake.isLowered()) {
-      rightIntake.stop();
-    }
+    leftIntake.stop();
+    rightIntake.stop();
   }
 
   @Override
