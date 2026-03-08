@@ -30,6 +30,8 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
+import frc.robot.commands.RunBothIndexersCommand;
+import frc.robot.commands.ShootCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
@@ -387,14 +389,7 @@ public class RobotContainer {
         .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
         .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
         .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
-        .onTrue(
-            Commands.sequence(
-                spindexerSubsystem.runIndexerCommand(),
-                shooterIndexerSubsystem.runShooterIndexerCommand(),
-                Commands.run(() -> leftIntake.set(0.2), leftIntake),
-                Commands.run(() -> rightIntake.set(0.2), rightIntake)))
-        .onFalse(Commands.runOnce(() -> spindexerSubsystem.stop(), spindexerSubsystem))
-        .onFalse(Commands.runOnce(() -> shooterIndexerSubsystem.stop(), spindexerSubsystem))
+        .whileTrue(new ShootCommand(spindexerSubsystem, shooterIndexerSubsystem, leftIntake, rightIntake))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
@@ -418,9 +413,7 @@ public class RobotContainer {
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
     SmartDashboard.putData(
         "Run both Indexers",
-        Commands.parallel(
-            spindexerSubsystem.runIndexerCommand(),
-            shooterIndexerSubsystem.runShooterIndexerCommand()));
+        new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
     SmartDashboard.putData(
         "Stop both Indexers",
         Commands.runOnce(
