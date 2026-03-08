@@ -31,7 +31,6 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.commands.RunBothIndexersCommand;
-
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
@@ -337,22 +336,6 @@ public class RobotContainer {
     DoubleSupplier driverY = () -> -driveController.getLeftX();
     DoubleSupplier driverOmega = () -> -driveController.getRightX();
 
-    // Intake logic: start spinning when lowered, and stop on false (after an optional delay)
-    leftIntakeLowered
-        .whileTrue(Commands.run(() -> leftIntake.setPercentage(1), leftIntake))
-        .onFalse(
-            Commands.sequence(
-                new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
-                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
-                Commands.runOnce(leftIntake::stop, leftIntake)));
-
-    rightIntakeLowered
-        .whileTrue(Commands.run(() -> rightIntake.setPercentage(1), rightIntake))
-        .onFalse(
-            Commands.sequence(
-                new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
-                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
-                Commands.runOnce(rightIntake::stop, rightIntake)));
 
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
@@ -457,7 +440,37 @@ public class RobotContainer {
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
+
+    // --- Intake roller logic ---
+    Trigger isShooting = driveController.leftTrigger().and(readyToShoot);
+    Trigger runWheelsWhenFoldingEnabled =
+        new Trigger(() -> runWheelsWhenFoldingChooser.get() != null && runWheelsWhenFoldingChooser.get());
+
+    // Folded baseline: 0.2 when shooting, 0 when idle (default command, lowest priority)
+    leftIntake.setDefaultCommand(
+        Commands.run(
+            () -> leftIntake.setPercentage(isShooting.getAsBoolean() ? 0.2 : 0.0), leftIntake));
+    rightIntake.setDefaultCommand(
+        Commands.run(
+            () -> rightIntake.setPercentage(isShooting.getAsBoolean() ? 0.2 : 0.0), rightIntake));
+
+    // When lowered: always full speed (overrides default)
+    leftIntakeLowered.whileTrue(Commands.run(() -> leftIntake.setPercentage(1.0), leftIntake));
+    rightIntakeLowered.whileTrue(Commands.run(() -> rightIntake.setPercentage(1.0), rightIntake));
+
+    // When folded (if runWheelsWhenFolding enabled): spin at full speed for the delay, then yield to default
+    leftIntakeLowered
+        .and(runWheelsWhenFoldingEnabled)
+        .onFalse(
+            Commands.run(() -> leftIntake.setPercentage(1.0), leftIntake)
+                .withTimeout(intakeRunWheelsWhileFoldingDelay.get()));
+    rightIntakeLowered
+        .and(runWheelsWhenFoldingEnabled)
+        .onFalse(
+            Commands.run(() -> rightIntake.setPercentage(1.0), rightIntake)
+                .withTimeout(intakeRunWheelsWhileFoldingDelay.get()));
   }
+
 
   /** Update dashboard outputs. */
   public void updateDashboardOutputs() {
