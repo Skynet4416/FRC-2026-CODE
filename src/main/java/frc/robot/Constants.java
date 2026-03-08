@@ -111,7 +111,7 @@ public final class Constants {
           public static final boolean SUPPLY_ENABLED = true;
 
           // TODO tune this value
-          public static final double SUPPLY_LIMIT_AMPS = 40.0; // Holding limit
+          public static final double SUPPLY_LIMIT_AMPS = 60.0; // Holding limit
 
           // Stator Limit: Protects the Motor (Prevents Burnout)
           // Keep this HIGH for Shooters to allow fast spin-up.
