@@ -55,7 +55,6 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
-import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -154,7 +153,7 @@ public class RobotContainer {
                 IntakeSubsystem.IntakeSide.RIGHT);
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        compressor.enableAnalog(40, 80);
+        compressor.enableAnalog(80, 110);
         break;
 
       case SIM:
@@ -367,7 +366,6 @@ public class RobotContainer {
             .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
-    // Align and auto-launch
     // driveController
     //     .leftTrigger()
     //     // .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
@@ -376,7 +374,7 @@ public class RobotContainer {
 
     driveController
         .leftTrigger()
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        // .and(readyToShoot)
+        // .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
