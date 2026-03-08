@@ -339,7 +339,7 @@ public class RobotContainer {
 
     // Intake logic: start spinning when lowered, and stop on false (after an optional delay)
     leftIntakeLowered
-        .onTrue(Commands.runOnce(() -> leftIntake.setPercentage(1), leftIntake))
+        .whileTrue(Commands.run(() -> leftIntake.setPercentage(1), leftIntake))
         .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
@@ -347,7 +347,7 @@ public class RobotContainer {
                 Commands.runOnce(leftIntake::stop, leftIntake)));
 
     rightIntakeLowered
-        .onTrue(Commands.runOnce(() -> rightIntake.setPercentage(1), rightIntake))
+        .whileTrue(Commands.run(() -> rightIntake.setPercentage(1), rightIntake))
         .onFalse(
             Commands.sequence(
                 new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
