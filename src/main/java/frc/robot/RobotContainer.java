@@ -336,7 +336,6 @@ public class RobotContainer {
     DoubleSupplier driverY = () -> -driveController.getLeftX();
     DoubleSupplier driverOmega = () -> -driveController.getRightX();
 
-
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
@@ -381,13 +380,6 @@ public class RobotContainer {
         .whileTrue(
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
-                Commands.run(
-                    () -> {
-                      leftIntake.setPercentage(leftIntake.isLowered() ? 1.0 : 0.2);
-                      rightIntake.setPercentage(rightIntake.isLowered() ? 1.0 : 0.2);
-                    },
-                    leftIntake,
-                    rightIntake),
                 Commands.repeatingSequence(
                     Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile))));
 
@@ -442,35 +434,45 @@ public class RobotContainer {
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
 
     // --- Intake roller logic ---
-    Trigger isShooting = driveController.leftTrigger().and(readyToShoot);
-    Trigger runWheelsWhenFoldingEnabled =
-        new Trigger(() -> runWheelsWhenFoldingChooser.get() != null && runWheelsWhenFoldingChooser.get());
 
-    // Folded baseline: 0.2 when shooting, 0 when idle (default command, lowest priority)
+    // Folded baseline: 0.2 when shooting (trigger held), 0 when idle
     leftIntake.setDefaultCommand(
         Commands.run(
-            () -> leftIntake.setPercentage(isShooting.getAsBoolean() ? 0.2 : 0.0), leftIntake));
+            () -> {
+              if (leftIntake.isLowered()) {
+                leftIntake.setPercentage(1.0);
+              } else {
+                leftIntake.setPercentage(driveController.leftTrigger().getAsBoolean() ? 0.2 : 0.0);
+              }
+            },
+            leftIntake));
     rightIntake.setDefaultCommand(
         Commands.run(
-            () -> rightIntake.setPercentage(isShooting.getAsBoolean() ? 0.2 : 0.0), rightIntake));
+            () -> {
+              if (rightIntake.isLowered()) {
+                rightIntake.setPercentage(1.0);
+              } else {
+                rightIntake.setPercentage(driveController.leftTrigger().getAsBoolean() ? 0.2 : 0.0);
+              }
+            },
+            rightIntake));
 
-    // When lowered: always full speed (overrides default)
-    leftIntakeLowered.whileTrue(Commands.run(() -> leftIntake.setPercentage(1.0), leftIntake));
-    rightIntakeLowered.whileTrue(Commands.run(() -> rightIntake.setPercentage(1.0), rightIntake));
-
-    // When folded (if runWheelsWhenFolding enabled): spin at full speed for the delay, then yield to default
+    // When folding/unfolding
     leftIntakeLowered
-        .and(runWheelsWhenFoldingEnabled)
+        .onTrue(Commands.runOnce(() -> leftIntake.setPercentage(1.0), leftIntake))
         .onFalse(
-            Commands.run(() -> leftIntake.setPercentage(1.0), leftIntake)
-                .withTimeout(intakeRunWheelsWhileFoldingDelay.get()));
+            Commands.sequence(
+                new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
+                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
+                Commands.runOnce(leftIntake::stop, leftIntake)));
     rightIntakeLowered
-        .and(runWheelsWhenFoldingEnabled)
+        .onTrue(Commands.runOnce(() -> rightIntake.setPercentage(1.0), rightIntake))
         .onFalse(
-            Commands.run(() -> rightIntake.setPercentage(1.0), rightIntake)
-                .withTimeout(intakeRunWheelsWhileFoldingDelay.get()));
+            Commands.sequence(
+                new SuppliedWaitCommand(() -> intakeRunWheelsWhileFoldingDelay.get())
+                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
+                Commands.runOnce(rightIntake::stop, rightIntake)));
   }
-
 
   /** Update dashboard outputs. */
   public void updateDashboardOutputs() {
@@ -521,13 +523,11 @@ public class RobotContainer {
                     Commands.runOnce(
                         () -> {
                           other.setLowered(false);
-                          other.stop();
                         }),
                     new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
                     Commands.runOnce(
                         () -> {
                           target.setLowered(true);
-                          target.setPercentage(1);
                         }));
               } else {
                 // Neither open → just open target
