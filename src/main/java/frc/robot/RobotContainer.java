@@ -31,7 +31,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.commands.RunBothIndexersCommand;
-import frc.robot.commands.RunIntakesForLaunchCommand;
+
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
@@ -398,7 +398,13 @@ public class RobotContainer {
         .whileTrue(
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
-                new RunIntakesForLaunchCommand(leftIntake, rightIntake),
+                Commands.run(
+                    () -> {
+                      leftIntake.setPercentage(leftIntake.isLowered() ? 1.0 : 0.2);
+                      rightIntake.setPercentage(rightIntake.isLowered() ? 1.0 : 0.2);
+                    },
+                    leftIntake,
+                    rightIntake),
                 Commands.repeatingSequence(
                     Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile))));
 
