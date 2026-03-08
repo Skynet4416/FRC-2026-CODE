@@ -55,7 +55,7 @@ public class ClimbIOReal implements ClimbIO {
         .d(Constants.Subsystems.Climber.NeoClosedLoop.KD);
 
     SparkMaxConfig rightConfig = new SparkMaxConfig();
-    rightConfig.apply(neoConfig).follow(leftNeo);
+    rightConfig.apply(neoConfig).follow(leftNeo).inverted(true);
 
     leftNeo.configure(neoConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
     rightNeo.configure(rightConfig, ResetMode.kResetSafeParameters, PersistMode.kPersistParameters);
@@ -117,7 +117,12 @@ public class ClimbIOReal implements ClimbIO {
   public void setNeoAngle(double rads) {
     double targetRotations =
         Units.radiansToRotations(rads) * Constants.Subsystems.Climber.NEO_GEAR_RATIO;
-    leftNeo.getClosedLoopController().setReference(targetRotations, ControlType.kPosition);
+    leftNeo.getClosedLoopController().setSetpoint(targetRotations, ControlType.kPosition);
+  }
+
+  @Override
+  public void setNeo(double percentage) {
+    leftNeo.set(percentage);
   }
 
   @Override

@@ -23,6 +23,10 @@ public class ClimbSubsystem extends SubsystemBase {
     io.setNeoAngle(rads);
   }
 
+  public void setNeo(double percentage) {
+    io.setNeo(percentage);
+  }
+
   public void setKrakenAngle(double rads) {
     io.setKrakenAngle(rads);
   }

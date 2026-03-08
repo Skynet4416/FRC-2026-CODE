@@ -254,9 +254,9 @@ public final class Constants {
     public static class Climber {
       public static class Id {
         public static class Motor {
-          public static final int LEFT_NEO = 50;
-          public static final int RIGHT_NEO = 51;
-          public static final int KRAKEN = 52;
+          public static final int LEFT_NEO = 61;
+          public static final int RIGHT_NEO = 62;
+          public static final int KRAKEN = 60;
         }
 
         public static class Pneumatics {

@@ -26,11 +26,16 @@ import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
+import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
+import frc.robot.commands.climb.ClimbTest;
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.climb.ClimbIO;
+import frc.robot.subsystems.climb.ClimbIOReal;
+import frc.robot.subsystems.climb.ClimbIOSim;
+import frc.robot.subsystems.climb.ClimbSubsystem;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.intake.IntakeSubsystemIO;
@@ -76,6 +81,7 @@ public class RobotContainer {
   private final Drive drive;
   private final IntakeSubsystem leftIntake;
   private final IntakeSubsystem rightIntake;
+  private final ClimbSubsystem climbSubsystem;
   private final Compressor compressor;
 
   private static final LoggedTunableNumber intakeSwitchDelay =
@@ -88,10 +94,10 @@ public class RobotContainer {
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   // Controllers
-  private final CommandXboxController driveController = new CommandXboxController(0);
+  private final CommandPS5Controller driveController = new CommandPS5Controller(0);
   private SwerveDriveSimulation driveSimulation = null;
 
-  private final CommandXboxController mechanismController = new CommandXboxController(1);
+  private final CommandPS5Controller mechanismController = new CommandPS5Controller(1);
   private final Alert driverControllerDisconnected =
       new Alert("Driver controller disconnected (port 0).", AlertType.kWarning);
   private final Alert mechanismControllerDisconnected =
@@ -151,8 +157,10 @@ public class RobotContainer {
                 new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.RIGHT),
                 IntakeSubsystem.IntakeSide.RIGHT);
 
+        climbSubsystem = new ClimbSubsystem(new ClimbIOReal());
+
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        compressor.enableAnalog(10, 30);
+        compressor.enableAnalog(80, 120);
         break;
 
       case SIM:
@@ -192,6 +200,9 @@ public class RobotContainer {
             new IntakeSubsystem(
                 new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.RIGHT),
                 IntakeSubsystem.IntakeSide.RIGHT);
+
+        climbSubsystem = new ClimbSubsystem(new ClimbIOSim());
+
         compressor = null;
         break;
 
@@ -217,6 +228,8 @@ public class RobotContainer {
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.LEFT);
         rightIntake =
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.RIGHT);
+
+        climbSubsystem = new ClimbSubsystem(new ClimbIO() {});
         compressor = null;
         break;
     }
@@ -354,9 +367,12 @@ public class RobotContainer {
     // Default command, normal field-relative drive
     // drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
+    driveController.triangle().whileTrue(new ClimbTest(climbSubsystem, 1.0));
+    driveController.circle().whileTrue(new ClimbTest(climbSubsystem, -1.0));
+
     // Lock to 0 when A button is held
     driveController
-        .a()
+        .cross()
         .whileTrue(
             DriveCommands.joystickDriveAtAngle(
                 drive,
@@ -379,7 +395,7 @@ public class RobotContainer {
 
     // Align and auto-launch
     driveController
-        .leftTrigger()
+        .L2()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand())
@@ -398,15 +414,15 @@ public class RobotContainer {
     // TODO: run indexer when shooting
 
     // Switch to X pattern when X button is pressed
-    driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
+    driveController.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
     final Runnable resetOdometry =
         Constants.currentMode == Constants.Mode.SIM
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
 
-    driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
@@ -423,15 +439,15 @@ public class RobotContainer {
             }));
 
     // Reset gyro to 0° when B button is pressed
-    driveController
-        .b()
-        .onTrue(
-            Commands.runOnce(
-                    () ->
-                        drive.resetOdometry(
-                            new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                    drive)
-                .ignoringDisable(true));
+    // driveController
+    //     .circle()
+    //     .onTrue(
+    //         Commands.runOnce(
+    //                 () ->
+    //                     drive.resetOdometry(
+    //                         new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
+    //                 drive)
+    //             .ignoringDisable(true));
 
     flywheelSubsystem.setDefaultCommand(
         new ContinuousConditionalCommand(

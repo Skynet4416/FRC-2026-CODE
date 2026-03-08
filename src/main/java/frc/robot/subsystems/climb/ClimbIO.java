@@ -27,6 +27,8 @@ public interface ClimbIO {
 
   default void updateInputs(ClimbIOInputs inputs) {}
 
+  default void setNeo(double percentage) {}
+
   /** Set the targeted position for the NEOs in radians. */
   default void setNeoAngle(double rads) {}
 

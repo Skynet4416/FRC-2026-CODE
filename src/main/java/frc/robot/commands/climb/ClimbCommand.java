@@ -1,5 +1,3 @@
 package frc.robot.commands.climb;
 
-public class ClimbCommand {
-    
-}
+public class ClimbCommand {}
