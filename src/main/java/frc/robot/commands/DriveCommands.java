@@ -398,10 +398,11 @@ public class DriveCommands {
               boolean isFlipped =
                   DriverStation.getAlliance().isPresent()
                       && DriverStation.getAlliance().get() == Alliance.Red;
-                      
+
               if (!Constants.AutoAlignment.Trench.ENABLE) {
                 Translation2d linearVelocity =
-                    getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble());
+                    getLinearVelocityFromJoysticks(
+                        xSupplier.getAsDouble(), ySupplier.getAsDouble());
                 double omega = MathUtil.applyDeadband(omegaSupplier.getAsDouble(), DEADBAND);
                 omega = Math.copySign(omega * omega, omega);
 

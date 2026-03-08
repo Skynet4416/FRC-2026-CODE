@@ -28,7 +28,6 @@ public class IntakeSubsystem extends SubsystemBase {
   private final IntakeSide side;
   private final SysIdRoutine sysIdRoutine;
   private final LoggedTunableNumber targetRpm;
-  private final LoggedTunableNumber gearRatio;
   protected final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
 
   // Mechanism2d
@@ -64,7 +63,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void setTargetRPM(double rpm) {
-    io.setTargetRPM(rpm * gearRatio.get());
+    io.setTargetRPM(rpm * frc.robot.Constants.Subsystems.Intake.GEAR_RATIO);
   }
 
   public double getTargetRPM() {
@@ -77,7 +76,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public double getVelocityRPM() {
-    return inputs.velocityRPM / gearRatio.get();
+    return inputs.velocityRPM / frc.robot.Constants.Subsystems.Intake.GEAR_RATIO;
   }
 
   public double getAppliedVolts() {
