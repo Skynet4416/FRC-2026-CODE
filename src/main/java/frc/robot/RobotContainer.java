@@ -31,6 +31,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.commands.RunBothIndexersCommand;
+import frc.robot.commands.RunIntakesForLaunchCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
@@ -395,24 +396,10 @@ public class RobotContainer {
         .leftTrigger()
         .and(readyToShoot)
         .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem))
+        .whileTrue(new RunIntakesForLaunchCommand(leftIntake, rightIntake))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
-
-    driveController
-        .leftTrigger()
-        .and(readyToShoot)
-        .and(leftIntakeLowered.negate())
-        .whileTrue(
-            Commands.startEnd(() -> leftIntake.setPercentage(0.2), leftIntake::stop, leftIntake));
-
-    driveController
-        .leftTrigger()
-        .and(readyToShoot)
-        .and(rightIntakeLowered.negate())
-        .whileTrue(
-            Commands.startEnd(
-                () -> rightIntake.setPercentage(0.2), rightIntake::stop, rightIntake));
 
     // Test specific button for simulated launch
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
