@@ -279,13 +279,13 @@ public final class Constants {
         public static final double KI = 0.0;
         public static final double KD = 0.0;
       }
-      
+
       public static final class CurrentLimits {
         public static final boolean SUPPLY_ENABLED = true;
         public static final int NEO_SUPPLY_LIMIT_AMPS = 40;
         public static final int KRAKEN_SUPPLY_LIMIT_AMPS = 40;
         public static final boolean STATOR_ENABLED = false;
-        public static final int STATOR_LIMIT_AMPS = 0.0;
+        public static final int STATOR_LIMIT_AMPS = 0;
       }
     }
   }

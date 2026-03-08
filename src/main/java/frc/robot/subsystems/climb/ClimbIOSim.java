@@ -7,7 +7,8 @@ public class ClimbIOSim implements ClimbIO {
   private final SingleJointedArmSim neoSim =
       new SingleJointedArmSim(DCMotor.getNEO(2), 8.0, 0.5, 1.0, -Math.PI, Math.PI, true, 0.0);
   private final SingleJointedArmSim krakenSim =
-      new SingleJointedArmSim(DCMotor.getKrakenX60(1), 240.0, 0.5, 1.0, -Math.PI, Math.PI, true, 0.0);
+      new SingleJointedArmSim(
+          DCMotor.getKrakenX60(1), 240.0, 0.5, 1.0, -Math.PI, Math.PI, true, 0.0);
 
   private boolean isLowered = false;
 
