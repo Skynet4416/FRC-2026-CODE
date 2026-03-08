@@ -18,7 +18,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   private final TalonFX motor;
   private final DoubleSolenoid solenoid;
 
-  private final VelocityVoltage velocityRequest = new VelocityVoltage(0).withEnableFOC(true);
+  private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
   private final VoltageOut voltageRequest = new VoltageOut(0);
 
   private final Debouncer motorConnectedDebouncer =
@@ -26,6 +26,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   private final Alert motorDisconnectedAlert =
       new Alert("Intake motor disconnected!", AlertType.kWarning);
   private double currentSetpoint = 0.0;
+  private double requestedPercentage = 0.0;
 
   public IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide side) {
     int motorId =
@@ -62,7 +63,10 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
     config.CurrentLimits.StatorCurrentLimit =
         Constants.Subsystems.Intake.CurrentLimits.STATOR_LIMIT_AMPS;
 
-    config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive; // Default
+    config.MotorOutput.Inverted =
+        side == IntakeSubsystem.IntakeSide.LEFT
+            ? InvertedValue.CounterClockwise_Positive
+            : InvertedValue.Clockwise_Positive; // Default
     config.MotorOutput.NeutralMode =
         Constants.Subsystems.Intake.ROLLER_BREAK ? NeutralModeValue.Brake : NeutralModeValue.Coast;
 
@@ -84,29 +88,30 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
     inputs.atSetpoint =
         Math.abs(inputs.velocityRPM - inputs.setpointRPM)
             <= Constants.Subsystems.Intake.RPM_TOLERANCE;
+    inputs.requestedPercentage = this.requestedPercentage;
   }
 
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
+    this.requestedPercentage = 0.0;
     motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
   }
 
   @Override
   public void setVoltage(double volts) {
+    this.requestedPercentage = 0.0;
     motor.setControl(voltageRequest.withOutput(volts));
   }
 
   @Override
+  public void setPercentage(double percentage) {
+    this.requestedPercentage = percentage;
+    motor.set(percentage);
+  }
+
+  @Override
   public void setLowered(boolean lowered) {
-    System.out.println(
-        "Setting Soleoind to "
-            + lowered
-            + " ("
-            + solenoid.getFwdChannel()
-            + " / "
-            + solenoid.getRevChannel()
-            + ")");
     solenoid.set(lowered ? DoubleSolenoid.Value.kForward : DoubleSolenoid.Value.kReverse);
   }
 
@@ -114,5 +119,6 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   public void stop() {
     setVoltage(0);
     this.currentSetpoint = 0.0;
+    this.requestedPercentage = 0.0;
   }
 }

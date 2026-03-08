@@ -30,6 +30,7 @@ import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
+import frc.robot.commands.RunBothIndexersCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
@@ -48,11 +49,13 @@ import frc.robot.subsystems.shooter.hood.HoodSubsystemIOTalonFX;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIO;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSim;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIOSparkMax;
+import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
+import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -86,6 +89,7 @@ public class RobotContainer {
   private final FlywheelSubsystem flywheelSubsystem;
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
+  private final ShooterIndexerSubsystem shooterIndexerSubsystem;
   // Controllers
   private final CommandXboxController driveController = new CommandXboxController(0);
   private SwerveDriveSimulation driveSimulation = null;
@@ -96,14 +100,15 @@ public class RobotContainer {
   private final Alert mechanismControllerDisconnected =
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
-  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> false);
+  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> true);
   private final Trigger ignoreHubState = new Trigger(() -> false);
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
 
-  private static final LoggedTunableNumber intakeFoldDelay =
-      new LoggedTunableNumber("IntakeFoldDelay", 1.0);
+  // How much time in seconds to run the wheels when folding
+  private static final LoggedTunableNumber intakeRunWheelsWhileFoldingDelay =
+      new LoggedTunableNumber("IntakeRunWheelsWhileFoldingDelay", 1.0);
   private static final LoggedTunableNumber trenchExtension =
       new LoggedTunableNumber("TrenchExtension", 0.5);
 
@@ -142,10 +147,8 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
 
-        spindexerSubsystem =
-            new SpindexerSubsystem(
-                new SpindexerSubsystemIOTalonFX(), new ShooterIndexerIOSparkMax());
-
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOTalonFX());
+        shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSparkMax());
         leftIntake =
             new IntakeSubsystem(
                 new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.LEFT),
@@ -156,8 +159,7 @@ public class RobotContainer {
                 IntakeSubsystem.IntakeSide.RIGHT);
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        // compressor.enableAnalog(10, 30);
-        compressor.disable();
+        compressor.enableAnalog(40, 80);
         break;
 
       case SIM:
@@ -187,9 +189,8 @@ public class RobotContainer {
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
         hoodSubsystem.zero();
 
-        spindexerSubsystem =
-            new SpindexerSubsystem(new SpindexerSubsystemIOSim(), new ShooterIndexerIOSim());
-
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
+        shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSim());
         leftIntake =
             new IntakeSubsystem(
                 new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.LEFT),
@@ -216,8 +217,8 @@ public class RobotContainer {
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIO() {});
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIO() {});
 
-        spindexerSubsystem =
-            new SpindexerSubsystem(new SpindexerSubsystemIO() {}, new ShooterIndexerIO() {});
+        spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIO() {});
+        shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIO() {});
 
         leftIntake =
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.LEFT);
@@ -361,23 +362,6 @@ public class RobotContainer {
               return inTrenchX && (inRightTrench || inLeftTrench);
             });
 
-    // Intake logic: start spinning when lowered, and stop on false (after an optional delay)
-    leftIntakeLowered
-        .onTrue(leftIntake.runRollerCommand())
-        .onFalse(
-            Commands.sequence(
-                new SuppliedWaitCommand(() -> intakeFoldDelay.get())
-                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
-                Commands.runOnce(leftIntake::stop, leftIntake)));
-
-    rightIntakeLowered
-        .onTrue(rightIntake.runRollerCommand())
-        .onFalse(
-            Commands.sequence(
-                new SuppliedWaitCommand(() -> intakeFoldDelay.get())
-                    .onlyIf(() -> runWheelsWhenFoldingChooser.get()),
-                Commands.runOnce(rightIntake::stop, rightIntake)));
-
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
@@ -413,25 +397,29 @@ public class RobotContainer {
                     && flywheelSubsystem.atSetpoint()
                     && DriveCommands.atLaunchGoal());
 
+    Trigger readyToShoot =
+        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
+            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+
     // Align and auto-launch
     driveController
         .leftTrigger()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
-        .whileTrue(hoodSubsystem.runTrackTargetCommand())
-        .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
-        .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
-        .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
-        .whileTrue(spindexerSubsystem.runIndexerCommand())
-        .onFalse(Commands.runOnce(() -> spindexerSubsystem.stop(), spindexerSubsystem))
+        .whileTrue(hoodSubsystem.runTrackTargetCommand());
+
+    driveController
+        .leftTrigger()
+        .and(readyToShoot)
         .whileTrue(
-            Commands.repeatingSequence(
-                Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
+            Commands.parallel(
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
+                Commands.repeatingSequence(
+                    Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile))));
 
     // Test specific button for simulated launch
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
-
-    // TODO: run indexer when shooting
 
     // Switch to X pattern when X button is pressed
     driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
@@ -445,6 +433,18 @@ public class RobotContainer {
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    SmartDashboard.putData(
+        "Run both Indexers",
+        new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
+    SmartDashboard.putData(
+        "Stop both Indexers",
+        Commands.runOnce(
+            () -> {
+              spindexerSubsystem.stop();
+              shooterIndexerSubsystem.stop();
+            },
+            spindexerSubsystem,
+            shooterIndexerSubsystem));
 
     // Reset gyro to 0° when B button is pressed
     driveController
@@ -457,18 +457,53 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    // flywheelSubsystem.setDefaultCommand(
-    //     new ContinuousConditionalCommand(
-    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-    //         flywheelSubsystem.runAtSpeedRADSCommand(
-    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-    //         disableFlywheelAutoSpinup));
-
-    spindexerSubsystem.setDefaultCommand(
-        Commands.runOnce(() -> spindexerSubsystem.setShooterIndexer(1), spindexerSubsystem));
+    flywheelSubsystem.setDefaultCommand(
+        new ContinuousConditionalCommand(
+            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+            flywheelSubsystem.runAtSpeedRADSCommand(
+                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+            disableFlywheelAutoSpinup));
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
+
+    // --- Intake roller logic ---
+
+    // Folded baseline: 0.2 when shooting (trigger held), 0 when idle
+    leftIntake.setDefaultCommand(
+        Commands.run(
+            () -> {
+              if (leftIntake.isLowered()) {
+                leftIntake.setPercentage(1.0);
+              } else {
+                leftIntake.setPercentage(driveController.leftTrigger().getAsBoolean() ? 0.2 : 0.0);
+              }
+            },
+            leftIntake));
+    rightIntake.setDefaultCommand(
+        Commands.run(
+            () -> {
+              if (rightIntake.isLowered()) {
+                rightIntake.setPercentage(1.0);
+              } else {
+                rightIntake.setPercentage(driveController.leftTrigger().getAsBoolean() ? 0.2 : 0.0);
+              }
+            },
+            rightIntake));
+
+    // When folding/unfolding
+    leftIntakeLowered
+        .onTrue(Commands.runOnce(() -> leftIntake.setPercentage(1.0), leftIntake))
+        .onFalse(
+            Commands.run(() -> leftIntake.setPercentage(1.0), leftIntake)
+                .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
+                .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
+    rightIntakeLowered
+        .onTrue(Commands.runOnce(() -> rightIntake.setPercentage(1.0), rightIntake))
+        .onFalse(
+            Commands.run(() -> rightIntake.setPercentage(1.0), rightIntake)
+                .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
+                .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
   }
 
   /** Update dashboard outputs. */
@@ -491,6 +526,7 @@ public class RobotContainer {
     // Log the Intake Confusion Zone Trigger
     Logger.recordOutput("In Intake Direction Confusion Zone", inConfusionZone);
   }
+
   /**
    * Use this to pass the autonomous command to the main {@link Robot} class.
    *
@@ -501,10 +537,38 @@ public class RobotContainer {
   }
 
   private Command smartIntakeCommand(IntakeSubsystem.IntakeSide bumperSide) {
-    return Commands.either(
-        switchIntakeCommand(leftIntake, rightIntake),
-        switchIntakeCommand(rightIntake, leftIntake),
-        () -> getDesiredIntakeSide(bumperSide) == IntakeSubsystem.IntakeSide.LEFT);
+    return Commands.defer(
+            () -> {
+              IntakeSubsystem.IntakeSide desired = getDesiredIntakeSide(bumperSide);
+              IntakeSubsystem target =
+                  desired == IntakeSubsystem.IntakeSide.LEFT ? leftIntake : rightIntake;
+              IntakeSubsystem other =
+                  desired == IntakeSubsystem.IntakeSide.LEFT ? rightIntake : leftIntake;
+
+              if (target.isLowered()) {
+                // Target already open → toggle it closed
+                return Commands.runOnce(() -> target.setLowered(false));
+              } else if (other.isLowered()) {
+                // Other is open → close it, wait, then open target
+                // We handle rollers directly here because kCancelIncoming blocks the
+                // onFalse/onTrue triggers from firing while this command holds the subsystems
+                return Commands.sequence(
+                    Commands.runOnce(
+                        () -> {
+                          other.setLowered(false);
+                        }),
+                    new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
+                    Commands.runOnce(
+                        () -> {
+                          target.setLowered(true);
+                        }));
+              } else {
+                // Neither open → just open target
+                return Commands.runOnce(() -> target.setLowered(true));
+              }
+            },
+            java.util.Set.of(leftIntake, rightIntake))
+        .withInterruptBehavior(Command.InterruptionBehavior.kCancelIncoming);
   }
 
   private IntakeSubsystem.IntakeSide getDesiredIntakeSide(IntakeSubsystem.IntakeSide bumperSide) {
@@ -539,30 +603,6 @@ public class RobotContainer {
       // closer.
       return facingLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
     }
-  }
-
-  /** Command that intelligently switches between intakes to ensure both are never open at once. */
-  private Command switchIntakeCommand(IntakeSubsystem targetIntake, IntakeSubsystem otherIntake) {
-    return Commands.defer(
-        () -> {
-          boolean targetIsOpen = targetIntake.isLowered();
-          boolean otherIsOpen = otherIntake.isLowered();
-
-          if (targetIsOpen) {
-            // If target is already open, just close it (toggle behavior)
-            return Commands.runOnce(() -> targetIntake.setLowered(false));
-          } else if (otherIsOpen) {
-            // Other is open: close it, wait, open target
-            return Commands.sequence(
-                Commands.runOnce(() -> otherIntake.setLowered(false)),
-                new SuppliedWaitCommand(() -> intakeSwitchDelay.get()),
-                Commands.runOnce(() -> targetIntake.setLowered(true)));
-          } else {
-            // Other is closed: just open target
-            return Commands.runOnce(() -> targetIntake.setLowered(true));
-          }
-        },
-        java.util.Set.of());
   }
 
   private void launchSimulatedProjectile() {

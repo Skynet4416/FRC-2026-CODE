@@ -29,6 +29,7 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   private final SparkMaxSim motorSim;
   private final DCMotorSim dcMotorSim;
   private double currentSetpoint = 0.0;
+  private double requestedPercentage = 0.0;
 
   public IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide side) {
     int motorId =
@@ -85,7 +86,7 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     this.dcMotorSim.setInputVoltage(this.motorSim.getAppliedOutput() * this.motor.getBusVoltage());
     this.dcMotorSim.update(0.02);
 
-    inputs.velocityRPM = this.motorSim.getVelocity();
+    inputs.velocityRPM = this.motorSim.getVelocity() / Constants.Subsystems.Intake.GEAR_RATIO;
     inputs.appliedVolts = this.motorSim.getAppliedOutput() * this.motor.getBusVoltage();
     inputs.supplyCurrentAmps = this.motorSim.getMotorCurrent();
     inputs.lowered = (this.solenoidSim.get() == DoubleSolenoid.Value.kForward);
@@ -94,17 +95,28 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     inputs.atSetpoint =
         Math.abs(inputs.velocityRPM - inputs.setpointRPM)
             <= Constants.Subsystems.Intake.RPM_TOLERANCE;
+    inputs.requestedPercentage = this.requestedPercentage;
   }
 
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
-    this.motor.getClosedLoopController().setSetpoint(rpm, ControlType.kVelocity);
+    this.requestedPercentage = 0.0;
+    this.motor
+        .getClosedLoopController()
+        .setSetpoint(rpm * Constants.Subsystems.Intake.GEAR_RATIO, ControlType.kVelocity);
   }
 
   @Override
   public void setVoltage(double volts) {
+    this.requestedPercentage = 0.0;
     this.motor.setVoltage(volts);
+  }
+
+  @Override
+  public void setPercentage(double percentage) {
+    this.requestedPercentage = percentage;
+    this.motor.set(percentage);
   }
 
   @Override
@@ -116,5 +128,6 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   public void stop() {
     setVoltage(0);
     this.currentSetpoint = 0.0;
+    this.requestedPercentage = 0.0;
   }
 }

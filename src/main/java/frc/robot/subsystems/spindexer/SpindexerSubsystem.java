@@ -6,22 +6,17 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
-import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerSubsystem;
 import frc.robot.util.LoggedTunableNumber;
 import org.littletonrobotics.junction.Logger;
 
 public class SpindexerSubsystem extends SubsystemBase {
   private final SpindexerSubsystemIO io;
   private final SysIdRoutine sysIdRoutine;
-  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("IndexRPM", 500.0);
-  private final ShooterIndexerSubsystem shooterIndexer;
   protected final SpindexerIOInputsAutoLogged inputs = new SpindexerIOInputsAutoLogged();
+  private final LoggedTunableNumber targetRpm = new LoggedTunableNumber("IndexRPM", 500.0);
 
-  public SpindexerSubsystem(
-      SpindexerSubsystemIO io,
-      frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerIO shooterIndexerIO) {
+  public SpindexerSubsystem(SpindexerSubsystemIO io) {
     this.io = io;
-    this.shooterIndexer = new ShooterIndexerSubsystem(shooterIndexerIO);
     sysIdRoutine =
         new SysIdRoutine(
             new SysIdRoutine.Config(
@@ -30,6 +25,10 @@ public class SpindexerSubsystem extends SubsystemBase {
                 null,
                 (state) -> Logger.recordOutput("Spindexer/SysIdTestState", state.toString())),
             new SysIdRoutine.Mechanism((voltage) -> runVolts(voltage.in(Volts)), null, this));
+  }
+
+  public void setPercentage(double percentage) {
+    io.set(percentage);
   }
 
   public void setTargetRPM(double rpm) {
@@ -48,16 +47,12 @@ public class SpindexerSubsystem extends SubsystemBase {
     return inputs.supplyCurrentAmps;
   }
 
-  public void setShooterIndexer(double percentage) {
-    shooterIndexer.setShooterIndexer(percentage);
-  }
-
   public void stop() {
-    io.stop();
+    io.set(0);
   }
 
   public Command runIndexerCommand() {
-    return Commands.run(() -> setTargetRPM(targetRpm.get()));
+    return Commands.run(() -> io.set(1.0), this);
   }
 
   public void runVolts(double volts) {

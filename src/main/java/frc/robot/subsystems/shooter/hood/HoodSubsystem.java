@@ -29,12 +29,28 @@ public class HoodSubsystem extends SubsystemBase {
   private boolean hoodZeroed = false;
 
   private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 0.0);
-  private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.1);
+  private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.3);
   public static final LoggedTunableNumber toleranceDeg =
       new LoggedTunableNumber("Hood/ToleranceDeg", 1.0);
 
   private static final LoggedTunableNumber homingVelocityThreshold =
       new LoggedTunableNumber("Hood/Homing/VelocityThreshold", 0.05);
+
+  private static final LoggedTunableNumber deadbandDeg =
+      new LoggedTunableNumber("Hood/DeadbandDeg", 0.5);
+
+  private final LoggedTunableNumber kP =
+      new LoggedTunableNumber("Hood/kP", Constants.Subsystems.Shooter.Hood.ClosedLoop.KP);
+  private final LoggedTunableNumber kI =
+      new LoggedTunableNumber("Hood/kI", Constants.Subsystems.Shooter.Hood.ClosedLoop.KI);
+  private final LoggedTunableNumber kD =
+      new LoggedTunableNumber("Hood/kD", Constants.Subsystems.Shooter.Hood.ClosedLoop.KD);
+  private final LoggedTunableNumber kS =
+      new LoggedTunableNumber("Hood/kS", Constants.Subsystems.Shooter.Hood.ClosedLoop.KS);
+  private final LoggedTunableNumber kV =
+      new LoggedTunableNumber("Hood/kV", Constants.Subsystems.Shooter.Hood.ClosedLoop.KV);
+  private final LoggedTunableNumber kA =
+      new LoggedTunableNumber("Hood/kA", Constants.Subsystems.Shooter.Hood.ClosedLoop.KA);
 
   private final LoggedMechanism2d mech =
       new LoggedMechanism2d(0.5, 0.5, new Color8Bit(Color.kBlack));
@@ -60,12 +76,27 @@ public class HoodSubsystem extends SubsystemBase {
                 null,
                 (state) -> Logger.recordOutput("Hood/SysIdTestState", state.toString())),
             new SysIdRoutine.Mechanism((voltage) -> io.setVoltage(voltage.in(Volts)), null, this));
+
+    // Apply initial tuning values
+    io.configPID(kP.get(), kI.get(), kD.get(), kS.get(), kV.get(), kA.get());
   }
 
   @Override
   public void periodic() {
     io.updateInputs(inputs);
     Logger.processInputs("Hood", inputs);
+
+    if (Constants.tuningMode) {
+      LoggedTunableNumber.ifChanged(
+          hashCode(),
+          () -> io.configPID(kP.get(), kI.get(), kD.get(), kS.get(), kV.get(), kA.get()),
+          kP,
+          kI,
+          kD,
+          kS,
+          kV,
+          kA);
+    }
 
     hood.setAngle(inputs.angle);
     Logger.recordOutput("Hood/Mechanism", mech);
@@ -83,10 +114,16 @@ public class HoodSubsystem extends SubsystemBase {
               new Transform3d(poses.get(i).getTranslation(), poses.get(i).getRotation())));
     }
     Logger.recordOutput("Hood/Components/HoodPose3d", poses.toArray(new Pose3d[0]));
+
+    Logger.recordOutput("Hood/HasZeroed", isZeroed());
   }
 
   public void setTargetAngle(double degrees) {
     if (hoodZeroed) {
+      if (Math.abs(getAngle() - degrees) <= deadbandDeg.get()) {
+        io.stop();
+        return;
+      }
       io.setTargetAngle(degrees);
     }
   }
@@ -147,5 +184,9 @@ public class HoodSubsystem extends SubsystemBase {
   public void zero() {
     io.setAngle(Constants.Subsystems.Shooter.Hood.MIN_ANGLE_DEG);
     hoodZeroed = true;
+  }
+
+  public boolean isZeroed() {
+    return hoodZeroed;
   }
 }

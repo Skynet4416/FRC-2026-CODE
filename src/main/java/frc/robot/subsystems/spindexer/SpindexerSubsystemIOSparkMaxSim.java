@@ -25,6 +25,7 @@ public class SpindexerSubsystemIOSparkMaxSim implements SpindexerSubsystemIO {
   private final SparkMaxSim motorSim;
   private final DCMotorSim dcMotorSim;
   private double currentSetpoint = 0.0;
+  private double requestedPercentage = 0.0;
 
   public SpindexerSubsystemIOSparkMaxSim() {
     this.motor =
@@ -71,16 +72,19 @@ public class SpindexerSubsystemIOSparkMaxSim implements SpindexerSubsystemIO {
     inputs.supplyCurrentAmps = this.motorSim.getMotorCurrent();
     inputs.connected = true;
     inputs.setpointRPM = this.currentSetpoint;
+    inputs.requestedPercentage = this.requestedPercentage;
   }
 
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
+    this.requestedPercentage = 0.0;
     this.motor.getClosedLoopController().setSetpoint(rpm, ControlType.kVelocity);
   }
 
   @Override
   public void setVoltage(double volts) {
+    this.requestedPercentage = 0.0;
     this.motor.setVoltage(volts);
   }
 
@@ -88,5 +92,12 @@ public class SpindexerSubsystemIOSparkMaxSim implements SpindexerSubsystemIO {
   public void stop() {
     setVoltage(0);
     this.currentSetpoint = 0.0;
+    this.requestedPercentage = 0.0;
+  }
+
+  @Override
+  public void set(double percentage) {
+    this.requestedPercentage = percentage;
+    motor.set(percentage);
   }
 }

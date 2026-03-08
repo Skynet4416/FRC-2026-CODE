@@ -126,7 +126,7 @@ public final class Constants {
         public static final double STALL_CURRENT_LIMIT = 20.0; // Amps
         public static final double MAX_ANGLE_DEG = 68.0;
         public static final double MIN_ANGLE_DEG = 0.0;
-        public static final double HOMING_VOLTS = -2.0;
+        public static final double HOMING_VOLTS = -6.0;
 
         public static class Id {
           public static final int MOTOR_ID = 42;
@@ -209,13 +209,14 @@ public final class Constants {
     }
 
     public static class Intake {
+      public static final double GEAR_RATIO = 2.0;
       public static final boolean ROLLER_BREAK = true;
       public static final double RPM_TOLERANCE = 20.0;
 
       public static class Id {
         public static class Motor {
-          public static final int LEFT_ROLLER = 30;
-          public static final int RIGHT_ROLLER = 31;
+          public static final int LEFT_ROLLER = 31;
+          public static final int RIGHT_ROLLER = 30;
         }
 
         public static class Pneumatics {
