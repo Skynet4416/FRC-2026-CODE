@@ -354,7 +354,7 @@ public class RobotContainer {
                 Commands.runOnce(rightIntake::stop, rightIntake)));
 
     // Default command, normal field-relative drive
-    // drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
+    drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
     // Lock to 0 when A button is held
     driveController
@@ -379,31 +379,35 @@ public class RobotContainer {
                     && flywheelSubsystem.atSetpoint()
                     && DriveCommands.atLaunchGoal());
 
-    Trigger isShooting =
-        driveController
-            .leftTrigger()
-            .and(() -> LaunchCalculator.getInstance().getParameters().isValid())
+    Trigger readyToShoot =
+        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
             .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     // Align and auto-launch
     driveController
         .leftTrigger()
-        // .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
+        .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand());
 
-    isShooting
+    driveController
+        .leftTrigger()
+        .and(readyToShoot)
         .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem))
         .whileTrue(
             Commands.repeatingSequence(
                 Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile)));
 
-    isShooting
+    driveController
+        .leftTrigger()
+        .and(readyToShoot)
         .and(leftIntakeLowered.negate())
         .whileTrue(Commands.startEnd(() -> leftIntake.set(0.2), leftIntake::stop, leftIntake));
 
-    isShooting
+    driveController
+        .leftTrigger()
+        .and(readyToShoot)
         .and(rightIntakeLowered.negate())
         .whileTrue(Commands.startEnd(() -> rightIntake.set(0.2), rightIntake::stop, rightIntake));
 
