@@ -429,7 +429,7 @@ public class RobotContainer {
                 () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
             disableFlywheelAutoSpinup));
 
-    flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
+    // flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
