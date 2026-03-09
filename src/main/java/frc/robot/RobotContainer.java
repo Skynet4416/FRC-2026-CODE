@@ -334,20 +334,20 @@ public class RobotContainer {
     // Drive controls
     DoubleSupplier driverX = () -> -driveController.getLeftY();
     DoubleSupplier driverY = () -> -driveController.getLeftX();
-    DoubleSupplier driverOmega = () -> -driveController.getRightX();
+    DoubleSupplier driverOmega = () -> -driveController.getRawAxis(4);
 
     // Default command, normal field-relative drive
-    // drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
+    drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
     // Lock to 0 when A button is held
-    driveController
-        .cross()
-        .whileTrue(
-            DriveCommands.joystickDriveAtAngle(
-                drive,
-                () -> -driveController.getLeftY(),
-                () -> -driveController.getLeftX(),
-                () -> Rotation2d.kZero));
+    // driveController
+    //     .cross()
+    //     .whileTrue(
+    //         DriveCommands.joystickDriveAtAngle(
+    //             drive,
+    //             () -> -driveController.getLeftY(),
+    //             () -> -driveController.getLeftX(),
+    //             () -> Rotation2d.kZero));
 
     Trigger hubActiveOrPassing =
         new Trigger(
@@ -368,10 +368,14 @@ public class RobotContainer {
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
-        .L2()
+        .triangle()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand());
+
+    driveController
+        .cross()
+        .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
 
     driveController
         .L2()
@@ -386,7 +390,7 @@ public class RobotContainer {
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
 
     // Switch to X pattern when X button is pressed
-    driveController.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
+    // driveController.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
     final Runnable resetOdometry =
         Constants.currentMode == Constants.Mode.SIM
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
