@@ -366,11 +366,11 @@ public class RobotContainer {
             .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
-    // driveController
-    //     .leftTrigger()
-    //     // .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
-    //     .whileTrue(flywheelSubsystem.runTrackTargetCommand())
-    //     .whileTrue(hoodSubsystem.runTrackTargetCommand());
+    driveController
+        .L2()
+        .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
+        .whileTrue(flywheelSubsystem.runTrackTargetCommand())
+        .whileTrue(hoodSubsystem.runTrackTargetCommand());
 
     driveController
         .L2()
