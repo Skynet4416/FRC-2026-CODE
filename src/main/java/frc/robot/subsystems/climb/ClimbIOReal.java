@@ -126,6 +126,11 @@ public class ClimbIOReal implements ClimbIO {
   }
 
   @Override
+  public void setKraken(double percentage) {
+    kraken.set(percentage);
+  }
+
+  @Override
   public void setKrakenAngle(double rads) {
     double targetRotations =
         Units.radiansToRotations(rads) * Constants.Subsystems.Climber.KRAKEN_GEAR_RATIO;

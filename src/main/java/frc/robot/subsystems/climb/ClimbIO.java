@@ -29,6 +29,8 @@ public interface ClimbIO {
 
   default void setNeo(double percentage) {}
 
+  default void setKraken(double percentage) {}
+
   /** Set the targeted position for the NEOs in radians. */
   default void setNeoAngle(double rads) {}
 

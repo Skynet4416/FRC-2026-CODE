@@ -20,7 +20,7 @@ public class ClimbTest extends Command {
   // Called when the command is initially scheduled.
   @Override
   public void initialize() {
-    m_climb.setNeo(speed);
+    m_climb.setKraken(-speed);
     System.out.println("CLIMBING");
   }
 
@@ -31,7 +31,7 @@ public class ClimbTest extends Command {
   // Called once the command ends or is interrupted.
   @Override
   public void end(boolean interrupted) {
-    m_climb.setNeo(0);
+    m_climb.setKraken(0);
     System.out.println("CLIMB STOP");
   }
 
