@@ -100,8 +100,8 @@ public final class Constants {
           public static final double KD = 0.0;
 
           public static final double KS = 0.0;
-          public static final double KV = 0.12;
-          public static final double KA = 0.0;
+          public static final double KV = 0.51;
+          public static final double KA = 0.02;
         }
 
         public static final class CurrentLimits {
@@ -133,7 +133,7 @@ public final class Constants {
         }
 
         public static final class ClosedLoop {
-          public static final double KP = 10;
+          public static final double KP = 100;
           public static final double KI = 0.0;
           public static final double KD = 0.0;
           public static final double KS = 0.0;
