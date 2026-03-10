@@ -362,7 +362,6 @@ public class RobotContainer {
               return inTrenchX && (inRightTrench || inLeftTrench);
             });
 
-
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
@@ -437,7 +436,8 @@ public class RobotContainer {
     driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));    SmartDashboard.putData(
+    SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    SmartDashboard.putData(
         "Run both Indexers",
         new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
     SmartDashboard.putData(
