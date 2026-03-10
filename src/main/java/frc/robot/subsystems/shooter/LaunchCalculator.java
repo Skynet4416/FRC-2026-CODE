@@ -156,15 +156,15 @@ public class LaunchCalculator {
     hoodAngleMap.put(5.2, Rotation2d.fromDegrees(22.0));
     hoodAngleMap.put(5.7, Rotation2d.fromDegrees(23.0));
 
-    flywheelSpeedMap.put(1.3, 3200.0);
-    flywheelSpeedMap.put(1.7, 3300.0);
-    flywheelSpeedMap.put(2.2, 3500.0);
-    flywheelSpeedMap.put(2.7, 3700.0);
-    flywheelSpeedMap.put(3.2, 3700.0);
-    flywheelSpeedMap.put(3.7, 3900.0);
-    flywheelSpeedMap.put(4.2, 4100.0);
-    flywheelSpeedMap.put(4.7, 4200.0);
-    flywheelSpeedMap.put(5.2, 5400.0);
+    flywheelSpeedMap.put(1.3, 3000.0);
+    flywheelSpeedMap.put(1.7, 3100.0);
+    flywheelSpeedMap.put(2.2, 3300.0);
+    flywheelSpeedMap.put(2.7, 3500.0);
+    flywheelSpeedMap.put(3.2, 3500.0);
+    flywheelSpeedMap.put(3.7, 3700.0);
+    flywheelSpeedMap.put(4.2, 3900.0);
+    flywheelSpeedMap.put(4.7, 4000.0);
+    flywheelSpeedMap.put(5.2, 5200.0);
     flywheelSpeedMap.put(5.7, 5500.0);
 
     timeOfFlightMap.put(1.3, 1.0);
@@ -235,9 +235,9 @@ public class LaunchCalculator {
     boolean passing =
         AllianceFlipUtil.applyX(Drive.getInstance().getPose().getX())
             > FieldConstants.LinesVertical.hubCenter;
-    // if (latestParameters != null) {
-    //   return latestParameters;
-    // }
+    if (latestParameters != null) {
+      return latestParameters;
+    }
 
     // Calculate estimated pose while accounting for phase delay
     Pose2d estimatedPose = Drive.getInstance().getPose();
@@ -256,6 +256,7 @@ public class LaunchCalculator {
             : AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d());
     Pose2d launcherPosition = estimatedPose.transformBy(GeomUtil.toTransform2d(robotToLauncher));
     double launcherToTargetDistance = target.getDistance(launcherPosition.getTranslation());
+    System.out.println("LauncherToTargetDitance: " + launcherToTargetDistance);
 
     // Calculate field relative launcher velocity
     var robotVelocity = Drive.getInstance().getFieldSetpointVelocity();
