@@ -26,6 +26,7 @@ import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
@@ -90,10 +91,10 @@ public class RobotContainer {
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
   // Controllers
-  private final CommandXboxController driveController = new CommandXboxController(0);
+  private final CommandPS5Controller driveController = new CommandPS5Controller(0);
   private SwerveDriveSimulation driveSimulation = null;
 
-  private final CommandXboxController mechanismController = new CommandXboxController(1);
+  private final CommandPS5Controller mechanismController = new CommandPS5Controller(1);
   private final Alert driverControllerDisconnected =
       new Alert("Driver controller disconnected (port 0).", AlertType.kWarning);
   private final Alert mechanismControllerDisconnected =
@@ -158,7 +159,7 @@ public class RobotContainer {
                 IntakeSubsystem.IntakeSide.RIGHT);
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        compressor.enableAnalog(40, 80);
+        compressor.enableAnalog(80, 110);
         break;
 
       case SIM:
@@ -358,6 +359,9 @@ public class RobotContainer {
                   y > (FieldConstants.LinesHorizontal.leftTrenchOpenEnd + robotHalfWidth)
                       && y < (FieldConstants.fieldWidth - robotHalfWidth);
 
+              return inTrenchX && (inRightTrench || inLeftTrench);
+            });
+
     double robotHalfWidth = Units.inchesToMeters(20.0) / 2.0;
     Trigger nearTrench =
         new Trigger(
@@ -391,7 +395,7 @@ public class RobotContainer {
         .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
 
     // Lock to 0 when A button is held
-                () -> Rotation2d.kZero));
+    // driveController
     //     .cross()
     //     .whileTrue(
     //         DriveCommands.joystickDriveAtAngle(
