@@ -413,8 +413,8 @@ public class RobotContainer {
         .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
 
     driveController
-        .L2()
-        // .and(readyToShoot)
+        .triangle()
+        .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
@@ -583,7 +583,7 @@ public class RobotContainer {
       boolean facingBackwards = Math.abs(drive.getPose().getRotation().getDegrees()) > 90.0;
       boolean isLeftBumper = bumperSide == IntakeSubsystem.IntakeSide.LEFT;
       boolean wantsLeft = isLeftBumper ? !facingBackwards : facingBackwards;
-      return wantsLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
+      return (!wantsLeft) ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
     }
 
     // IN CONFUSION ZONE -> Use velocity vector (bumper choice doesn't matter)
