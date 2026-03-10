@@ -26,7 +26,6 @@ import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.button.CommandXboxController;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
@@ -359,6 +358,23 @@ public class RobotContainer {
                   y > (FieldConstants.LinesHorizontal.leftTrenchOpenEnd + robotHalfWidth)
                       && y < (FieldConstants.fieldWidth - robotHalfWidth);
 
+    double robotHalfWidth = Units.inchesToMeters(20.0) / 2.0;
+    Trigger nearTrench =
+        new Trigger(
+            () -> {
+              double x = frc.robot.util.geometry.AllianceFlipUtil.applyX(drive.getPose().getX());
+              double y = drive.getPose().getY();
+
+              boolean inTrenchX =
+                  x > (FieldConstants.LeftBump.nearLeftCorner.getX() - trenchExtension.get())
+                      && x < (FieldConstants.LeftBump.farLeftCorner.getX() + trenchExtension.get());
+              boolean inRightTrench =
+                  y > robotHalfWidth
+                      && y < (FieldConstants.LinesHorizontal.rightTrenchOpenStart - robotHalfWidth);
+              boolean inLeftTrench =
+                  y > (FieldConstants.LinesHorizontal.leftTrenchOpenEnd + robotHalfWidth)
+                      && y < (FieldConstants.fieldWidth - robotHalfWidth);
+
               return inTrenchX && (inRightTrench || inLeftTrench);
             });
 
@@ -375,14 +391,14 @@ public class RobotContainer {
         .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
 
     // Lock to 0 when A button is held
-    driveController
-        .a()
-        .whileTrue(
-            DriveCommands.joystickDriveAtAngle(
-                drive,
-                () -> -driveController.getLeftY(),
-                () -> -driveController.getLeftX(),
                 () -> Rotation2d.kZero));
+    //     .cross()
+    //     .whileTrue(
+    //         DriveCommands.joystickDriveAtAngle(
+    //             drive,
+    //             () -> -driveController.getLeftY(),
+    //             () -> -driveController.getLeftX(),
+    //             () -> Rotation2d.kZero));
 
     Trigger hubActiveOrPassing =
         new Trigger(
@@ -402,16 +418,19 @@ public class RobotContainer {
             .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
-    // Align and auto-launch
     driveController
-        .leftTrigger()
+        .triangle()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand());
 
     driveController
-        .leftTrigger()
-        .and(readyToShoot)
+        .cross()
+        .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
+
+    driveController
+        .L2()
+        // .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
@@ -422,18 +441,18 @@ public class RobotContainer {
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
 
     // Switch to X pattern when X button is pressed
-    driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
+    // driveController.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
     final Runnable resetOdometry =
         Constants.currentMode == Constants.Mode.SIM
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
-    driveController.leftBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    driveController.rightBumper().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+
+    driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
-    SmartDashboard.putData(
+    SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));    SmartDashboard.putData(
         "Run both Indexers",
         new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
     SmartDashboard.putData(
@@ -448,7 +467,7 @@ public class RobotContainer {
 
     // Reset gyro to 0° when B button is pressed
     driveController
-        .b()
+        .circle()
         .onTrue(
             Commands.runOnce(
                     () ->
@@ -464,19 +483,21 @@ public class RobotContainer {
                 () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
             disableFlywheelAutoSpinup));
 
+    // flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
+
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
 
     // --- Intake roller logic ---
 
-    // Folded baseline: 0.2 when shooting (trigger held), 0 when idle
+    // Folded baseline: 0.5 when shooting (trigger held), 0 when idle
     leftIntake.setDefaultCommand(
         Commands.run(
             () -> {
               if (leftIntake.isLowered()) {
                 leftIntake.setPercentage(1.0);
               } else {
-                leftIntake.setPercentage(driveController.leftTrigger().getAsBoolean() ? 0.2 : 0.0);
+                leftIntake.setPercentage(driveController.L2().getAsBoolean() ? 0.5 : 0.0);
               }
             },
             leftIntake));
@@ -486,7 +507,7 @@ public class RobotContainer {
               if (rightIntake.isLowered()) {
                 rightIntake.setPercentage(1.0);
               } else {
-                rightIntake.setPercentage(driveController.leftTrigger().getAsBoolean() ? 0.2 : 0.0);
+                rightIntake.setPercentage(driveController.L2().getAsBoolean() ? 0.2 : 0.0);
               }
             },
             rightIntake));

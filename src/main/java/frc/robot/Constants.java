@@ -100,8 +100,8 @@ public final class Constants {
           public static final double KD = 0.0;
 
           public static final double KS = 0.0;
-          public static final double KV = 0.12;
-          public static final double KA = 0.0;
+          public static final double KV = 0.51;
+          public static final double KA = 0.02;
         }
 
         public static final class CurrentLimits {
@@ -111,7 +111,7 @@ public final class Constants {
           public static final boolean SUPPLY_ENABLED = true;
 
           // TODO tune this value
-          public static final double SUPPLY_LIMIT_AMPS = 40.0; // Holding limit
+          public static final double SUPPLY_LIMIT_AMPS = 60.0; // Holding limit
 
           // Stator Limit: Protects the Motor (Prevents Burnout)
           // Keep this HIGH for Shooters to allow fast spin-up.
@@ -123,20 +123,20 @@ public final class Constants {
       public static final class Hood {
         public static final double GEAR_RATIO = 875.0 / 38.0;
         public static final boolean INVERTED = false;
-        public static final double STALL_CURRENT_LIMIT = 20.0; // Amps
+        public static final double STALL_CURRENT_LIMIT = 40.0; // Amps
         public static final double MAX_ANGLE_DEG = 68.0;
         public static final double MIN_ANGLE_DEG = 0.0;
-        public static final double HOMING_VOLTS = -6.0;
+        public static final double HOMING_VOLTS = -4.0;
 
         public static class Id {
           public static final int MOTOR_ID = 42;
         }
 
         public static final class ClosedLoop {
-          public static final double KP = 10;
+          public static final double KP = 15;
           public static final double KI = 0.0;
           public static final double KD = 0.0;
-          public static final double KS = 0.0;
+          public static final double KS = 0.5;
           public static final double KV = 0.0;
           public static final double KA = 0.0;
         }
@@ -215,15 +215,15 @@ public final class Constants {
 
       public static class Id {
         public static class Motor {
-          public static final int LEFT_ROLLER = 31;
-          public static final int RIGHT_ROLLER = 30;
+          public static final int LEFT_ROLLER = 30;
+          public static final int RIGHT_ROLLER = 31;
         }
 
         public static class Pneumatics {
-          public static final int LEFT_REVERSE = 1; //
-          public static final int LEFT_FORWARDS = 15;
-          public static final int RIGHT_REVERSE = 2; //
-          public static final int RIGHT_FORWARDS = 14;
+          public static final int LEFT_REVERSE = 2; //
+          public static final int LEFT_FORWARDS = 14;
+          public static final int RIGHT_REVERSE = 1; //
+          public static final int RIGHT_FORWARDS = 15;
         }
       }
 

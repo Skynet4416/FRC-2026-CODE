@@ -51,8 +51,7 @@ public class DriveCommands {
   private static final LoggedTunableNumber driveLaunchKd =
       new LoggedTunableNumber("DriveCommands/Launching/kD", Constants.AutoAlignment.Launcher.KD);
   private static final LoggedTunableNumber driveLaunchToleranceDeg =
-      new LoggedTunableNumber(
-          "DriveCommands/Launching/ToleranceDeg", Constants.AutoAlignment.Launcher.TOLERANCE_DEG);
+      new LoggedTunableNumber("DriveCommands/Launching/ToleranceDeg", 4.0);
   private static final LoggedTunableNumber driveLaunchMaxPolarVelocityRadPerSec =
       new LoggedTunableNumber(
           "DriveCommands/Launching/MaxPolarVelocityRadPerSec",
