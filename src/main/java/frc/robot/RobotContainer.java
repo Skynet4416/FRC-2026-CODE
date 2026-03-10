@@ -362,36 +362,17 @@ public class RobotContainer {
               return inTrenchX && (inRightTrench || inLeftTrench);
             });
 
-    double robotHalfWidth = Units.inchesToMeters(20.0) / 2.0;
-    Trigger nearTrench =
-        new Trigger(
-            () -> {
-              double x = frc.robot.util.geometry.AllianceFlipUtil.applyX(drive.getPose().getX());
-              double y = drive.getPose().getY();
-
-              boolean inTrenchX =
-                  x > (FieldConstants.LeftBump.nearLeftCorner.getX() - trenchExtension.get())
-                      && x < (FieldConstants.LeftBump.farLeftCorner.getX() + trenchExtension.get());
-              boolean inRightTrench =
-                  y > robotHalfWidth
-                      && y < (FieldConstants.LinesHorizontal.rightTrenchOpenStart - robotHalfWidth);
-              boolean inLeftTrench =
-                  y > (FieldConstants.LinesHorizontal.leftTrenchOpenEnd + robotHalfWidth)
-                      && y < (FieldConstants.fieldWidth - robotHalfWidth);
-
-              return inTrenchX && (inRightTrench || inLeftTrench);
-            });
 
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
     nearTrench
-        .and(driveController.leftTrigger().negate())
+        .and(driveController.triangle().negate())
         .and(autoAlignmentOverride.negate())
         .whileTrue(DriveCommands.autoTrenchAssist(drive, driverX, driverY, driverOmega));
 
     driveController
-        .rightStick()
+        .R3()
         .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
 
     // Lock to 0 when A button is held
