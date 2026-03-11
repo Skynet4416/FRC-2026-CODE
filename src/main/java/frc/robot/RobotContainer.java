@@ -342,7 +342,7 @@ public class RobotContainer {
     DoubleSupplier driverY = () -> -driveController.getLeftX();
     DoubleSupplier driverOmega = () -> -driveController.getRightX();
 
-    double robotHalfWidth = Units.inchesToMeters(20.0) / 2.0;
+    double robotHalfWidth = Units.inchesToMeters(27.0) / 2.0;
     Trigger nearTrench =
         new Trigger(
             () -> {
