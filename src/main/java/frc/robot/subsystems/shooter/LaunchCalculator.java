@@ -33,6 +33,9 @@ public class LaunchCalculator {
   private static LaunchCalculator instance;
 
   private double hoodAngleOffsetDeg = 0.0;
+  // FUDGE FACTOR: Tune this down (e.g., 0.5 to 0.8) to stop over-compensating.
+  private static final LoggedTunableNumber lookaheadScalar =
+      new LoggedTunableNumber("LaunchCalculator/LookaheadScalar", 1.0);
 
   public double getHoodAngleOffsetDeg() {
     return hoodAngleOffsetDeg;
@@ -277,8 +280,12 @@ public class LaunchCalculator {
           passing
               ? passingTimeOfFlightMap.get(lookaheadLauncherToTargetDistance)
               : timeOfFlightMap.get(lookaheadLauncherToTargetDistance);
-      double offsetX = launcherVelocity.vxMetersPerSecond * timeOfFlight;
-      double offsetY = launcherVelocity.vyMetersPerSecond * timeOfFlight;
+
+      // --- APPLY THE FUDGE FACTOR HERE ---
+      double scaledToF = timeOfFlight * lookaheadScalar.get();
+
+      double offsetX = launcherVelocity.vxMetersPerSecond * scaledToF;
+      double offsetY = launcherVelocity.vyMetersPerSecond * scaledToF;
       lookaheadPose =
           new Pose2d(
               launcherPosition.getTranslation().plus(new Translation2d(offsetX, offsetY)),
