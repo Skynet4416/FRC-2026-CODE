@@ -28,6 +28,7 @@ import frc.robot.util.geometry.AllianceFlipUtil;
 import frc.robot.util.geometry.Bounds;
 import frc.robot.util.geometry.GeomUtil;
 import org.littletonrobotics.junction.Logger;
+import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
 public class LaunchCalculator {
   private static LaunchCalculator instance;
@@ -36,6 +37,8 @@ public class LaunchCalculator {
   // FUDGE FACTOR: Tune this down (e.g., 0.5 to 0.8) to stop over-compensating.
   private static final LoggedTunableNumber lookaheadScalar =
       new LoggedTunableNumber("LaunchCalculator/LookaheadScalar", 1.0);
+
+  private final LoggedDashboardChooser<Boolean> forceCurrentSpeedsChooser;
 
   public double getHoodAngleOffsetDeg() {
     return hoodAngleOffsetDeg;
@@ -48,6 +51,12 @@ public class LaunchCalculator {
 
   private double lastHoodAngle;
   private Rotation2d lastDriveAngle;
+
+  private LaunchCalculator() {
+    forceCurrentSpeedsChooser = new LoggedDashboardChooser<>("Force Current Speeds");
+    forceCurrentSpeedsChooser.addDefaultOption("No", false);
+    forceCurrentSpeedsChooser.addOption("Yes", true);
+  }
 
   public static LaunchCalculator getInstance() {
     if (instance == null) instance = new LaunchCalculator();
@@ -261,7 +270,10 @@ public class LaunchCalculator {
     double launcherToTargetDistance = target.getDistance(launcherPosition.getTranslation());
 
     // Calculate field relative launcher velocity
-    var robotVelocity = Drive.getInstance().getFieldSetpointVelocity();
+    var robotVelocity =
+        forceCurrentSpeedsChooser.get()
+            ? Drive.getInstance().getFieldVelocity()
+            : Drive.getInstance().getFieldSetpointVelocity();
     var robotAngle = Drive.getInstance().getRotation();
     ChassisSpeeds launcherVelocity =
         GeomUtil.transformVelocity(
