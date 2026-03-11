@@ -382,10 +382,10 @@ public class RobotContainer {
         .triangle()
         .and(readyToShoot)
         .whileTrue(
-            Commands.parallel(
-                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
-                Commands.repeatingSequence(
-                    Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile))));
+            // Commands.parallel(
+            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
+    // Commands.repeatingSequence(
+    //     Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile))));
 
     // Test specific button for simulated launch
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
