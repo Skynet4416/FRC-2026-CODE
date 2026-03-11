@@ -16,7 +16,19 @@ public class FlywheelSubsystem extends SubsystemBase {
   private final SysIdRoutine sysIdRoutine;
   private final LoggedTunableNumber targetRpm =
       new LoggedTunableNumber(
-          "FlywheelRPM", Constants.Subsystems.Shooter.Flywheel.DEFAULT_TARGET_RPM);
+          "Flywheel/TargetRPM", Constants.Subsystems.Shooter.Flywheel.DEFAULT_TARGET_RPM);
+  private final LoggedTunableNumber kP =
+      new LoggedTunableNumber("Flywheel/kP", Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KP);
+  private final LoggedTunableNumber kI =
+      new LoggedTunableNumber("Flywheel/kI", Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KI);
+  private final LoggedTunableNumber kD =
+      new LoggedTunableNumber("Flywheel/kD", Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KD);
+  private final LoggedTunableNumber kS =
+      new LoggedTunableNumber("Flywheel/kS", Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KS);
+  private final LoggedTunableNumber kV =
+      new LoggedTunableNumber("Flywheel/kV", Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KV);
+  private final LoggedTunableNumber kA =
+      new LoggedTunableNumber("Flywheel/kA", Constants.Subsystems.Shooter.Flywheel.ClosedLoop.KA);
 
   protected final FlywheelIOInputsAutoLogged inputs = new FlywheelIOInputsAutoLogged();
 
@@ -30,6 +42,9 @@ public class FlywheelSubsystem extends SubsystemBase {
                 null,
                 (state) -> Logger.recordOutput("Flywheel/SysIdTestState", state.toString())),
             new SysIdRoutine.Mechanism((voltage) -> runVolts(voltage.in(Volts)), null, this));
+
+    // Handle initial tuning values
+    io.configPID(kP.get(), kI.get(), kD.get(), kS.get(), kV.get(), kA.get());
   }
 
   public void setTargetRPM(double rpm) {
@@ -80,8 +95,12 @@ public class FlywheelSubsystem extends SubsystemBase {
     return run(() -> setTargetRADS(speedRADS.getAsDouble()));
   }
 
+  public Command runAtSpeedRPMCommand(DoubleSupplier speedRPM) {
+    return run(() -> setTargetRPM(speedRPM.getAsDouble()));
+  }
+
   public Command runTrackTargetCommand() {
-    return run(() -> setTargetRADS(LaunchCalculator.getInstance().getParameters().flywheelSpeed()));
+    return run(() -> setTargetRPM(LaunchCalculator.getInstance().getParameters().flywheelSpeed()));
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
@@ -96,5 +115,16 @@ public class FlywheelSubsystem extends SubsystemBase {
   public void periodic() {
     io.updateInputs(inputs);
     Logger.processInputs("Flywheel", inputs);
+    if (Constants.tuningMode) {
+      LoggedTunableNumber.ifChanged(
+          hashCode(),
+          () -> io.configPID(kP.get(), kI.get(), kD.get(), kS.get(), kV.get(), kA.get()),
+          kP,
+          kI,
+          kD,
+          kS,
+          kV,
+          kA);
+    }
   }
 }

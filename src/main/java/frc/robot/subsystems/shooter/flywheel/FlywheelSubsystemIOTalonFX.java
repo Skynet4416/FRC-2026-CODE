@@ -1,5 +1,6 @@
 package frc.robot.subsystems.shooter.flywheel;
 
+import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
@@ -89,6 +90,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
         Math.abs(inputs.velocityRPM - targetRPM)
             <= Constants.Subsystems.Shooter.Flywheel.RPM_TOLERANCE;
 
+    inputs.rotations = leaderMotor.getRotorPosition().getValueAsDouble();
     leaderDisconnected.set(!inputs.connected);
     followerDisconnected.set(!followerMotor.isConnected());
   }
@@ -103,6 +105,18 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   @Override
   public void setTargetRADS(double radiansPerSecond) {
     setTargetRPM(Units.radiansPerSecondToRotationsPerMinute(radiansPerSecond));
+  }
+
+  @Override
+  public void configPID(double kP, double kI, double kD, double kS, double kV, double kA) {
+    var slot0 = new Slot0Configs();
+    slot0.kP = kP;
+    slot0.kI = kI;
+    slot0.kD = kD;
+    slot0.kS = kS;
+    slot0.kV = kV;
+    slot0.kA = kA;
+    leaderMotor.getConfigurator().apply(slot0);
   }
 
   @Override

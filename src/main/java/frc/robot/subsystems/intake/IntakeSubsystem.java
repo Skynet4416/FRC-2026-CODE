@@ -50,7 +50,8 @@ public class IntakeSubsystem extends SubsystemBase {
             new SysIdRoutine.Mechanism((voltage) -> runVolts(voltage.in(Volts)), null, this));
 
     this.targetRpm =
-        new LoggedTunableNumber("RollerRPM" + (side == IntakeSide.LEFT ? "Left" : "Right"), 10.0);
+        new LoggedTunableNumber(
+            "Intake/RollerRPM" + (side == IntakeSide.LEFT ? "Left" : "Right"), 10.0);
 
     String mechName = side == IntakeSide.LEFT ? "IntakeLeft" : "IntakeRight";
     this.mech = new LoggedMechanism2d(1.0, 1.0, new Color8Bit(Color.kBlack));
@@ -70,7 +71,6 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void setLowered(boolean lowered) {
-    System.out.println("SETTING LOEWRED: " + lowered);
     io.setLowered(lowered);
   }
 
@@ -106,8 +106,8 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setVoltage(volts);
   }
 
-  public void set(double percentage) {
-    io.set(percentage);
+  public void setPercentage(double percentage) {
+    io.setPercentage(percentage);
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {

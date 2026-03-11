@@ -11,6 +11,7 @@ public interface FlywheelSubsystemIO {
     public double supplyCurrentAmps = 0.0;
     public double tempCelsius = 0.0;
     public double setpointRPM = 0.0;
+    public double rotations = 0.0;
     public boolean atSetpoint = false;
     public boolean connected = true;
   }
@@ -22,6 +23,8 @@ public interface FlywheelSubsystemIO {
   default void setTargetRADS(double radiansPerSecond) {}
 
   default void setVoltage(double volts) {}
+
+  default void configPID(double kP, double kI, double kD, double kS, double kV, double kA) {}
 
   default void stop() {
     setVoltage(0);

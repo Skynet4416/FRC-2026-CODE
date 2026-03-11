@@ -27,6 +27,7 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
   private final Alert motorDisconnectedAlert =
       new Alert("Intake motor disconnected!", AlertType.kWarning);
   private double currentSetpoint = 0.0;
+  private double requestedPercentage = 0.0;
 
   public IntakeSubsystemIOSparkMax(IntakeSubsystem.IntakeSide side) {
     int motorId =
@@ -83,11 +84,13 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
     inputs.atSetpoint =
         Math.abs(inputs.velocityRPM - inputs.setpointRPM)
             <= Constants.Subsystems.Intake.RPM_TOLERANCE;
+    inputs.requestedPercentage = this.requestedPercentage;
   }
 
   @Override
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
+    this.requestedPercentage = 0.0;
     this.motor
         .getClosedLoopController()
         .setSetpoint(rpm * Constants.Subsystems.Intake.GEAR_RATIO, ControlType.kVelocity);
@@ -95,7 +98,14 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
 
   @Override
   public void setVoltage(double volts) {
+    this.requestedPercentage = 0.0;
     this.motor.setVoltage(volts);
+  }
+
+  @Override
+  public void setPercentage(double percentage) {
+    this.requestedPercentage = percentage;
+    this.motor.set(percentage);
   }
 
   @Override
@@ -107,5 +117,6 @@ public class IntakeSubsystemIOSparkMax implements IntakeSubsystemIO {
   public void stop() {
     setVoltage(0);
     this.currentSetpoint = 0.0;
+    this.requestedPercentage = 0.0;
   }
 }

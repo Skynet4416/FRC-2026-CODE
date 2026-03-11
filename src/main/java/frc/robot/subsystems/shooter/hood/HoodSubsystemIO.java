@@ -28,6 +28,8 @@ public interface HoodSubsystemIO {
 
   default void setTargetAngleWithVelocity(double degrees, double velocityRPM) {}
 
+  default void configPID(double kP, double kI, double kD, double kS, double kV, double kA) {}
+
   /** Stop the motor. */
   default void stop() {}
 

@@ -49,6 +49,9 @@ public class HubShiftUtil {
   private static final boolean[] activeSchedule = {true, true, false, true, false, true};
   private static final boolean[] inactiveSchedule = {true, false, true, false, true, true};
 
+  private static final double timeResetThreshold = 3.0;
+  private static double shiftTimerOffset = 0.0;
+
   private static Supplier<Optional<Boolean>> allianceWinOverride = () -> Optional.empty();
 
   public static void setAllianceWinOverride(Supplier<Optional<Boolean>> allianceWinOverride) {
@@ -87,6 +90,7 @@ public class HubShiftUtil {
 
   /** Starts the timer at the begining of teleop. */
   public static void initialize() {
+    shiftTimerOffset = 0;
     shiftTimer.restart();
   }
 
@@ -102,11 +106,13 @@ public class HubShiftUtil {
 
   private static ShiftInfo getShiftInfo(
       boolean[] currentSchedule, double[] shiftStartTimes, double[] shiftEndTimes) {
-    double currentTime = shiftTimer.get();
-    double stateTimeElapsed = shiftTimer.get();
+    double timerValue = shiftTimer.get();
+    double currentTime = timerValue - shiftTimerOffset;
+    double stateTimeElapsed = currentTime;
     double stateTimeRemaining = 0.0;
     boolean active = false;
     ShiftEnum currentShift = ShiftEnum.DISABLED;
+    double fieldTeleopTime = 140.0 - DriverStation.getMatchTime();
 
     if (DriverStation.isAutonomousEnabled()) {
       stateTimeElapsed = currentTime;
@@ -114,6 +120,13 @@ public class HubShiftUtil {
       active = true;
       currentShift = ShiftEnum.AUTO;
     } else if (DriverStation.isEnabled()) {
+      // Adjust the current offset if the time difference above the theshold
+      if (Math.abs(fieldTeleopTime - currentTime) >= timeResetThreshold
+          && fieldTeleopTime <= 135
+          && DriverStation.isFMSAttached()) {
+        shiftTimerOffset += currentTime - fieldTeleopTime;
+        currentTime = timerValue + shiftTimerOffset;
+      }
       int currentShiftIndex = -1;
       for (int i = 0; i < shiftStartTimes.length; i++) {
         if (currentTime >= shiftStartTimes[i] && currentTime < shiftEndTimes[i]) {
