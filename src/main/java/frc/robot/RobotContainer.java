@@ -342,7 +342,7 @@ public class RobotContainer {
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
-    //Lock to 0 when A button is held
+    // Lock to 0 when A button is held
     driveController
         .cross()
         .whileTrue(
@@ -418,16 +418,16 @@ public class RobotContainer {
             spindexerSubsystem,
             shooterIndexerSubsystem));
 
-    // Reset gyro to 0° when B button is pressed
-    driveController
-        .circle()
-        .onTrue(
-            Commands.runOnce(
-                    () ->
-                        drive.resetOdometry(
-                            new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                    drive)
-                .ignoringDisable(true));
+    // // Reset gyro to 0° when B button is pressed
+    // driveController
+    //     .circle()
+    //     .onTrue(
+    //         Commands.runOnce(
+    //                 () ->
+    //                     drive.resetOdometry(
+    //                         new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
+    //                 drive)
+    //             .ignoringDisable(true));
 
     flywheelSubsystem.setDefaultCommand(
         new ContinuousConditionalCommand(
