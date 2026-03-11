@@ -27,11 +27,9 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
-import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
-import frc.robot.commands.climb.ClimbTest;
 import frc.robot.commands.RunBothIndexersCommand;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.climb.ClimbIO;
@@ -416,6 +414,11 @@ public class RobotContainer {
 
     driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+
+    driveController
+        .triangle()
+        .whileTrue(Commands.run(() -> climbSubsystem.setKraken(1), climbSubsystem))
+        .onFalse(Commands.runOnce(() -> climbSubsystem.setKraken(0), climbSubsystem));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
