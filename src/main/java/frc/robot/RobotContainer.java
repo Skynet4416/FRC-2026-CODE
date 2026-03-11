@@ -371,7 +371,7 @@ public class RobotContainer {
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
-        .triangle()
+        .R2()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand());
@@ -450,7 +450,7 @@ public class RobotContainer {
               if (leftIntake.isLowered()) {
                 leftIntake.setPercentage(1.0);
               } else {
-                leftIntake.setPercentage(driveController.L2().getAsBoolean() ? 0.5 : 0.0);
+                leftIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.5 : 0.0);
               }
             },
             leftIntake));
@@ -460,7 +460,7 @@ public class RobotContainer {
               if (rightIntake.isLowered()) {
                 rightIntake.setPercentage(1.0);
               } else {
-                rightIntake.setPercentage(driveController.L2().getAsBoolean() ? 0.2 : 0.0);
+                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.2 : 0.0);
               }
             },
             rightIntake));
