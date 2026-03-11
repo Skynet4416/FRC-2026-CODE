@@ -101,11 +101,13 @@ public class RobotContainer {
   private final Alert mechanismControllerDisconnected =
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
-  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> true);
-  private final Trigger ignoreHubState = new Trigger(() -> false);
+  private final Trigger disableFlywheelAutoSpinup;
+  private final Trigger ignoreHubState;
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
+  private final LoggedDashboardChooser<Boolean> disableFlywheelAutoSpinupChooser;
+  private final LoggedDashboardChooser<Boolean> ignoreHubStateChooser;
 
   // How much time in seconds to run the wheels when folding
   private static final LoggedTunableNumber intakeRunWheelsWhileFoldingDelay =
@@ -241,6 +243,17 @@ public class RobotContainer {
     runWheelsWhenFoldingChooser = new LoggedDashboardChooser<>("Run Wheels When Folding");
     runWheelsWhenFoldingChooser.addDefaultOption("Yes", true);
     runWheelsWhenFoldingChooser.addOption("No", false);
+
+    disableFlywheelAutoSpinupChooser = new LoggedDashboardChooser<>("Disable Flywheel Auto Spinup");
+    disableFlywheelAutoSpinupChooser.addDefaultOption("Yes", true);
+    disableFlywheelAutoSpinupChooser.addOption("No", false);
+
+    ignoreHubStateChooser = new LoggedDashboardChooser<>("Ignore Hub State");
+    ignoreHubStateChooser.addOption("Yes", true);
+    ignoreHubStateChooser.addDefaultOption("No", false);
+
+    disableFlywheelAutoSpinup = new Trigger(disableFlywheelAutoSpinupChooser::get);
+    ignoreHubState = new Trigger(ignoreHubStateChooser::get);
 
     // Set up SysId routines
     autoChooser.addOption(
