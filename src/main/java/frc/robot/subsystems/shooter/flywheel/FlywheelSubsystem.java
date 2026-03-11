@@ -95,6 +95,10 @@ public class FlywheelSubsystem extends SubsystemBase {
     return run(() -> setTargetRADS(speedRADS.getAsDouble()));
   }
 
+  public Command runAtSpeedRPMCommand(DoubleSupplier speedRPM) {
+    return run(() -> setTargetRPM(speedRPM.getAsDouble()));
+  }
+
   public Command runTrackTargetCommand() {
     return run(() -> setTargetRPM(LaunchCalculator.getInstance().getParameters().flywheelSpeed()));
   }

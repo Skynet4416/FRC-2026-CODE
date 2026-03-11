@@ -256,7 +256,6 @@ public class LaunchCalculator {
             : AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d());
     Pose2d launcherPosition = estimatedPose.transformBy(GeomUtil.toTransform2d(robotToLauncher));
     double launcherToTargetDistance = target.getDistance(launcherPosition.getTranslation());
-    System.out.println("LauncherToTargetDitance: " + launcherToTargetDistance);
 
     // Calculate field relative launcher velocity
     var robotVelocity = Drive.getInstance().getFieldSetpointVelocity();

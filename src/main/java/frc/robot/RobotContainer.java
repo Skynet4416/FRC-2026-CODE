@@ -432,7 +432,7 @@ public class RobotContainer {
     flywheelSubsystem.setDefaultCommand(
         new ContinuousConditionalCommand(
             Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-            flywheelSubsystem.runAtSpeedRADSCommand(
+            flywheelSubsystem.runAtSpeedRPMCommand(
                 () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
             disableFlywheelAutoSpinup));
 
