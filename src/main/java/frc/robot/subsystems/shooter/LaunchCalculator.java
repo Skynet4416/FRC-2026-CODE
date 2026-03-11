@@ -115,7 +115,7 @@ public class LaunchCalculator {
       LoggedTunableNumber hoodAngleDeg, LoggedTunableNumber flywheelSpeed) {}
 
   private static final LoggedTunableNumber maxIdleSpeed =
-      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 200);
+      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 2000);
 
   private static final double xPassTarget = Units.inchesToMeters(37);
   private static final double yPassTarget = Units.inchesToMeters(65);
