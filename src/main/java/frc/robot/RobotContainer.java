@@ -59,6 +59,7 @@ import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
+import frc.robot.util.geometry.AllianceFlipUtil;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
@@ -226,7 +227,8 @@ public class RobotContainer {
     inConfusionZone =
         new Trigger(
             () -> {
-              double absAngle = Math.abs(drive.getPose().getRotation().getDegrees());
+              double absAngle =
+                  Math.abs(AllianceFlipUtil.apply(drive.getPose().getRotation()).getDegrees());
               return absAngle > confusionZoneMinAngle.get()
                   && absAngle < confusionZoneMaxAngle.get();
             });
@@ -543,12 +545,13 @@ public class RobotContainer {
   }
 
   private IntakeSubsystem.IntakeSide getDesiredIntakeSide(IntakeSubsystem.IntakeSide bumperSide) {
+    Rotation2d rotation = AllianceFlipUtil.apply(drive.getPose().getRotation());
     if (!inConfusionZone.getAsBoolean()) {
       // OUT OF CONFUSION ZONE -> Use bumper field-relative logic
-      boolean facingBackwards = Math.abs(drive.getPose().getRotation().getDegrees()) > 90.0;
+      boolean facingBackwards = Math.abs(rotation.getDegrees()) > 90.0;
       boolean isLeftBumper = bumperSide == IntakeSubsystem.IntakeSide.LEFT;
       boolean wantsLeft = isLeftBumper ? !facingBackwards : facingBackwards;
-      return (!wantsLeft) ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
+      return wantsLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
     }
 
     // IN CONFUSION ZONE -> Use velocity vector (bumper choice doesn't matter)
@@ -556,7 +559,7 @@ public class RobotContainer {
     double vX = -driveController.getLeftY();
 
     // Are we facing left (+90 degrees)?
-    boolean facingLeft = drive.getPose().getRotation().getDegrees() > 0;
+    boolean facingLeft = rotation.getDegrees() > 0;
 
     // If stationary (no forward/backward input), fallback to the "Last Known Velocity"
     if (Math.abs(vX) < 0.05) {
