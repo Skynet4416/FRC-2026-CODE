@@ -476,16 +476,16 @@ public class RobotContainer {
             spindexerSubsystem,
             shooterIndexerSubsystem));
 
-    // Reset gyro to 0° when B button is pressed
-    driveController
-        .circle()
-        .onTrue(
-            Commands.runOnce(
-                    () ->
-                        drive.resetOdometry(
-                            new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                    drive)
-                .ignoringDisable(true));
+    // // Reset gyro to 0° when B button is pressed
+    // driveController
+    //     .circle()
+    //     .onTrue(
+    //         Commands.runOnce(
+    //                 () ->
+    //                     drive.resetOdometry(
+    //                         new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
+    //                 drive)
+    //             .ignoringDisable(true));
 
     flywheelSubsystem.setDefaultCommand(
         new ContinuousConditionalCommand(
