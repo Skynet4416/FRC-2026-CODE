@@ -282,45 +282,6 @@ public class RobotContainer {
         "Flywheel SysId (Dynamic Reverse)",
         flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
-    autoChooser.addOption(
-        "Spindexer SysId (Quasistatic Forward)",
-        spindexerSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Spindexer SysId (Quasistatic Reverse)",
-        spindexerSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Spindexer SysId (Dynamic Forward)",
-        spindexerSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Spindexer SysId (Dynamic Reverse)",
-        spindexerSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
-    autoChooser.addOption(
-        "Left Intake SysId (Quasistatic Forward)",
-        leftIntake.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Left Intake SysId (Quasistatic Reverse)",
-        leftIntake.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Left Intake SysId (Dynamic Forward)",
-        leftIntake.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Left Intake SysId (Dynamic Reverse)",
-        leftIntake.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
-    autoChooser.addOption(
-        "Right Intake SysId (Quasistatic Forward)",
-        rightIntake.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Right Intake SysId (Quasistatic Reverse)",
-        rightIntake.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Right Intake SysId (Dynamic Forward)",
-        rightIntake.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Right Intake SysId (Dynamic Reverse)",
-        rightIntake.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
     // Configure the button bindings
     configureButtonBindings();
   }
