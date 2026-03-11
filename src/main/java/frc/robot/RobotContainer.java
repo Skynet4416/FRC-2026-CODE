@@ -344,7 +344,7 @@ public class RobotContainer {
     DoubleSupplier driverY = () -> -driveController.getLeftX();
     DoubleSupplier driverOmega = () -> -driveController.getRightX();
 
-    double robotHalfWidth = Units.inchesToMeters(27.0) / 2.0;
+    double robotHalfWidth = Units.inchesToMeters(17.0);
     Trigger nearTrench =
         new Trigger(
             () -> {
@@ -367,7 +367,7 @@ public class RobotContainer {
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
-    //Lock to 0 when A button is held
+    // Lock to 0 when A button is held
     driveController
         .cross()
         .whileTrue(
@@ -379,7 +379,13 @@ public class RobotContainer {
     nearTrench
         .and(driveController.triangle().negate())
         .and(autoAlignmentOverride.negate())
-        .whileTrue(DriveCommands.autoTrenchAssist(drive, driverX, driverY, driverOmega));
+        .whileTrue(
+            DriveCommands.autoTrenchAssist(
+                drive,
+                driverX,
+                driverY,
+                driverOmega,
+                () -> leftIntake.isLowered() || rightIntake.isLowered()));
 
     driveController
         .R3()
