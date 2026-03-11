@@ -106,6 +106,8 @@ public class RobotContainer {
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
+  private final LoggedDashboardChooser<DriveCommands.TrenchAlignmentPosition>
+      trenchAlignmentPositionChooser;
 
   // How much time in seconds to run the wheels when folding
   private static final LoggedTunableNumber intakeRunWheelsWhileFoldingDelay =
@@ -248,6 +250,12 @@ public class RobotContainer {
     runWheelsWhenFoldingChooser.addDefaultOption("Yes", true);
     runWheelsWhenFoldingChooser.addOption("No", false);
 
+    trenchAlignmentPositionChooser = new LoggedDashboardChooser<>("Trench Alignment Position");
+    trenchAlignmentPositionChooser.addDefaultOption(
+        "Middle", DriveCommands.TrenchAlignmentPosition.MIDDLE);
+    trenchAlignmentPositionChooser.addOption("Inner", DriveCommands.TrenchAlignmentPosition.INNER);
+    trenchAlignmentPositionChooser.addOption("Outer", DriveCommands.TrenchAlignmentPosition.OUTER);
+
     // Set up SysId routines
     autoChooser.addOption(
         "Drive Wheel Radius Characterization", DriveCommands.wheelRadiusCharacterization(drive));
@@ -344,7 +352,7 @@ public class RobotContainer {
     DoubleSupplier driverY = () -> -driveController.getLeftX();
     DoubleSupplier driverOmega = () -> -driveController.getRightX();
 
-    double robotHalfWidth = Units.inchesToMeters(17.0);
+    double robotHalfWidth = Units.inchesToMeters(17.407);
     Trigger nearTrench =
         new Trigger(
             () -> {
@@ -385,7 +393,8 @@ public class RobotContainer {
                 driverX,
                 driverY,
                 driverOmega,
-                () -> leftIntake.isLowered() || rightIntake.isLowered()));
+                () -> leftIntake.isLowered() || rightIntake.isLowered(),
+                trenchAlignmentPositionChooser::get));
 
     driveController
         .R3()

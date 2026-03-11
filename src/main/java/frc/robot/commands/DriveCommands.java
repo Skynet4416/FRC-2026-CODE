@@ -84,6 +84,10 @@ public class DriveCommands {
   // "grab" the robot much earlier as you drive toward the trench from the field.
   private static final LoggedTunableNumber autoTrenchExtension =
       new LoggedTunableNumber("DriveCommands/Trench/Extension", 1.0);
+  private static final LoggedTunableNumber autoTrenchInnerSideOffset =
+      new LoggedTunableNumber("DriveCommands/Trench/InnerSideOffset", 0.0);
+  private static final LoggedTunableNumber autoTrenchOuterSideOffset =
+      new LoggedTunableNumber("DriveCommands/Trench/OuterSideOffset", 0.0);
   private static final LoggedTunableNumber autoTrenchYp =
       new LoggedTunableNumber("DriveCommands/Trench/kP_Y", Constants.AutoAlignment.Trench.KP_Y);
   private static final LoggedTunableNumber autoTrenchYd =
@@ -96,6 +100,12 @@ public class DriveCommands {
           "DriveCommands/Trench/kD_Angle", Constants.AutoAlignment.Trench.KD_ANGLE);
   private static final LoggedTunableNumber autoTrenchMaxAngleWithIntakesOpen =
       new LoggedTunableNumber("DriveCommands/Trench/MaxAngleDeg", 90.0);
+
+  public enum TrenchAlignmentPosition {
+    INNER,
+    MIDDLE,
+    OUTER
+  }
 
   private DriveCommands() {}
 
@@ -386,10 +396,11 @@ public class DriveCommands {
       DoubleSupplier xSupplier,
       DoubleSupplier ySupplier,
       DoubleSupplier omegaSupplier,
-      BooleanSupplier intakesOpen) {
+      BooleanSupplier intakesOpen,
+      Supplier<TrenchAlignmentPosition> positionSupplier) {
     return new ContinuousConditionalCommand(
         joystickDrive(drive, xSupplier, ySupplier, omegaSupplier),
-        trenchAlignDrive(drive, xSupplier, ySupplier, omegaSupplier),
+        trenchAlignDrive(drive, xSupplier, ySupplier, omegaSupplier, positionSupplier),
         () ->
             !Constants.AutoAlignment.Trench.ENABLE
                 || DriverStation.isAutonomous()
@@ -402,7 +413,8 @@ public class DriveCommands {
       Drive drive,
       DoubleSupplier xSupplier,
       DoubleSupplier ySupplier,
-      DoubleSupplier omegaSupplier) {
+      DoubleSupplier omegaSupplier,
+      Supplier<TrenchAlignmentPosition> positionSupplier) {
 
     ProfiledPIDController angleController =
         new ProfiledPIDController(
@@ -434,17 +446,49 @@ public class DriveCommands {
               // Use flipped pose for consistent trench selection (Blue side perspective)
               boolean inRightTrench = flippedPose.getY() < FieldConstants.LinesHorizontal.center;
 
-              double rightCenterY = FieldConstants.LinesHorizontal.rightTrenchOpenStart / 2.0;
-              double leftCenterY =
-                  (FieldConstants.LinesHorizontal.leftTrenchOpenEnd + FieldConstants.fieldWidth)
-                      / 2.0;
+              TrenchAlignmentPosition position = positionSupplier.get();
+              double robotHalfWidth = Units.inchesToMeters(17.407);
+              double innerOffset = autoTrenchInnerSideOffset.get();
+              double outerOffset = autoTrenchOuterSideOffset.get();
+              double targetY;
+              if (inRightTrench) {
+                switch (position) {
+                  case OUTER:
+                    targetY = robotHalfWidth + outerOffset;
+                    break;
+                  case INNER:
+                    targetY =
+                        FieldConstants.LinesHorizontal.rightTrenchOpenStart
+                            - robotHalfWidth
+                            - innerOffset;
+                    break;
+                  default: // MIDDLE
+                    targetY = FieldConstants.LinesHorizontal.rightTrenchOpenStart / 2.0;
+                    break;
+                }
+              } else {
+                switch (position) {
+                  case OUTER:
+                    targetY = FieldConstants.fieldWidth - robotHalfWidth - outerOffset;
+                    break;
+                  case INNER:
+                    targetY =
+                        FieldConstants.LinesHorizontal.leftTrenchOpenEnd
+                            + robotHalfWidth
+                            + innerOffset;
+                    break;
+                  default: // MIDDLE
+                    targetY =
+                        (FieldConstants.LinesHorizontal.leftTrenchOpenEnd
+                                + FieldConstants.fieldWidth)
+                            / 2.0;
+                    break;
+                }
+              }
 
-              Translation2d trenchCenter =
-                  new Translation2d(
-                      FieldConstants.LinesVertical.hubCenter,
-                      inRightTrench ? rightCenterY : leftCenterY);
-
-              Translation2d trenchCenterActual = AllianceFlipUtil.apply(trenchCenter);
+              Translation2d trenchCenterActual =
+                  AllianceFlipUtil.apply(
+                      new Translation2d(FieldConstants.LinesVertical.hubCenter, targetY));
               Rotation2d targetRotation =
                   AllianceFlipUtil.apply(Rotation2d.fromDegrees(inRightTrench ? 90.0 : -90.0));
 
