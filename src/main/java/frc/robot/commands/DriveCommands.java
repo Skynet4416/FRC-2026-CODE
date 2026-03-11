@@ -392,6 +392,7 @@ public class DriveCommands {
         trenchAlignDrive(drive, xSupplier, ySupplier, omegaSupplier),
         () ->
             !Constants.AutoAlignment.Trench.ENABLE
+                || DriverStation.isAutonomous()
                 || (intakesOpen.getAsBoolean()
                     && Math.abs(AllianceFlipUtil.apply(drive.getRotation()).getDegrees())
                         > autoTrenchMaxAngleWithIntakesOpen.get()));
