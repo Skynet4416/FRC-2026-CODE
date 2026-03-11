@@ -400,16 +400,6 @@ public class RobotContainer {
         .R3()
         .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
 
-    // Lock to 0 when A button is held
-    // driveController
-    //     .cross()
-    //     .whileTrue(
-    //         DriveCommands.joystickDriveAtAngle(
-    //             drive,
-    //             () -> -driveController.getLeftY(),
-    //             () -> -driveController.getLeftX(),
-    //             () -> Rotation2d.kZero));
-
     Trigger hubActiveOrPassing =
         new Trigger(
             () ->
