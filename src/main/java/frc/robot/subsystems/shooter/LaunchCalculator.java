@@ -115,7 +115,7 @@ public class LaunchCalculator {
       LoggedTunableNumber hoodAngleDeg, LoggedTunableNumber flywheelSpeed) {}
 
   private static final LoggedTunableNumber maxIdleSpeed =
-      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 200);
+      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 2000);
 
   private static final double xPassTarget = Units.inchesToMeters(37);
   private static final double yPassTarget = Units.inchesToMeters(65);
@@ -256,7 +256,6 @@ public class LaunchCalculator {
             : AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d());
     Pose2d launcherPosition = estimatedPose.transformBy(GeomUtil.toTransform2d(robotToLauncher));
     double launcherToTargetDistance = target.getDistance(launcherPosition.getTranslation());
-    System.out.println("LauncherToTargetDitance: " + launcherToTargetDistance);
 
     // Calculate field relative launcher velocity
     var robotVelocity = Drive.getInstance().getFieldSetpointVelocity();
