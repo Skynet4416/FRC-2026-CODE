@@ -342,15 +342,15 @@ public class RobotContainer {
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
-    // Lock to 0 when A button is held
-    // driveController
-    //     .cross()
-    //     .whileTrue(
-    //         DriveCommands.joystickDriveAtAngle(
-    //             drive,
-    //             () -> -driveController.getLeftY(),
-    //             () -> -driveController.getLeftX(),
-    //             () -> Rotation2d.kZero));
+    //Lock to 0 when A button is held
+    driveController
+        .cross()
+        .whileTrue(
+            DriveCommands.joystickDriveAtAngle(
+                drive,
+                () -> -driveController.getLeftY(),
+                () -> -driveController.getLeftX(),
+                () -> Rotation2d.kZero));
 
     Trigger hubActiveOrPassing =
         new Trigger(
@@ -376,9 +376,9 @@ public class RobotContainer {
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand());
 
-    driveController
-        .cross()
-        .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
+    // driveController
+    //     .cross()
+    //     .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
 
     driveController
         .triangle()
