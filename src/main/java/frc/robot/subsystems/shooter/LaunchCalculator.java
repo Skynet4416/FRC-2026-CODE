@@ -90,26 +90,27 @@ public class LaunchCalculator {
       new InterpolatingDoubleTreeMap();
 
   // Presets
-  public static final double hubPresetDistance = 0.96;
-  public static final double towerPresetDistance = 2.5;
-  public static final double trenchPresetDistance = 3.03;
-  public static final double outpostPresetDistance = 4.84;
-  public static final LaunchPreset hubPreset;
-  public static final LaunchPreset towerPreset;
-  public static final LaunchPreset trenchPreset;
-  public static final LaunchPreset outpostPreset;
-  public static final LaunchPreset hoodMinPreset =
-      new LaunchPreset(
-          new LoggedTunableNumber(
-              "LaunchCalculator/Presets/HoodMin/HoodAngle",
-              Constants.Subsystems.Shooter.Hood.MIN_ANGLE_DEG),
-          new LoggedTunableNumber("LaunchCalculator/Presets/HoodMin/FlywheelSpeed", 50));
-  public static final LaunchPreset hoodMaxPreset =
-      new LaunchPreset(
-          new LoggedTunableNumber(
-              "LaunchCalculator/Presets/HoodMax/HoodAngle",
-              Constants.Subsystems.Shooter.Hood.MAX_ANGLE_DEG),
-          new LoggedTunableNumber("LaunchCalculator/Presets/HoodMax/FlywheelSpeed", 50));
+  //   public static final double hubPresetDistance = 0.96;
+  //   public static final double towerPresetDistance = 2.5;
+  //   public static final double trenchPresetDistance = 3.03;
+  //   public static final double outpostPresetDistance = 4.84;
+
+  //   public static final LaunchPreset hubPreset;
+  //   public static final LaunchPreset towerPreset;
+  //   public static final LaunchPreset trenchPreset;
+  //   public static final LaunchPreset outpostPreset;
+  //   public static final LaunchPreset hoodMinPreset =
+  //       new LaunchPreset(
+  //           new LoggedTunableNumber(
+  //               "LaunchCalculator/Presets/HoodMin/HoodAngle",
+  //               Constants.Subsystems.Shooter.Hood.MIN_ANGLE_DEG),
+  //           new LoggedTunableNumber("LaunchCalculator/Presets/HoodMin/FlywheelSpeed", 50));
+  //   public static final LaunchPreset hoodMaxPreset =
+  //       new LaunchPreset(
+  //           new LoggedTunableNumber(
+  //               "LaunchCalculator/Presets/HoodMax/HoodAngle",
+  //               Constants.Subsystems.Shooter.Hood.MAX_ANGLE_DEG),
+  //           new LoggedTunableNumber("LaunchCalculator/Presets/HoodMax/FlywheelSpeed", 50));
 
   public static record LaunchPreset(
       LoggedTunableNumber hoodAngleDeg, LoggedTunableNumber flywheelSpeed) {}
@@ -189,38 +190,38 @@ public class LaunchCalculator {
     passingTimeOfFlightMap.put(passingMinDistance, 0.0);
     passingTimeOfFlightMap.put(passingMaxDistance, 0.0);
 
-    hubPreset =
-        new LaunchPreset(
-            new LoggedTunableNumber(
-                "LaunchCalculator/Presets/Hub/HoodAngle",
-                hoodAngleMap.get(hubPresetDistance).getDegrees()),
-            new LoggedTunableNumber(
-                "LaunchCalculator/Presets/Hub/FlywheelSpeed",
-                flywheelSpeedMap.get(hubPresetDistance)));
-    towerPreset =
-        new LaunchPreset(
-            new LoggedTunableNumber(
-                "LaunchCalculator/Presets/Tower/HoodAngle",
-                hoodAngleMap.get(towerPresetDistance).getDegrees()),
-            new LoggedTunableNumber(
-                "LaunchCalculator/Presets/Tower/FlywheelSpeed",
-                flywheelSpeedMap.get(towerPresetDistance)));
-    trenchPreset =
-        new LaunchPreset(
-            new LoggedTunableNumber(
-                "LaunchCalculator/Presets/Trench/HoodAngle",
-                hoodAngleMap.get(trenchPresetDistance).getDegrees()),
-            new LoggedTunableNumber(
-                "LaunchCalculator/Presets/Trench/FlywheelSpeed",
-                flywheelSpeedMap.get(trenchPresetDistance)));
-    outpostPreset =
-        new LaunchPreset(
-            new LoggedTunableNumber(
-                "LaunchCalculator/Presets/Outpost/HoodAngle",
-                hoodAngleMap.get(outpostPresetDistance).getDegrees()),
-            new LoggedTunableNumber(
-                "LaunchCalculator/Presets/Outpost/FlywheelSpeed",
-                flywheelSpeedMap.get(outpostPresetDistance)));
+    // hubPreset =
+    //     new LaunchPreset(
+    //         new LoggedTunableNumber(
+    //             "LaunchCalculator/Presets/Hub/HoodAngle",
+    //             hoodAngleMap.get(hubPresetDistance).getDegrees()),
+    //         new LoggedTunableNumber(
+    //             "LaunchCalculator/Presets/Hub/FlywheelSpeed",
+    //             flywheelSpeedMap.get(hubPresetDistance)));
+    // towerPreset =
+    //     new LaunchPreset(
+    //         new LoggedTunableNumber(
+    //             "LaunchCalculator/Presets/Tower/HoodAngle",
+    //             hoodAngleMap.get(towerPresetDistance).getDegrees()),
+    //         new LoggedTunableNumber(
+    //             "LaunchCalculator/Presets/Tower/FlywheelSpeed",
+    //             flywheelSpeedMap.get(towerPresetDistance)));
+    // trenchPreset =
+    //     new LaunchPreset(
+    //         new LoggedTunableNumber(
+    //             "LaunchCalculator/Presets/Trench/HoodAngle",
+    //             hoodAngleMap.get(trenchPresetDistance).getDegrees()),
+    //         new LoggedTunableNumber(
+    //             "LaunchCalculator/Presets/Trench/FlywheelSpeed",
+    //             flywheelSpeedMap.get(trenchPresetDistance)));
+    // outpostPreset =
+    //     new LaunchPreset(
+    //         new LoggedTunableNumber(
+    //             "LaunchCalculator/Presets/Outpost/HoodAngle",
+    //             hoodAngleMap.get(outpostPresetDistance).getDegrees()),
+    //         new LoggedTunableNumber(
+    //             "LaunchCalculator/Presets/Outpost/FlywheelSpeed",
+    //             flywheelSpeedMap.get(outpostPresetDistance)));
   }
 
   public static double getMinTimeOfFlight() {

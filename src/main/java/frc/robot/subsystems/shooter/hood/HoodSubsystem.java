@@ -128,6 +128,16 @@ public class HoodSubsystem extends SubsystemBase {
     }
   }
 
+  public void setTargetAngleWithVelocity(double degrees, double velocityRPM) {
+    if (hoodZeroed) {
+      if (Math.abs(getAngle() - degrees) <= deadbandDeg.get()) {
+        io.stop();
+        return;
+      }
+      io.setTargetAngleWithVelocity(degrees, velocityRPM);
+    }
+  }
+
   public void stop() {
     io.stop();
   }
@@ -154,7 +164,7 @@ public class HoodSubsystem extends SubsystemBase {
     return run(
         () -> {
           var params = LaunchCalculator.getInstance().getParameters();
-          io.setTargetAngleWithVelocity(
+          setTargetAngleWithVelocity(
               Units.radiansToDegrees(params.hoodAngle()), params.hoodVelocity());
         });
   }

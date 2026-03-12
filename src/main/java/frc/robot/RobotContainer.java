@@ -90,6 +90,11 @@ public class RobotContainer {
   private static final LoggedTunableNumber confusionZoneMaxAngle =
       new LoggedTunableNumber("ConfusionZoneMaxAngle", 95.0);
   private final FlywheelSubsystem flywheelSubsystem;
+
+  // Value to scale down the max omega during joystick driving, to make it easier for drivers to
+  // control the robot's rotation. Should be a value between 0 and 1.
+  private static final LoggedTunableNumber maxOmegaScalar =
+      new LoggedTunableNumber("Drive/MaxOmegaScalar", 0.8);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
@@ -103,11 +108,13 @@ public class RobotContainer {
   private final Alert mechanismControllerDisconnected =
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
-  private final Trigger disableFlywheelAutoSpinup = new Trigger(() -> true);
-  private final Trigger ignoreHubState = new Trigger(() -> false);
+  private final Trigger disableFlywheelAutoSpinup;
+  private final Trigger ignoreHubState;
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
+  private final LoggedDashboardChooser<Boolean> disableFlywheelAutoSpinupChooser;
+  private final LoggedDashboardChooser<Boolean> ignoreHubStateChooser;
 
   // How much time in seconds to run the wheels when folding
   private static final LoggedTunableNumber intakeRunWheelsWhileFoldingDelay =
@@ -254,6 +261,17 @@ public class RobotContainer {
     runWheelsWhenFoldingChooser.addDefaultOption("Yes", true);
     runWheelsWhenFoldingChooser.addOption("No", false);
 
+    disableFlywheelAutoSpinupChooser = new LoggedDashboardChooser<>("Disable Flywheel Auto Spinup");
+    disableFlywheelAutoSpinupChooser.addDefaultOption("Yes", true);
+    disableFlywheelAutoSpinupChooser.addOption("No", false);
+
+    ignoreHubStateChooser = new LoggedDashboardChooser<>("Ignore Hub State");
+    ignoreHubStateChooser.addOption("Yes", true);
+    ignoreHubStateChooser.addDefaultOption("No", false);
+
+    disableFlywheelAutoSpinup = new Trigger(disableFlywheelAutoSpinupChooser::get);
+    ignoreHubState = new Trigger(ignoreHubStateChooser::get);
+
     // Set up SysId routines
     autoChooser.addOption(
         "Drive Wheel Radius Characterization", DriveCommands.wheelRadiusCharacterization(drive));
@@ -294,47 +312,6 @@ public class RobotContainer {
         "Flywheel SysId (Dynamic Reverse)",
         flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
-    autoChooser.addOption(
-        "Spindexer SysId (Quasistatic Forward)",
-        spindexerSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Spindexer SysId (Quasistatic Reverse)",
-        spindexerSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Spindexer SysId (Dynamic Forward)",
-        spindexerSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Spindexer SysId (Dynamic Reverse)",
-        spindexerSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
-    autoChooser.addOption(
-        "Left Intake SysId (Quasistatic Forward)",
-        leftIntake.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Left Intake SysId (Quasistatic Reverse)",
-        leftIntake.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Left Intake SysId (Dynamic Forward)",
-        leftIntake.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Left Intake SysId (Dynamic Reverse)",
-        leftIntake.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
-    autoChooser.addOption(
-        "Right Intake SysId (Quasistatic Forward)",
-        rightIntake.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Right Intake SysId (Quasistatic Reverse)",
-        rightIntake.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Right Intake SysId (Dynamic Forward)",
-        rightIntake.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Right Intake SysId (Dynamic Reverse)",
-        rightIntake.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
-    autoChooser.addOption("Choreo Test", testAuto());
-
     // Configure the button bindings
     configureButtonBindings();
   }
@@ -354,7 +331,8 @@ public class RobotContainer {
         () -> -driveController.getRightX(); // should be 4 for ds4, 3 for dualsense
 
     // Default command, normal field-relative drive
-    drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
+    drive.setDefaultCommand(
+        DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega, maxOmegaScalar::get));
 
     // Lock to 0 when A button is held
     driveController
@@ -430,16 +408,16 @@ public class RobotContainer {
             spindexerSubsystem,
             shooterIndexerSubsystem));
 
-    // Reset gyro to 0° when B button is pressed
-    driveController
-        .circle()
-        .onTrue(
-            Commands.runOnce(
-                    () ->
-                        drive.resetOdometry(
-                            new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-                    drive)
-                .ignoringDisable(true));
+    // // Reset gyro to 0° when B button is pressed
+    // driveController
+    //     .circle()
+    //     .onTrue(
+    //         Commands.runOnce(
+    //                 () ->
+    //                     drive.resetOdometry(
+    //                         new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
+    //                 drive)
+    //             .ignoringDisable(true));
 
     flywheelSubsystem.setDefaultCommand(
         new ContinuousConditionalCommand(
