@@ -404,10 +404,11 @@ public class DriveCommands {
       DoubleSupplier xSupplier,
       DoubleSupplier ySupplier,
       DoubleSupplier omegaSupplier,
+      DoubleSupplier maxOmegaScalar,
       BooleanSupplier intakesOpen,
       Supplier<TrenchAlignmentPosition> positionSupplier) {
     return new ContinuousConditionalCommand(
-        joystickDrive(drive, xSupplier, ySupplier, omegaSupplier),
+        joystickDrive(drive, xSupplier, ySupplier, omegaSupplier, maxOmegaScalar),
         trenchAlignDrive(drive, xSupplier, ySupplier, omegaSupplier, positionSupplier),
         () ->
             !Constants.AutoAlignment.Trench.ENABLE

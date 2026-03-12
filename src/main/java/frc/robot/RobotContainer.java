@@ -373,6 +373,7 @@ public class RobotContainer {
                 driverX,
                 driverY,
                 driverOmega,
+                maxOmegaScalar::get,
                 () -> leftIntake.isLowered() || rightIntake.isLowered(),
                 trenchAlignmentPositionChooser::get));
 
