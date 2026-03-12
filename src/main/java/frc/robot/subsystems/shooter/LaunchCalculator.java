@@ -271,7 +271,7 @@ public class LaunchCalculator {
 
     // Calculate field relative launcher velocity
     var robotVelocity =
-        forceCurrentSpeedsChooser.get()
+        Boolean.TRUE.equals(forceCurrentSpeedsChooser.get())
             ? Drive.getInstance().getFieldVelocity()
             : Drive.getInstance().getFieldSetpointVelocity();
     var robotAngle = Drive.getInstance().getRotation();
