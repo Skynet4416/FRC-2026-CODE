@@ -49,6 +49,13 @@ public class LaunchCalculator {
   private final LinearFilter driveAngleFilter =
       LinearFilter.movingAverage((int) (1.5 / Constants.loopPeriodSecs));
 
+  // A moving average filter over ~0.1 seconds (assuming 5 loops at 0.02s each).
+  // Tune the 0.1 up if it's still jittery, or down if the aiming lags behind.
+  private final LinearFilter vxFilter =
+      LinearFilter.movingAverage((int) (0.1 / Constants.loopPeriodSecs));
+  private final LinearFilter vyFilter =
+      LinearFilter.movingAverage((int) (0.1 / Constants.loopPeriodSecs));
+
   private double lastHoodAngle;
   private Rotation2d lastDriveAngle;
 
@@ -255,6 +262,7 @@ public class LaunchCalculator {
     // Calculate estimated pose while accounting for phase delay
     Pose2d estimatedPose = Drive.getInstance().getPose();
     ChassisSpeeds robotRelativeVelocity = Drive.getInstance().getChassisSpeeds();
+
     estimatedPose =
         estimatedPose.exp(
             new Twist2d(
@@ -276,6 +284,7 @@ public class LaunchCalculator {
             ? Drive.getInstance().getFieldVelocity()
             : Drive.getInstance().getFieldSetpointVelocity();
     var robotAngle = Drive.getInstance().getRotation();
+
     ChassisSpeeds launcherVelocity =
         GeomUtil.transformVelocity(
             robotVelocity, robotToLauncher.getTranslation().toTranslation2d(), robotAngle);
@@ -296,6 +305,9 @@ public class LaunchCalculator {
 
       // --- APPLY THE FUDGE FACTOR HERE ---
       double scaledToF = timeOfFlight * lookaheadScalar.get();
+
+      double filteredVx = vxFilter.calculate(launcherVelocity.vxMetersPerSecond);
+      double filteredVy = vyFilter.calculate(launcherVelocity.vyMetersPerSecond);
 
       double offsetX = launcherVelocity.vxMetersPerSecond * scaledToF;
       double offsetY = launcherVelocity.vyMetersPerSecond * scaledToF;
