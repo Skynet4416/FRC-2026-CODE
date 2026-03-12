@@ -88,6 +88,11 @@ public class RobotContainer {
   private static final LoggedTunableNumber confusionZoneMaxAngle =
       new LoggedTunableNumber("ConfusionZoneMaxAngle", 95.0);
   private final FlywheelSubsystem flywheelSubsystem;
+
+  // Value to scale down the max omega during joystick driving, to make it easier for drivers to
+  // control the robot's rotation. Should be a value between 0 and 1.
+  private static final LoggedTunableNumber maxOmegaScalar =
+      new LoggedTunableNumber("Drive/MaxOmegaScalar", 0.8);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
@@ -347,7 +352,8 @@ public class RobotContainer {
             });
 
     // Default command, normal field-relative drive
-    drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
+    drive.setDefaultCommand(
+        DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega, maxOmegaScalar::get));
 
     // Lock to 0 when A button is held
     driveController
