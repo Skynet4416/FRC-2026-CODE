@@ -10,8 +10,8 @@ package frc.robot;
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.subsystems.vision.VisionConstants.*;
 
+import choreo.auto.AutoFactory;
 import com.pathplanner.lib.auto.AutoBuilder;
-import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Translation2d;
@@ -31,6 +31,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.commands.RunBothIndexersCommand;
+import frc.robot.commands.TrajCommnd;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
@@ -80,6 +81,7 @@ public class RobotContainer {
   private final IntakeSubsystem leftIntake;
   private final IntakeSubsystem rightIntake;
   private final Compressor compressor;
+  private final AutoFactory autoFactory;
 
   private static final LoggedTunableNumber intakeSwitchDelay =
       new LoggedTunableNumber("IntakeSwitchDelay", 0.5);
@@ -224,6 +226,16 @@ public class RobotContainer {
         break;
     }
 
+    autoFactory =
+        new AutoFactory(
+            drive::getPose, // A function that returns the current robot pose
+            drive::resetOdometry, // A function that resets the current robot pose to the
+            // provided Pose2d
+            drive::followTrajectory, // The drive subsystem trajectory follower
+            true, // If alliance flipping should be enabled
+            drive // The drive subsystem
+            );
+
     inConfusionZone =
         new Trigger(
             () -> {
@@ -321,6 +333,8 @@ public class RobotContainer {
         "Right Intake SysId (Dynamic Reverse)",
         rightIntake.sysIdDynamic(SysIdRoutine.Direction.kReverse));
 
+    autoChooser.addOption("Choreo Test", testAuto());
+
     // Configure the button bindings
     configureButtonBindings();
   }
@@ -342,7 +356,7 @@ public class RobotContainer {
     // Default command, normal field-relative drive
     drive.setDefaultCommand(DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega));
 
-    //Lock to 0 when A button is held
+    // Lock to 0 when A button is held
     driveController
         .cross()
         .whileTrue(
@@ -362,13 +376,13 @@ public class RobotContainer {
         new Trigger(
             () ->
                 hoodSubsystem.atSetpoint()
-                    && flywheelSubsystem.atSetpoint()
+                    // && flywheelSubsystem.atSetpoint()
                     && DriveCommands.atLaunchGoal());
 
     Trigger readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
-            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean());
+    // .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
         .R2()
@@ -381,13 +395,11 @@ public class RobotContainer {
     //     .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
 
     driveController
-        .triangle()
+        .L2()
         .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
-                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
-                Commands.repeatingSequence(
-                    Commands.waitSeconds(1), Commands.runOnce(this::launchSimulatedProjectile))));
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)));
 
     // Test specific button for simulated launch
     driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
@@ -551,7 +563,7 @@ public class RobotContainer {
       boolean facingBackwards = Math.abs(rotation.getDegrees()) > 90.0;
       boolean isLeftBumper = bumperSide == IntakeSubsystem.IntakeSide.LEFT;
       boolean wantsLeft = isLeftBumper ? !facingBackwards : facingBackwards;
-      return wantsLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
+      return !wantsLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
     }
 
     // IN CONFUSION ZONE -> Use velocity vector (bumper choice doesn't matter)
@@ -656,5 +668,11 @@ public class RobotContainer {
         "FieldSimulation/RobotPosition", driveSimulation.getSimulatedDriveTrainPose());
     Logger.recordOutput(
         "FieldSimulation/Fuel", SimulatedArena.getInstance().getGamePiecesArrayByType("Fuel"));
+  }
+
+  public Command testAuto() {
+    return Commands.sequence(
+        autoFactory.resetOdometry("TestPath"), //
+        new TrajCommnd(autoFactory, "TestPath", drive));
   }
 }

@@ -117,7 +117,7 @@ public class LaunchCalculator {
   private static final LoggedTunableNumber maxIdleSpeed =
       new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 2000);
 
-  private static final double xPassTarget = Units.inchesToMeters(37);
+  private static final double xPassTarget = Units.inchesToMeters(12);
   private static final double yPassTarget = Units.inchesToMeters(65);
   // Boxes of bad
   // Under tower
@@ -139,10 +139,10 @@ public class LaunchCalculator {
           FieldConstants.LinesHorizontal.leftBumpEnd);
 
   static {
-    minDistance = 0.9;
-    maxDistance = 4.9;
+    minDistance = 0.0;
+    maxDistance = 5.7;
     passingMinDistance = 0.0;
-    passingMaxDistance = 12.0;
+    passingMaxDistance = 1200.0;
     phaseDelay = 0.03;
 
     hoodAngleMap.put(1.3, Rotation2d.fromDegrees(0.0));
