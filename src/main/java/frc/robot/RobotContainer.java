@@ -361,7 +361,7 @@ public class RobotContainer {
     //     .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
 
     driveController
-        .triangle()
+        .R2()
         .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
