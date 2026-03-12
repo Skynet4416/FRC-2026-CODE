@@ -409,7 +409,8 @@ public class DriveCommands {
       Supplier<TrenchAlignmentPosition> positionSupplier) {
     return new ContinuousConditionalCommand(
         joystickDrive(drive, xSupplier, ySupplier, omegaSupplier, maxOmegaScalar),
-        trenchAlignDrive(drive, xSupplier, ySupplier, omegaSupplier, positionSupplier),
+        trenchAlignDrive(
+            drive, xSupplier, ySupplier, omegaSupplier, maxOmegaScalar, positionSupplier),
         () ->
             !Constants.AutoAlignment.Trench.ENABLE
                 || DriverStation.isAutonomous()
@@ -423,6 +424,7 @@ public class DriveCommands {
       DoubleSupplier xSupplier,
       DoubleSupplier ySupplier,
       DoubleSupplier omegaSupplier,
+      DoubleSupplier maxOmegaScalar,
       Supplier<TrenchAlignmentPosition> positionSupplier) {
 
     ProfiledPIDController angleController =
@@ -548,7 +550,8 @@ public class DriveCommands {
               double rawOmega = MathUtil.applyDeadband(omegaSupplier.getAsDouble(), DEADBAND);
               double driverOmega =
                   Math.copySign(rawOmega * rawOmega, rawOmega)
-                      * drive.getMaxAngularSpeedRadPerSec();
+                      * drive.getMaxAngularSpeedRadPerSec()
+                      * maxOmegaScalar.getAsDouble();
 
               // Blend outputs
               double blendedFieldY =
