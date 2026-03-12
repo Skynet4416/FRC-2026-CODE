@@ -204,7 +204,7 @@ public final class Constants {
 
       public static final class CurrentLimits {
         public static final boolean SUPPLY_ENABLED = true;
-        public static final double SUPPLY_LIMIT_AMPS = 40.0;
+        public static final double SUPPLY_LIMIT_AMPS = 30.0;
       }
     }
 

@@ -9,6 +9,7 @@ import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
@@ -25,11 +26,15 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   private final Alert leaderDisconnected;
   private final Alert followerDisconnected;
 
+  SlewRateLimiter rpmLimiter;
+
   private double targetRPM = 0.0;
 
   public FlywheelSubsystemIOTalonFX() {
     leaderMotor = new TalonFX(Constants.Subsystems.Shooter.Flywheel.Id.LEADER_ID);
     followerMotor = new TalonFX(Constants.Subsystems.Shooter.Flywheel.Id.FOLLOWER_ID);
+
+    rpmLimiter = new SlewRateLimiter(5000);
 
     leaderDisconnected = new Alert("Flywheel leader motor disconnected!", AlertType.kWarning);
     followerDisconnected = new Alert("Flywheel follower motor disconnected!", AlertType.kWarning);
@@ -99,7 +104,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   public void setTargetRPM(double rpm) {
     targetRPM = rpm;
     double targetMotorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
-    leaderMotor.setControl(velocityRequest.withVelocity(targetMotorRPS));
+    leaderMotor.setControl(velocityRequest.withVelocity(rpmLimiter.calculate(targetMotorRPS)));
   }
 
   @Override

@@ -34,6 +34,7 @@ import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -73,8 +74,8 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
               Math.hypot(TunerConstants.BackLeft.LocationX, TunerConstants.BackLeft.LocationY),
               Math.hypot(TunerConstants.BackRight.LocationX, TunerConstants.BackRight.LocationY)));
 
-  private static final double DriveKP = 0.5;
-  private static final double RotationKP = 0.5;
+  private static final double DriveKP = 5;
+  private static final double RotationKP = 5;
 
   private final PPHolonomicDriveController drivePID =
       new PPHolonomicDriveController(
@@ -164,6 +165,9 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
     modules[1] = new Module(frModuleIO, 1, TunerConstants.FrontRight);
     modules[2] = new Module(blModuleIO, 2, TunerConstants.BackLeft);
     modules[3] = new Module(brModuleIO, 3, TunerConstants.BackRight);
+
+    m_pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
+    m_pathThetaController.setTolerance(Units.degreesToRadians(1.5));
 
     // Usage reporting for swerve template
     HAL.report(tResourceType.kResourceType_RobotDrive, tInstances.kRobotDriveSwerve_AdvantageKit);
@@ -444,8 +448,7 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
 
   /** Resets the current odometry pose. */
   public void resetOdometry(Pose2d pose) {
-    resetSimulationPoseCallBack.accept(pose);
-    poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
+    poseEstimator.resetPose(pose);
   }
 
   public void followTrajectory(SwerveSample target) {
@@ -454,7 +457,13 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
     Pose2d targetPose = target.getPose();
 
     // Generate the next speeds for the robot
-    ChassisSpeeds speeds = ChassisSpeeds.fromFieldRelativeSpeeds(1, 0, 0, getRotation());
+    ChassisSpeeds speeds =
+        ChassisSpeeds.fromFieldRelativeSpeeds(
+            target.vx + m_pathXController.calculate(pose.getX(), targetPose.getX()),
+            target.vy + m_pathYController.calculate(pose.getY(), targetPose.getY()),
+            target.omega
+                + m_pathThetaController.calculate(pose.getRotation().getRadians(), target.heading),
+            getRotation());
 
     Logger.recordOutput("Choreo/RobotAngle", getRotation());
     Logger.recordOutput("Choreo/TargetPose", targetPose);

@@ -311,7 +311,7 @@ public class RobotContainer {
     autoChooser.addOption(
         "Flywheel SysId (Dynamic Reverse)",
         flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
+    autoChooser.addOption("Choreo Test", testAuto());
     // Configure the button bindings
     configureButtonBindings();
   }

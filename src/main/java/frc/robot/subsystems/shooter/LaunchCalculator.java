@@ -128,7 +128,7 @@ public class LaunchCalculator {
       LoggedTunableNumber hoodAngleDeg, LoggedTunableNumber flywheelSpeed) {}
 
   private static final LoggedTunableNumber maxIdleSpeed =
-      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 2000);
+      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 5000);
 
   private static final double xPassTarget = Units.inchesToMeters(12);
   private static final double yPassTarget = Units.inchesToMeters(65);
@@ -169,16 +169,16 @@ public class LaunchCalculator {
     hoodAngleMap.put(5.2, Rotation2d.fromDegrees(22.0));
     hoodAngleMap.put(5.7, Rotation2d.fromDegrees(23.0));
 
-    flywheelSpeedMap.put(1.3, 3000.0);
-    flywheelSpeedMap.put(1.7, 3100.0);
-    flywheelSpeedMap.put(2.2, 3300.0);
-    flywheelSpeedMap.put(2.7, 3500.0);
-    flywheelSpeedMap.put(3.2, 3500.0);
-    flywheelSpeedMap.put(3.7, 3700.0);
-    flywheelSpeedMap.put(4.2, 3900.0);
-    flywheelSpeedMap.put(4.7, 4000.0);
-    flywheelSpeedMap.put(5.2, 5200.0);
-    flywheelSpeedMap.put(5.7, 5500.0);
+    flywheelSpeedMap.put(1.3, 3200.0);
+    flywheelSpeedMap.put(1.7, 3300.0);
+    flywheelSpeedMap.put(2.2, 3500.0);
+    flywheelSpeedMap.put(2.7, 3700.0);
+    flywheelSpeedMap.put(3.2, 3700.0);
+    flywheelSpeedMap.put(3.7, 3900.0);
+    flywheelSpeedMap.put(4.2, 4100.0);
+    flywheelSpeedMap.put(4.7, 4200.0);
+    flywheelSpeedMap.put(5.2, 5400.0);
+    flywheelSpeedMap.put(5.7, 5700.0);
 
     timeOfFlightMap.put(1.3, 1.0);
     timeOfFlightMap.put(1.7, 1.0);
@@ -191,9 +191,9 @@ public class LaunchCalculator {
     timeOfFlightMap.put(5.2, 1.23);
     timeOfFlightMap.put(5.7, 1.25);
 
-    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(38.0));
-    passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(38.0));
-    passingHoodAngleMap.put(7.80, Rotation2d.fromDegrees(38.0));
+    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(45.0));
+    passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(45.0));
+    passingHoodAngleMap.put(7.80, Rotation2d.fromDegrees(45.0));
 
     passingFlywheelSpeedMap.put(5.46, 5500.0);
     passingFlywheelSpeedMap.put(6.62, 5500.0);
@@ -350,7 +350,7 @@ public class LaunchCalculator {
             hoodAngle + Units.degreesToRadians(hoodAngleOffsetDeg),
             hoodVelocity,
             flywheelVelocity,
-            MathUtil.clamp(flywheelVelocity, 0, maxIdleSpeed.get()),
+            MathUtil.clamp(flywheelVelocity / 1.5, 0, maxIdleSpeed.get()),
             lookaheadLauncherToTargetDistance,
             launcherToTargetDistance,
             timeOfFlight,
