@@ -369,13 +369,14 @@ public class RobotContainer {
         .and(autoAlignmentOverride.negate())
         .whileTrue(
             DriveCommands.autoTrenchAssist(
-                drive,
-                driverX,
-                driverY,
-                driverOmega,
-                maxOmegaScalar::get,
-                () -> leftIntake.isLowered() || rightIntake.isLowered(),
-                trenchAlignmentPositionChooser::get));
+                    drive,
+                    driverX,
+                    driverY,
+                    driverOmega,
+                    maxOmegaScalar::get,
+                    () -> leftIntake.isLowered() || rightIntake.isLowered(),
+                    trenchAlignmentPositionChooser::get)
+                .withName("AlignToTrenchCommand"));
 
     driveController
         .R3()
