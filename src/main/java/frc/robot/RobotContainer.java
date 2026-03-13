@@ -616,7 +616,7 @@ public class RobotContainer {
                 Logger.recordOutput(
                     "Flywheel/FuelProjectileUnsuccessfulShot",
                     pose3ds.toArray(new edu.wpi.first.math.geometry.Pose3d[0])))
-        .enableBecomesGamePieceOnFieldAfterTouchGround();
+        .disableBecomesGamePieceOnFieldAfterTouchGround();
 
     SimulatedArena.getInstance().addGamePieceProjectile(fuelOnFly);
   }
