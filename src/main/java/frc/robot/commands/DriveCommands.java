@@ -318,10 +318,14 @@ public class DriveCommands {
               Translation2d linearVelocity =
                   getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble());
 
+              // Flip the rotation target using the utility so that "0" always
+              // refers to the driver's "Away" direction on either alliance.
+              Rotation2d targetRotation = AllianceFlipUtil.apply(rotationSupplier.get());
+
               // Calculate angular speed
               double omega =
                   angleController.calculate(
-                      drive.getRotation().getRadians(), rotationSupplier.get().getRadians());
+                      drive.getRotation().getRadians(), targetRotation.getRadians());
 
               // Convert to field relative speeds & send command
               ChassisSpeeds speeds =
@@ -329,15 +333,9 @@ public class DriveCommands {
                       linearVelocity.getX() * drive.getMaxLinearSpeedMetersPerSec(),
                       linearVelocity.getY() * drive.getMaxLinearSpeedMetersPerSec(),
                       omega);
-              boolean isFlipped =
-                  DriverStation.getAlliance().isPresent()
-                      && DriverStation.getAlliance().get() == Alliance.Red;
               drive.runVelocity(
                   ChassisSpeeds.fromFieldRelativeSpeeds(
-                      speeds,
-                      isFlipped
-                          ? drive.getRotation().plus(new Rotation2d(Math.PI))
-                          : drive.getRotation()));
+                      speeds, AllianceFlipUtil.apply(drive.getRotation())));
             },
             drive)
 
