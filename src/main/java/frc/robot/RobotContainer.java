@@ -650,7 +650,7 @@ public class RobotContainer {
 
   public Command testAuto() {
     return Commands.sequence(
-        autoFactory.resetOdometry("TestPath"), //
-        new TrajCommnd(autoFactory, "TestPath", drive));
+        autoFactory.resetOdometry("left_trench"), //
+        new TrajCommnd(autoFactory, "left_trench", drive));
   }
 }
