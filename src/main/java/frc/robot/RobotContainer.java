@@ -588,7 +588,7 @@ public class RobotContainer {
             robotPose.getRotation(), // Assuming launcher faces same direction as robot front
             Meters.of(frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getZ()),
             MetersPerSecond.of(rpm / 6000.0 * 37.0),
-            Radians.of(params.hoodAngle()));
+            Degrees.of(params.hoodAngle()));
 
     // Setup visualizer and callbacks
     Translation2d target2d =
