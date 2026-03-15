@@ -189,7 +189,7 @@ public class DriveCommands {
           }
 
           // Only limit if launching, not passing
-          if (!LaunchCalculator.getInstance().getParameters().passing()) {
+          if (!parameters.passing()) {
             // Calculate max linear velocity magnitude based on the max polar velocity
             double maxLinearVelocityMagnitude = Double.POSITIVE_INFINITY;
             double robotAngle =
