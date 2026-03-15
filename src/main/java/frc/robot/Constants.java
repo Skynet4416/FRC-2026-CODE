@@ -94,7 +94,7 @@ public final class Constants {
         }
 
         public static final class ClosedLoop {
-
+          public static final double KP = 10;
           public static final double KI = 0.0;
           public static final double KD = 0.0;
 
