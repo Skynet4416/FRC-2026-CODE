@@ -33,7 +33,7 @@ public class HoodSubsystemIOSim implements HoodSubsystemIO {
     talonFX = new TalonFX(Constants.Subsystems.Shooter.Hood.Id.MOTOR_ID);
     talonFXSim = talonFX.getSimState();
 
-    DCMotor gearbox = DCMotor.getKrakenX44(1);
+    DCMotor gearbox = DCMotor.getKrakenX44Foc(1);
 
     motorSim =
         new DCMotorSim(

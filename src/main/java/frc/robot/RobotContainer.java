@@ -92,6 +92,9 @@ public class RobotContainer {
   // control the robot's rotation. Should be a value between 0 and 1.
   private static final LoggedTunableNumber maxOmegaScalar =
       new LoggedTunableNumber("Drive/MaxOmegaScalar", 0.8);
+
+  private static final LoggedTunableNumber velocityBoostMult =
+      new LoggedTunableNumber("Sim/DragBoost", 1.0);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
@@ -206,7 +209,7 @@ public class RobotContainer {
         compressor = null;
 
         ballSim.enable();
-        ballSim.placeFieldBalls();
+        // ballSim.placeFieldBalls();
         break;
 
       default:
@@ -371,7 +374,8 @@ public class RobotContainer {
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
                 Commands.repeatingSequence(
-                    Commands.waitSeconds(0.25), Commands.runOnce(this::launchSimulatedProjectile))));
+                    Commands.waitSeconds(0.25),
+                    Commands.runOnce(this::launchSimulatedProjectile))));
 
     // Test specific button for simulated launch
 
@@ -568,7 +572,7 @@ public class RobotContainer {
     drive.resetOdometry(new Pose2d(4.3, 7.643, Rotation2d.fromDegrees(-85)));
     SimulatedArena.getInstance().resetFieldForAuto();
     ballSim.clearBalls();
-    ballSim.placeFieldBalls();
+    // ballSim.placeFieldBalls();
     ballSim.resetCounters();
   }
 
@@ -594,14 +598,10 @@ public class RobotContainer {
     var params = LaunchCalculator.getInstance().getParameters();
     if (params == null || !params.isValid()) return;
 
-    Translation2d target2d =
-        params.passing()
-            ? LaunchCalculator.getInstance().getPassingTarget()
-            : AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d());
-    double targetZ = params.passing() ? 0.0 : 1.829;
-
     Pose2d robotPose = drive.getPose();
-    Rotation2d driveAngle = drive.getRotation();
+    Rotation2d actualDriveAngle = drive.getRotation();
+
+    // 1. Calculate launcher position in 3D space
     Translation2d launcherPos2d =
         robotPose
             .getTranslation()
@@ -609,37 +609,65 @@ public class RobotContainer {
                 frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher
                     .getTranslation()
                     .toTranslation2d()
-                    .rotateBy(driveAngle));
+                    .rotateBy(actualDriveAngle));
+
     double launcherZ = frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getZ();
     edu.wpi.first.math.geometry.Translation3d launcherPos =
         new edu.wpi.first.math.geometry.Translation3d(
             launcherPos2d.getX(), launcherPos2d.getY(), launcherZ);
 
-    double dx = target2d.getX() - launcherPos2d.getX();
-    double dy = target2d.getY() - launcherPos2d.getY();
-    double dz = targetZ - launcherZ;
+    // 2. Real-World Exit Velocity (Forward Kinematics)
+    // The ball's speed relative to the robot depends strictly on RPM and slip factor.
+    double rpm = params.flywheelSpeed();
+    double wheelDiameterMeters = 0.1524; // 6 inches
+    double slipFactor = 0.244; // The true slip factor we derived
+    double exitSpeed = slipFactor * (rpm * Math.PI * wheelDiameterMeters) / 60.0;
 
-    double t = params.timeOfFlight();
-    if (t <= 0.0) t = 1.0;
+    // 3. Convert scalar speed to a 3D vector relative to the robot
+    // Note: Hood angle parameter is assumed to be elevation from horizontal.
+    // If it's from vertical, adjust as: (Math.PI / 2.0) - (baseHoodRad + params.hoodAngle())
+    double baseHoodRad = edu.wpi.first.math.util.Units.degreesToRadians(12.5);
+    double launchRad = (Math.PI / 2.0) - (baseHoodRad + params.hoodAngle());
 
-    // 1. Calculate vacuum velocity (Your original working math)
-    double vx = dx / t;
-    double vy = dy / t;
-    double vz = (dz + 0.5 * 9.81 * t * t) / t;
+    double ballRobotRelativeVx = exitSpeed * Math.cos(launchRad);
+    double ballRobotRelativeVy = 0.0;
+    double ballRobotRelativeVz = exitSpeed * Math.sin(launchRad);
 
-    // 2. FIX THE UNDERSHOOT
-    // Boost the speed slightly so it doesn't get killed by the simulator's air drag
-    double simDragMultiplier = 1.05; // Try 1.05 to 1.15 to fine-tune the landing
-    vx *= simDragMultiplier;
-    vy *= simDragMultiplier;
-    vz *= simDragMultiplier;
+    // 4. Rotate to Field Frame based on the robot's physical heading
+    double ballFieldVx =
+        ballRobotRelativeVx * actualDriveAngle.getCos()
+            - ballRobotRelativeVy * actualDriveAngle.getSin();
+    double ballFieldVy =
+        ballRobotRelativeVx * actualDriveAngle.getSin()
+            + ballRobotRelativeVy * actualDriveAngle.getCos();
 
-    // 3. FIX THE SOTM MISS
-    // Do NOT add the robot's driving velocity here. LaunchCalculator already aimed the robot
-    // off-center to compensate. Adding it here double-compensates and causes a miss.
+    // 5. INHERIT ROBOT MOMENTUM (The part the CD thread missed)
+    var robotSpeeds = drive.getChassisSpeeds();
+    double launcherOffsetX = frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getX();
+    double launcherOffsetY = frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getY();
+
+    // Tangential velocity (v = w x r) + Translational velocity
+    double launcherRobotRelativeVx =
+        robotSpeeds.vxMetersPerSecond - (robotSpeeds.omegaRadiansPerSecond * launcherOffsetY);
+    double launcherRobotRelativeVy =
+        robotSpeeds.vyMetersPerSecond + (robotSpeeds.omegaRadiansPerSecond * launcherOffsetX);
+
+    // Rotate launcher velocity to field frame
+    double launcherFieldVx =
+        launcherRobotRelativeVx * actualDriveAngle.getCos()
+            - launcherRobotRelativeVy * actualDriveAngle.getSin();
+    double launcherFieldVy =
+        launcherRobotRelativeVx * actualDriveAngle.getSin()
+            + launcherRobotRelativeVy * actualDriveAngle.getCos();
+
+    // 6. Final absolute velocity = Ball exit velocity + Launcher velocity
+    double finalVx = ballFieldVx + launcherFieldVx;
+    double finalVy = ballFieldVy + launcherFieldVy;
+    double finalVz = ballRobotRelativeVz;
+
     edu.wpi.first.math.geometry.Translation3d launchVelocity =
-        new edu.wpi.first.math.geometry.Translation3d(vx, vy, vz);
+        new edu.wpi.first.math.geometry.Translation3d(finalVx, finalVy, finalVz);
 
-    ballSim.launchBall(launcherPos, launchVelocity, params.flywheelSpeed());
+    ballSim.launchBall(launcherPos, launchVelocity, rpm);
   }
 }
