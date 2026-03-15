@@ -61,16 +61,12 @@ public class LaunchCalculator {
     shotCalc = new ShotCalculator(config);
 
     // Load your calibration data into the solver
-    shotCalc.loadLUTEntry(1.3, 3000.0, 1.0);
-    shotCalc.loadLUTEntry(1.7, 3100.0, 1.0);
-    shotCalc.loadLUTEntry(2.2, 3300.0, 1.1);
-    shotCalc.loadLUTEntry(2.7, 3500.0, 1.17);
-    shotCalc.loadLUTEntry(3.2, 3500.0, 1.08);
-    shotCalc.loadLUTEntry(3.7, 3700.0, 1.07);
-    shotCalc.loadLUTEntry(4.2, 3900.0, 1.17);
-    shotCalc.loadLUTEntry(4.7, 4000.0, 1.12);
-    shotCalc.loadLUTEntry(5.2, 5200.0, 1.23);
-    shotCalc.loadLUTEntry(5.7, 5500.0, 1.25);
+    shotCalc.loadLUTEntry(1.28, 2000.0, 1.0);
+    shotCalc.loadLUTEntry(2.3, 2300.0, 0.96);
+    shotCalc.loadLUTEntry(3.0, 2500.0, 0.94);
+    shotCalc.loadLUTEntry(3.45, 2400.0, 1.04); // 18.0
+    shotCalc.loadLUTEntry(4.0, 2700.0, 1.04);
+    shotCalc.loadLUTEntry(5.0, 5500.0, 1.1);
   }
 
   public static LaunchCalculator getInstance() {
@@ -139,21 +135,18 @@ public class LaunchCalculator {
 
   static {
     // Hood Map Init
-    hoodAngleMap.put(1.3, Rotation2d.fromDegrees(0.0));
-    hoodAngleMap.put(1.7, Rotation2d.fromDegrees(5.0));
-    hoodAngleMap.put(2.2, Rotation2d.fromDegrees(10.5));
-    hoodAngleMap.put(2.7, Rotation2d.fromDegrees(13.0));
-    hoodAngleMap.put(3.2, Rotation2d.fromDegrees(15.0));
-    hoodAngleMap.put(3.7, Rotation2d.fromDegrees(18.0));
-    hoodAngleMap.put(4.2, Rotation2d.fromDegrees(20.0));
-    hoodAngleMap.put(4.7, Rotation2d.fromDegrees(22.0));
-    hoodAngleMap.put(5.2, Rotation2d.fromDegrees(22.0));
-    hoodAngleMap.put(5.7, Rotation2d.fromDegrees(23.0));
+    hoodAngleMap.put(1.28, Rotation2d.fromDegrees(5.0));
+    hoodAngleMap.put(2.3, Rotation2d.fromDegrees(10.0));
+    hoodAngleMap.put(3.0, Rotation2d.fromDegrees(15.0));
+    hoodAngleMap.put(3.45, Rotation2d.fromDegrees(18.0));
+    hoodAngleMap.put(4.0, Rotation2d.fromDegrees(20.0));
+    hoodAngleMap.put(4.8, Rotation2d.fromDegrees(28.0));
+    hoodAngleMap.put(5.0, Rotation2d.fromDegrees(30.0));
 
     // Passing Map Init
-    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(38.0));
-    passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(38.0));
-    passingHoodAngleMap.put(7.80, Rotation2d.fromDegrees(38.0));
+    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(45.0));
+    passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(45.0));
+    passingHoodAngleMap.put(7.80, Rotation2d.fromDegrees(45.0));
 
     passingFlywheelSpeedMap.put(5.46, 5500.0);
     passingFlywheelSpeedMap.put(6.62, 5500.0);

@@ -86,7 +86,7 @@ public final class Constants {
         public static final boolean SHOOTER_INVERTED = true;
 
         public static final double DEFAULT_TARGET_RPM = 1000.0;
-        public static final double RPM_TOLERANCE = 500.0;
+        public static final double RPM_TOLERANCE = 200.0;
 
         public static class Id {
           public static final int LEADER_ID = 40;
