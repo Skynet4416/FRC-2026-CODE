@@ -94,7 +94,7 @@ public class LaunchCalculator {
   // Cache parameters
   private LaunchingParameters latestParameters = null;
 
-  private static final double minDistance = 1.3;
+  private static final double minDistance = 0.25;
   private static final double maxDistance = 5.7;
   private static final double passingMinDistance = 0.0;
   private static final double passingMaxDistance = 12.0;
