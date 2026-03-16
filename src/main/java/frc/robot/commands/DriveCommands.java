@@ -59,11 +59,11 @@ public class DriveCommands {
   private static final LoggedTunableNumber driveLaunchToleranceDeg =
       new LoggedTunableNumber("DriveCommands/Launching/ToleranceDeg", 4.0);
   private static final LoggedTunableNumber driveLaunchMaxPolarVelocityRadPerSec =
-      new LoggedTunableNumber("DriveCommands/Launching/MaxPolarVelocityRadPerSec", 0.6);
+      new LoggedTunableNumber("DriveCommands/Launching/MaxPolarVelocityRadPerSec", 0.4);
   private static final LoggedTunableNumber driveLauncherCORMinErrorDeg =
-      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMinErrorDeg", 15.0);
+      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMinErrorDeg", 5.0);
   private static final LoggedTunableNumber driveLauncherCORMaxErrorDeg =
-      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMaxErrorDeg", 30.0);
+      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMaxErrorDeg", 15.0);
 
   private DriveCommands() {}
 
