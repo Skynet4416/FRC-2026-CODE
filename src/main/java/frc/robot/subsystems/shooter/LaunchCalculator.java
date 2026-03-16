@@ -61,12 +61,12 @@ public class LaunchCalculator {
     shotCalc = new ShotCalculator(config);
 
     // Load your calibration data into the solver
-    shotCalc.loadLUTEntry(1.28, 2000.0, 1.0);
-    shotCalc.loadLUTEntry(2.3, 2300.0, 0.96);
-    shotCalc.loadLUTEntry(3.0, 2500.0, 0.94);
-    shotCalc.loadLUTEntry(3.45, 2400.0, 1.04); // 18.0
-    shotCalc.loadLUTEntry(4.0, 2700.0, 1.04);
-    shotCalc.loadLUTEntry(5.0, 5500.0, 1.1);
+    shotCalc.loadLUTEntry(1.436259713, 2200.0, 1.0);
+    shotCalc.loadLUTEntry(2.056853558, 2500.0, 1.0);
+    shotCalc.loadLUTEntry(2.5, 2750.0, 1.09);
+    shotCalc.loadLUTEntry(3.0, 2950.0, 1.05);
+    shotCalc.loadLUTEntry(3.5, 3400.0, 1.0);
+    shotCalc.loadLUTEntry(4.0, 3700.0, 1.08);
   }
 
   public static LaunchCalculator getInstance() {
@@ -135,13 +135,12 @@ public class LaunchCalculator {
 
   static {
     // Hood Map Init
-    hoodAngleMap.put(1.28, Rotation2d.fromDegrees(5.0));
-    hoodAngleMap.put(2.3, Rotation2d.fromDegrees(10.0));
+    hoodAngleMap.put(1.436259713, Rotation2d.fromDegrees(5.0));
+    hoodAngleMap.put(2.056853558, Rotation2d.fromDegrees(7.0));
+    hoodAngleMap.put(2.5, Rotation2d.fromDegrees(9.0));
     hoodAngleMap.put(3.0, Rotation2d.fromDegrees(15.0));
-    hoodAngleMap.put(3.45, Rotation2d.fromDegrees(18.0));
-    hoodAngleMap.put(4.0, Rotation2d.fromDegrees(20.0));
-    hoodAngleMap.put(4.8, Rotation2d.fromDegrees(28.0));
-    hoodAngleMap.put(5.0, Rotation2d.fromDegrees(30.0));
+    hoodAngleMap.put(3.5, Rotation2d.fromDegrees(18.0));
+    hoodAngleMap.put(4.0, Rotation2d.fromDegrees(23.0));
 
     // Passing Map Init
     passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(45.0));
