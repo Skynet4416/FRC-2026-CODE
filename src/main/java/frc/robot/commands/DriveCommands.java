@@ -199,20 +199,19 @@ public class DriveCommands {
                         .getAngle()
                         .minus(fieldRelativeLinearVelocity.getAngle())
                         .getRadians());
-            double robotHubDistance =
-                LaunchCalculator.getInstance().getParameters().distanceNoLookahead();
-            double hubAngle =
-                driveLaunchMaxPolarVelocityRadPerSec.get()
-                    * LaunchCalculator.getInstance().getNaiveTOF(robotHubDistance);
+            double robotHubDistance = parameters.distanceNoLookahead();
+            double timeOfFlight = parameters.timeOfFlight();
+            if (timeOfFlight <= 0.0) {
+              timeOfFlight = LaunchCalculator.getInstance().getNaiveTOF(robotHubDistance);
+            }
+            double hubAngle = driveLaunchMaxPolarVelocityRadPerSec.get() * timeOfFlight;
             double lookaheadAngle = Math.PI - robotAngle - hubAngle;
 
             // Calculate limit if triangle is valid (otherwise no limit)
             if (lookaheadAngle > 0) {
               double robotLookaheadDistance =
                   robotHubDistance * Math.sin(hubAngle) / Math.sin(lookaheadAngle);
-              maxLinearVelocityMagnitude =
-                  robotLookaheadDistance
-                      / LaunchCalculator.getInstance().getNaiveTOF(robotHubDistance);
+              maxLinearVelocityMagnitude = robotLookaheadDistance / timeOfFlight;
             }
 
             // Apply limit to velocity
