@@ -92,8 +92,6 @@ public class RobotContainer {
   private static final LoggedTunableNumber maxOmegaScalar =
       new LoggedTunableNumber("Drive/MaxOmegaScalar", 0.8);
 
-  private static final LoggedTunableNumber velocityBoostMult =
-      new LoggedTunableNumber("Sim/DragBoost", 1.0);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
