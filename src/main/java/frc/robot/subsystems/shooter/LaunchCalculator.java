@@ -61,12 +61,12 @@ public class LaunchCalculator {
     shotCalc = new ShotCalculator(config);
 
     // Load your calibration data into the solver
-    shotCalc.loadLUTEntry(1.436259713, 2200.0, 1.0);
-    shotCalc.loadLUTEntry(2.056853558, 2500.0, 1.0);
-    shotCalc.loadLUTEntry(2.5, 2750.0, 1.09);
-    shotCalc.loadLUTEntry(3.0, 2950.0, 1.05);
-    shotCalc.loadLUTEntry(3.5, 3400.0, 1.0);
-    shotCalc.loadLUTEntry(4.0, 3700.0, 1.08);
+    shotCalc.loadLUTEntry(1.436259713, 2200.0, 5.0, 1.0);
+    shotCalc.loadLUTEntry(2.056853558, 2500.0, 7.0, 1.0);
+    shotCalc.loadLUTEntry(2.5, 2750.0, 9.0, 1.09);
+    shotCalc.loadLUTEntry(3.0, 2950.0, 15.0, 1.05);
+    shotCalc.loadLUTEntry(3.5, 3400.0, 18.0, 1.0);
+    shotCalc.loadLUTEntry(4.0, 3700.0, 23.0, 1.08);
   }
 
   public static LaunchCalculator getInstance() {
@@ -95,10 +95,6 @@ public class LaunchCalculator {
   private static final double passingMinDistance = 0.0;
   private static final double passingMaxDistance = 12.0;
   private static final double phaseDelay = 0.03;
-
-  // Launching Maps (Only keeping Hood locally, RPM/TOF are now in the solver)
-  private static final InterpolatingTreeMap<Double, Rotation2d> hoodAngleMap =
-      new InterpolatingTreeMap<>(InverseInterpolator.forDouble(), Rotation2d::interpolate);
 
   // Passing Maps
   private static final InterpolatingTreeMap<Double, Rotation2d> passingHoodAngleMap =
@@ -134,14 +130,6 @@ public class LaunchCalculator {
           FieldConstants.LinesHorizontal.leftBumpEnd);
 
   static {
-    // Hood Map Init
-    hoodAngleMap.put(1.436259713, Rotation2d.fromDegrees(5.0));
-    hoodAngleMap.put(2.056853558, Rotation2d.fromDegrees(7.0));
-    hoodAngleMap.put(2.5, Rotation2d.fromDegrees(9.0));
-    hoodAngleMap.put(3.0, Rotation2d.fromDegrees(15.0));
-    hoodAngleMap.put(3.5, Rotation2d.fromDegrees(18.0));
-    hoodAngleMap.put(4.0, Rotation2d.fromDegrees(23.0));
-
     // Passing Map Init
     passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(45.0));
     passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(45.0));
@@ -249,9 +237,7 @@ public class LaunchCalculator {
       launcherToTargetDistance = target.getDistance(estimatedPose.getTranslation());
       timeOfFlight = result.timeOfFlightSec();
       flywheelVelocity = result.rpm();
-
-      // Query local map using solver's distance
-      hoodAngle = hoodAngleMap.get(lookaheadLauncherToTargetDistance).getRadians();
+      hoodAngle = result.hoodAngleRad();
 
       // Validate based on solver + bad boxes
       isValidShot = result.isValid() && outsideOfBadBoxes;

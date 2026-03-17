@@ -75,6 +75,7 @@ public class ShotCalculator {
   public record LaunchParameters(
       double rpm,
       double timeOfFlightSec,
+      double hoodAngleRad,
       Rotation2d driveAngle,
       double driveAngularVelocityRadPerSec,
       boolean isValid,
@@ -84,7 +85,7 @@ public class ShotCalculator {
       boolean warmStartUsed) {
 
     public static final LaunchParameters INVALID =
-        new LaunchParameters(0, 0, new Rotation2d(), 0, false, 0, 0, 0, false);
+        new LaunchParameters(0, 0, 0, new Rotation2d(), 0, false, 0, 0, 0, false);
   }
 
   /**
@@ -181,6 +182,7 @@ public class ShotCalculator {
 
   private final InterpolatingDoubleTreeMap rpmMap = new InterpolatingDoubleTreeMap();
   private final InterpolatingDoubleTreeMap tofMap = new InterpolatingDoubleTreeMap();
+  private final InterpolatingDoubleTreeMap hoodMap = new InterpolatingDoubleTreeMap();
   private final InterpolatingDoubleTreeMap correctionRpmMap = new InterpolatingDoubleTreeMap();
   private final InterpolatingDoubleTreeMap correctionTofMap = new InterpolatingDoubleTreeMap();
 
@@ -209,8 +211,9 @@ public class ShotCalculator {
    * Add a distance/RPM/TOF point to the lookup table. Use ProjectileSimulator to generate these, or
    * hand-tune.
    */
-  public void loadLUTEntry(double distanceM, double rpm, double tof) {
+  public void loadLUTEntry(double distanceM, double rpm, double hoodAngleDeg, double tof) {
     rpmMap.put(distanceM, rpm);
+    hoodMap.put(distanceM, Math.toRadians(hoodAngleDeg));
     tofMap.put(distanceM, tof);
   }
 
@@ -225,6 +228,10 @@ public class ShotCalculator {
     double base = tofMap.get(distance);
     Double correction = correctionTofMap.get(distance);
     return base + (correction != null ? correction : 0.0);
+  }
+
+  double effectiveHoodAngleRad(double distance) {
+    return hoodMap.get(distance);
   }
 
   // Drag-adjusted effective TOF: actual displacement < v*tof because drag.
@@ -431,6 +438,9 @@ public class ShotCalculator {
     // RPM from LUT at solved distance
     double effectiveRPMValue = effectiveRPM(projDist);
 
+    // Hood angle from LUT at solved distance
+    double effectiveHoodAngleRad = effectiveHoodAngleRad(projDist);
+
     // Drive angle: aim at velocity-compensated target position
     double compTargetX;
     double compTargetY;
@@ -482,6 +492,7 @@ public class ShotCalculator {
     return new LaunchParameters(
         effectiveRPMValue,
         effectiveTOF,
+        effectiveHoodAngleRad,
         driveAngle,
         driveAngularVelocity,
         true,
