@@ -85,6 +85,7 @@ public class LaunchCalculator {
       double distance,
       double distanceNoLookahead,
       double timeOfFlight,
+      double confidence,
       boolean passing) {}
 
   // Cache parameters
@@ -160,13 +161,15 @@ public class LaunchCalculator {
     boolean behindFarHub = farHubBound.contains(flippedPose.getTranslation());
     boolean outsideOfBadBoxes = !(insideTowerBadBox || behindNearHub || behindFarHub);
 
-    Rotation2d driveAngle;
-    double hoodAngle;
-    double flywheelVelocity;
-    double timeOfFlight;
-    double lookaheadLauncherToTargetDistance;
-    double launcherToTargetDistance;
-    boolean isValidShot;
+    Rotation2d driveAngle = Rotation2d.kZero;
+    double driveVelocity = 0.0;
+    double hoodAngle = 0.0;
+    double flywheelVelocity = 0.0;
+    double timeOfFlight = 0.0;
+    double lookaheadLauncherToTargetDistance = 0.0;
+    double launcherToTargetDistance = 0.0;
+    double confidence = 0.0;
+    boolean isValidShot = false;
 
     if (passing) {
       // --- LEGACY NAIVE LOOKAHEAD FOR PASSING ---
@@ -212,6 +215,13 @@ public class LaunchCalculator {
               && lookaheadLauncherToTargetDistance >= passingMinDistance
               && lookaheadLauncherToTargetDistance <= passingMaxDistance;
 
+      // Filter drive angle for legacy passing shots
+      if (lastDriveAngle == null) lastDriveAngle = driveAngle;
+      driveVelocity =
+          driveAngleFilter.calculate(
+              driveAngle.minus(lastDriveAngle).getRadians() / Constants.loopPeriodSecs);
+      confidence = 100.0;
+
     } else {
       // --- NEW PHYSICS-BASED SOTM SOLVER FOR HUB ---
       Translation2d target =
@@ -233,27 +243,24 @@ public class LaunchCalculator {
 
       // Extract results from solver
       driveAngle = result.driveAngle();
+      driveVelocity = result.driveAngularVelocityRadPerSec();
       lookaheadLauncherToTargetDistance = result.solvedDistanceM();
       launcherToTargetDistance = target.getDistance(estimatedPose.getTranslation());
       timeOfFlight = result.timeOfFlightSec();
       flywheelVelocity = result.rpm();
       hoodAngle = result.hoodAngleRad();
+      confidence = result.confidence();
 
       // Validate based on solver + bad boxes
       isValidShot = result.isValid() && outsideOfBadBoxes;
     }
 
     // --- APPLY FILTERS & CONSTRUCT RETURN RECORD ---
-    if (lastDriveAngle == null) lastDriveAngle = driveAngle;
     if (Double.isNaN(lastHoodAngle)) lastHoodAngle = hoodAngle;
 
     double hoodVelocity =
         hoodAngleFilter.calculate((hoodAngle - lastHoodAngle) / Constants.loopPeriodSecs);
     lastHoodAngle = hoodAngle;
-
-    double driveVelocity =
-        driveAngleFilter.calculate(
-            driveAngle.minus(lastDriveAngle).getRadians() / Constants.loopPeriodSecs);
     lastDriveAngle = driveAngle;
 
     latestParameters =
@@ -268,6 +275,7 @@ public class LaunchCalculator {
             lookaheadLauncherToTargetDistance,
             launcherToTargetDistance,
             timeOfFlight,
+            confidence,
             passing);
 
     // Logging
