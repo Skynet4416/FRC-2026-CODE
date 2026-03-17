@@ -112,7 +112,6 @@ public class RobotContainer {
   private final Alert mechanismControllerDisconnected =
       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
-  private final Trigger disableFlywheelAutoSpinup;
   private final Trigger ignoreHubState;
   // Dashboard inputs
   private final LoggedDashboardChooser<Command> autoChooser;
