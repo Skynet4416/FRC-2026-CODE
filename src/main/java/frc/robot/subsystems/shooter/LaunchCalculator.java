@@ -61,12 +61,14 @@ public class LaunchCalculator {
     shotCalc = new ShotCalculator(config);
 
     // Load your calibration data into the solver
-    shotCalc.loadLUTEntry(1.436259713, 2200.0, 5.0, 1.0);
-    shotCalc.loadLUTEntry(2.056853558, 2500.0, 7.0, 1.0);
-    shotCalc.loadLUTEntry(2.5, 2750.0, 9.0, 1.09);
-    shotCalc.loadLUTEntry(3.0, 2950.0, 15.0, 1.05);
-    shotCalc.loadLUTEntry(3.5, 3400.0, 18.0, 1.0);
-    shotCalc.loadLUTEntry(4.0, 3700.0, 23.0, 1.08);
+    shotCalc.loadLUTEntry(1.436259713, 2200.0, 5.0, 0.6);
+    shotCalc.loadLUTEntry(2.056853558, 2500.0, 7.0, 0.6);
+    shotCalc.loadLUTEntry(2.5, 2750.0, 9.0, 6.5);
+    shotCalc.loadLUTEntry(3.0, 3150.0, 15.0, 0.7);
+    shotCalc.loadLUTEntry(3.5, 3400.0, 18.0, 0.70);
+    shotCalc.loadLUTEntry(4.0, 3700.0, 23.0, 0.85);
+    shotCalc.loadLUTEntry(4.5, 4500.0, 26.0, 1.0);
+    shotCalc.loadLUTEntry(5.0, 4800.0, 29.0, 1.2);
   }
 
   public static LaunchCalculator getInstance() {
@@ -92,7 +94,7 @@ public class LaunchCalculator {
   private LaunchingParameters latestParameters = null;
 
   private static final double minDistance = 0.25;
-  private static final double maxDistance = 5.7;
+  private static final double maxDistance = 10;
   private static final double passingMinDistance = 0.0;
   private static final double passingMaxDistance = 12.0;
   private static final double phaseDelay = 0.03;

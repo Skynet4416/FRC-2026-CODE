@@ -55,6 +55,7 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
+import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -145,8 +146,8 @@ public class RobotContainer {
         vision =
             new Vision(
                 drive,
-                new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
-                new VisionIOLimelight(VisionConstants.camera1Name, drive::getRotation));
+                new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation, 30), // r
+                new VisionIOLimelight(VisionConstants.camera1Name, drive::getRotation, 30)); // l
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
@@ -415,14 +416,14 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    // flywheelSubsystem.setDefaultCommand(
-    //     new ContinuousConditionalCommand(
-    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-    //         flywheelSubsystem.runAtSpeedRPMCommand(
-    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-    //         disableFlywheelAutoSpinup));
+    flywheelSubsystem.setDefaultCommand(
+        new ContinuousConditionalCommand(
+            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+            flywheelSubsystem.runAtSpeedRPMCommand(
+                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+            disableFlywheelAutoSpinup));
 
-    flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
+    // flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));

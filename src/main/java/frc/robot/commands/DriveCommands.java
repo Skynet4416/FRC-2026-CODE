@@ -244,6 +244,10 @@ public class DriveCommands {
                       omegaOutput),
                   launcherToRobot.times(1.0 - corScalar),
                   Drive.getInstance().getRotation());
+          Logger.recordOutput(
+              "Shaki drive velocity",
+              ChassisSpeeds.fromFieldRelativeSpeeds(
+                  fieldRelativeSpeedsWithOffset, Drive.getInstance().getRotation()));
           drive.runVelocity(
               ChassisSpeeds.fromFieldRelativeSpeeds(
                   fieldRelativeSpeedsWithOffset, Drive.getInstance().getRotation()));
