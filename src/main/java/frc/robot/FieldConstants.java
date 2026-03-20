@@ -322,6 +322,22 @@ public class FieldConstants {
     }
   }
 
+  public static class FuelPool {
+    // Dimensions
+    public static final double width = Units.inchesToMeters(181.9);
+    public static final double depth = Units.inchesToMeters(71.9);
+
+    // Relevant reference points on alliance side
+    public static final Translation2d nearLeftCorner =
+        new Translation2d(fieldLength / 2.0 - depth / 2.0, fieldWidth / 2.0 + width / 2.0);
+    public static final Translation2d nearRightCorner =
+        new Translation2d(fieldLength / 2.0 - depth / 2.0, fieldWidth / 2.0 - width / 2.0);
+    public static final Translation2d leftCenter =
+        new Translation2d(fieldLength / 2.0, fieldWidth / 2.0 + width / 2.0);
+    public static final Translation2d rightCenter =
+        new Translation2d(fieldLength / 2.0, fieldWidth / 2.0 - width / 2.0);
+  }
+
   public enum AprilTagLayoutType {
     OFFICIAL("2026-official"),
     NONE("2026-none");
