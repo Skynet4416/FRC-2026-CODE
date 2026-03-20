@@ -89,7 +89,8 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
     inputs.setpointRPM = targetRPM;
     inputs.atSetpoint =
         Math.abs(inputs.velocityRPM - targetRPM)
-            <= Constants.Subsystems.Shooter.Flywheel.RPM_TOLERANCE;
+                <= Constants.Subsystems.Shooter.Flywheel.RPM_TOLERANCE
+            && inputs.velocityRPM > 200;
 
     inputs.rotations = leaderMotor.getRotorPosition().getValueAsDouble();
     leaderDisconnected.set(!inputs.connected);
