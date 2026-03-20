@@ -152,7 +152,7 @@ public class LaunchCalculator {
           FieldConstants.LinesHorizontal.leftBumpEnd);
 
   static {
-    minDistance = 0.0;
+    minDistance = 0.25;
     maxDistance = 5.7;
     passingMinDistance = 0.0;
     passingMaxDistance = 1200.0;

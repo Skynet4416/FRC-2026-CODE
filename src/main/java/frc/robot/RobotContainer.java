@@ -598,7 +598,7 @@ public class RobotContainer {
             robotPose.getRotation(), // Assuming launcher faces same direction as robot front
             Meters.of(frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getZ()),
             MetersPerSecond.of(rpm / 6000.0 * 37.0),
-            Radians.of(params.hoodAngle()));
+            Degrees.of(params.hoodAngle()));
 
     // Setup visualizer and callbacks
     Translation2d target2d =
@@ -626,7 +626,7 @@ public class RobotContainer {
                 Logger.recordOutput(
                     "Flywheel/FuelProjectileUnsuccessfulShot",
                     pose3ds.toArray(new edu.wpi.first.math.geometry.Pose3d[0])))
-        .enableBecomesGamePieceOnFieldAfterTouchGround();
+        .disableBecomesGamePieceOnFieldAfterTouchGround();
 
     SimulatedArena.getInstance().addGamePieceProjectile(fuelOnFly);
   }
