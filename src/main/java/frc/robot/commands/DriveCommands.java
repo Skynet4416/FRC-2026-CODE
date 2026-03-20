@@ -276,6 +276,7 @@ public class DriveCommands {
               "DriveCommands/Launching/SetpointPose",
               new Pose2d(Drive.getInstance().getPose().getTranslation(), parameters.driveAngle()));
           Logger.recordOutput("DriveCommands/Launching/AtGoalTolerance", atLaunchGoal());
+          Logger.recordOutput("DriveCommands/Launching/ShotConfidence", parameters.confidence());
           Logger.recordOutput(
               "DriveCommands/Launching/ErrorPosition",
               parameters.driveAngle().minus(Drive.getInstance().getRotation()));

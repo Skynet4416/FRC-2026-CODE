@@ -93,6 +93,11 @@ public class RobotContainer {
   private static final LoggedTunableNumber maxOmegaScalar =
       new LoggedTunableNumber("Drive/MaxOmegaScalar", 0.8);
 
+  // Value between 0 - 100 that determines how reliable the SOTM solution must be
+  // (based on solver convergence, velocity stability, vision, heading, and distance)
+  // before the robot is allowed to fire.
+  private static final LoggedTunableNumber minShootingConfidence =
+      new LoggedTunableNumber("LaunchCalculator/MinShootingConfidence", 80.0);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
@@ -352,6 +357,10 @@ public class RobotContainer {
 
     Trigger readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
+            .and(
+                () ->
+                    LaunchCalculator.getInstance().getParameters().confidence()
+                        >= minShootingConfidence.get())
             .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
