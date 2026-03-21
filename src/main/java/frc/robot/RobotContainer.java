@@ -407,8 +407,8 @@ public class RobotContainer {
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
 
-    driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    driveController.L1().onTrue(Commands.runOnce(() -> leftIntake.setLowered(true), leftIntake));
+    driveController.R1().onTrue(Commands.runOnce(() -> rightIntake.setLowered(true), rightIntake));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
@@ -682,6 +682,15 @@ public class RobotContainer {
 
                 // Run path 1 and stop
                 trench.cmd().finallyDo(() -> drive.stopWithX()),
+
+                // Shoot for 5 seconds
+                Commands.parallel(
+                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
+                        flywheelSubsystem.runTrackTargetCommand(),
+                        hoodSubsystem.runTrackTargetCommand())
+                    .withTimeout(5.0),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
 
                 // Run path 2 and stop
                 trench.cmd().finallyDo(() -> drive.stopWithX())));

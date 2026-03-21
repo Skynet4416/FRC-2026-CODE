@@ -65,8 +65,9 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
 
     config.MotorOutput.Inverted =
         side == IntakeSubsystem.IntakeSide.LEFT
-            ? InvertedValue.Clockwise_Positive
-            : InvertedValue.CounterClockwise_Positive; // Default
+            ? InvertedValue.CounterClockwise_Positive
+            : InvertedValue.Clockwise_Positive; // Default
+
     config.MotorOutput.NeutralMode =
         Constants.Subsystems.Intake.ROLLER_BREAK ? NeutralModeValue.Brake : NeutralModeValue.Coast;
 
