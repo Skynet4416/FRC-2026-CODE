@@ -313,6 +313,21 @@ public class RobotContainer {
         flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
     autoChooser.addOption("Choreo Test", testAuto());
     // Configure the button bindings
+
+    autoChooser.onChange(
+        (listener -> {
+          // Pose2d[] poses = Choreo.loadTrajectory(listener.getName()).get().getPoses();
+          //     double[] arr = new double[poses.length * 3];
+          //     int ndx = 0;
+          //     for (Pose2d pose : poses) {
+          //       Translation2d translation = AllianceFlipUtil.apply(pose.getTranslation());
+          //       arr[ndx + 0] = translation.getX();
+          //       arr[ndx + 1] = translation.getY();
+          //       arr[ndx + 2] = AllianceFlipUtil.apply(pose.getRotation()).getDegrees();
+          //       ndx += 3;
+          //     }
+          //     Logger.recordOutput("Choreo/Trajectory", arr);
+        }));
     configureButtonBindings();
   }
 
@@ -651,6 +666,7 @@ public class RobotContainer {
   public Command testAuto() {
     return Commands.sequence(
         autoFactory.resetOdometry("left_trench"), //
+        new TrajCommnd(autoFactory, "left_trench", drive),
         new TrajCommnd(autoFactory, "left_trench", drive));
   }
 }

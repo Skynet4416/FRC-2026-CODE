@@ -74,8 +74,8 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
               Math.hypot(TunerConstants.BackLeft.LocationX, TunerConstants.BackLeft.LocationY),
               Math.hypot(TunerConstants.BackRight.LocationX, TunerConstants.BackRight.LocationY)));
 
-  private static final double DriveKP = 10;
-  private static final double RotationKP = 5;
+  private static final double DriveKP = 2;
+  private static final double RotationKP = 1;
 
   private final PPHolonomicDriveController drivePID =
       new PPHolonomicDriveController(
