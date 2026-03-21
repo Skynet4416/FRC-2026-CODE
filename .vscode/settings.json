@@ -64,6 +64,29 @@
   ],
   "java.dependency.enableDependencyCheckup": false,
   "editor.defaultFormatter": "richardwillis.vscode-spotless-gradle",
+  "terminal.integrated.env.windows": {
+    "JAVA_TOOL_OPTIONS": "-Dfile.encoding=UTF-8"
+  },
+  "terminal.integrated.profiles.windows": {
+    "PowerShell": {
+      "source": "PowerShell",
+      "args": [
+        "-NoExit",
+        "-Command",
+        "$OutputEncoding = [System.Text.Encoding]::UTF8; [Console]::OutputEncoding = [System.Text.Encoding]::UTF8"
+      ]
+    },
+    "Command Prompt": {
+      "path": [
+        "cmd.exe"
+      ],
+      "args": [
+        "/K",
+        "chcp 65001"
+      ],
+      "icon": "terminal-cmd"
+    }
+  },
   "[json]": {
     "editor.defaultFormatter": "richardwillis.vscode-spotless-gradle"
   },

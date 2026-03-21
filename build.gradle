@@ -137,6 +137,10 @@ tasks.withType(JavaCompile) {
     options.compilerArgs.add '-XDstringConcat=inline'
     options.encoding = 'UTF-8'
 }
+
+tasks.withType(JavaExec) {
+    systemProperty "file.encoding", "UTF-8"
+}
 // Generate drive trajectories when building (only if disableHAL is true)
 task(generateDriveTrajectories, dependsOn: "classes", type: JavaExec) {
     mainClass = "frc.robot.util.vts.GenerateTrajectories"
