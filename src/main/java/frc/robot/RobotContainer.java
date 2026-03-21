@@ -14,8 +14,12 @@ import choreo.auto.AutoFactory;
 import choreo.auto.AutoRoutine;
 import choreo.auto.AutoTrajectory;
 import com.pathplanner.lib.auto.AutoBuilder;
+
+import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
+import edu.wpi.first.math.geometry.Rotation3d;
+import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
@@ -39,6 +43,7 @@ import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.intake.IntakeSubsystemIO;
 import frc.robot.subsystems.intake.IntakeSubsystemIOSim;
 import frc.robot.subsystems.intake.IntakeSubsystemIOTalonFX;
+import frc.robot.subsystems.shooter.FuelPhysicsSim;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystemIO;
@@ -65,7 +70,6 @@ import frc.robot.util.geometry.AllianceFlipUtil;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
-import org.ironmaple.simulation.seasonspecific.rebuilt2026.RebuiltFuelOnFly;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -96,9 +100,17 @@ public class RobotContainer {
   // control the robot's rotation. Should be a value between 0 and 1.
   private static final LoggedTunableNumber maxOmegaScalar =
       new LoggedTunableNumber("Drive/MaxOmegaScalar", 0.8);
+
+  // Value between 0 - 100 that determines how reliable the SOTM solution must be
+  // (based on solver convergence, velocity stability, vision, heading, and distance)
+  // before the robot is allowed to fire.
+  private static final LoggedTunableNumber minShootingConfidence =
+      new LoggedTunableNumber("LaunchCalculator/MinShootingConfidence", 80.0);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
+  private final FuelPhysicsSim ballSim = new FuelPhysicsSim("Sim/Fuel");
+
   // Controllers
   private final CommandPS5Controller driveController = new CommandPS5Controller(0);
   private SwerveDriveSimulation driveSimulation = null;
@@ -147,8 +159,13 @@ public class RobotContainer {
         vision =
             new Vision(
                 drive,
-                new VisionIOLimelight(VisionConstants.camera0Name, drive::getRotation),
-                new VisionIOLimelight(VisionConstants.camera1Name, drive::getRotation));
+                new VisionIOLimelight(
+                    VisionConstants.camera0Name, drive::getRotation, new Transform3d()), // r
+                new VisionIOLimelight(
+                    VisionConstants.camera1Name,
+                    drive::getRotation,
+                    new Transform3d(
+                        0, 0.25, 0, new Rotation3d(0, 0, Units.degreesToRadians(-11))))); // l
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
@@ -206,6 +223,9 @@ public class RobotContainer {
                 new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.RIGHT),
                 IntakeSubsystem.IntakeSide.RIGHT);
         compressor = null;
+
+        ballSim.enable();
+        // ballSim.placeFieldBalls();
         break;
 
       default:
@@ -376,8 +396,12 @@ public class RobotContainer {
 
     Trigger readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean());
-    // .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+            .and(
+                () ->
+                    LaunchCalculator.getInstance().getParameters().confidence()
+                        >= minShootingConfidence.get())
+            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
         .R2()
@@ -394,10 +418,12 @@ public class RobotContainer {
         .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
-                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)));
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
+                Commands.repeatingSequence(
+                    Commands.waitSeconds(0.25),
+                    Commands.runOnce(this::launchSimulatedProjectile))));
 
     // Test specific button for simulated launch
-    driveController.povUp().onTrue(Commands.runOnce(this::launchSimulatedProjectile));
 
     // Switch to X pattern when X button is pressed
     // driveController.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
@@ -425,16 +451,18 @@ public class RobotContainer {
             spindexerSubsystem,
             shooterIndexerSubsystem));
 
-    // // Reset gyro to 0° when B button is pressed
-    // driveController
-    //     .circle()
-    //     .onTrue(
-    //         Commands.runOnce(
-    //                 () ->
-    //                     drive.resetOdometry(
-    //                         new Pose2d(drive.getPose().getTranslation(), Rotation2d.kZero)),
-    //                 drive)
-    //             .ignoringDisable(true));
+    // Reset gyro to 0° when B button is pressed
+    driveController
+        .circle()
+        .onTrue(
+            Commands.runOnce(
+                    () ->
+                        drive.resetOdometry(
+                            new Pose2d(
+                                drive.getPose().getTranslation(),
+                                AllianceFlipUtil.apply(Rotation2d.kZero))),
+                    drive)
+                .ignoringDisable(true));
 
     flywheelSubsystem.setDefaultCommand(
         new ContinuousConditionalCommand(
@@ -586,73 +614,14 @@ public class RobotContainer {
     }
   }
 
-  private void launchSimulatedProjectile() {
-    if (Constants.currentMode != Constants.Mode.SIM || driveSimulation == null) {
-      return;
-    }
-
-    var params = LaunchCalculator.getInstance().getParameters();
-    if (params == null || !params.isValid()) {
-      return;
-    }
-
-    Pose2d robotPose = driveSimulation.getSimulatedDriveTrainPose();
-    double rpm = Units.radiansPerSecondToRotationsPerMinute(params.flywheelSpeed());
-
-    // Field relative chassis speeds
-    var chassisSpeeds = drive.getChassisSpeeds();
-    var fieldRelativeSpeeds =
-        edu.wpi.first.math.kinematics.ChassisSpeeds.fromRobotRelativeSpeeds(
-            chassisSpeeds, robotPose.getRotation());
-
-    RebuiltFuelOnFly fuelOnFly =
-        new RebuiltFuelOnFly(
-            robotPose.getTranslation(),
-            new edu.wpi.first.math.geometry.Translation2d(
-                frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getX(),
-                frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getY()),
-            fieldRelativeSpeeds,
-            robotPose.getRotation(), // Assuming launcher faces same direction as robot front
-            Meters.of(frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getZ()),
-            MetersPerSecond.of(rpm / 6000.0 * 37.0),
-            Degrees.of(params.hoodAngle()));
-
-    // Setup visualizer and callbacks
-    Translation2d target2d =
-        params.passing()
-            ? LaunchCalculator.getInstance().getPassingTarget()
-            : frc.robot.util.geometry.AllianceFlipUtil.apply(
-                FieldConstants.Hub.topCenterPoint.toTranslation2d());
-
-    fuelOnFly
-        .withTargetPosition(
-            () ->
-                new edu.wpi.first.math.geometry.Translation3d(
-                    target2d.getX(),
-                    target2d.getY(),
-                    params.passing()
-                        ? 0.0
-                        : FieldConstants.Hub.topCenterPoint.getZ())) // Based on FieldConstants
-        .withTargetTolerance(new edu.wpi.first.math.geometry.Translation3d(0.5, 1.2, 0.3))
-        .withProjectileTrajectoryDisplayCallBack(
-            (pose3ds) ->
-                Logger.recordOutput(
-                    "Flywheel/FuelProjectileSuccessfulShot",
-                    pose3ds.toArray(new edu.wpi.first.math.geometry.Pose3d[0])),
-            (pose3ds) ->
-                Logger.recordOutput(
-                    "Flywheel/FuelProjectileUnsuccessfulShot",
-                    pose3ds.toArray(new edu.wpi.first.math.geometry.Pose3d[0])))
-        .disableBecomesGamePieceOnFieldAfterTouchGround();
-
-    SimulatedArena.getInstance().addGamePieceProjectile(fuelOnFly);
-  }
-
   public void resetSimulation() {
     if (Constants.currentMode != Constants.Mode.SIM) return;
 
-    drive.resetOdometry(new Pose2d(3, 3, new Rotation2d()));
+    drive.resetOdometry(new Pose2d(4.3, 7.643, Rotation2d.fromDegrees(-85)));
     SimulatedArena.getInstance().resetFieldForAuto();
+    ballSim.clearBalls();
+    // ballSim.placeFieldBalls();
+    ballSim.resetCounters();
   }
 
   public void updateSimulation() {
@@ -661,8 +630,93 @@ public class RobotContainer {
     SimulatedArena.getInstance().simulationPeriodic();
     Logger.recordOutput(
         "FieldSimulation/RobotPosition", driveSimulation.getSimulatedDriveTrainPose());
-    Logger.recordOutput(
-        "FieldSimulation/Fuel", SimulatedArena.getInstance().getGamePiecesArrayByType("Fuel"));
+
+    ballSim.configureRobot(
+        0.7,
+        0.7,
+        0.15, // width, length, bumperH (approximate values)
+        drive::getPose,
+        drive::getChassisSpeeds);
+    ballSim.tick();
+  }
+
+  private void launchSimulatedProjectile() {
+    if (Constants.currentMode != Constants.Mode.SIM) return;
+
+    var params = LaunchCalculator.getInstance().getParameters();
+    if (params == null || !params.isValid()) return;
+
+    Pose2d robotPose = drive.getPose();
+    Rotation2d actualDriveAngle = drive.getRotation();
+
+    // 1. Calculate launcher position in 3D space
+    Translation2d launcherPos2d =
+        robotPose
+            .getTranslation()
+            .plus(
+                frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher
+                    .getTranslation()
+                    .toTranslation2d()
+                    .rotateBy(actualDriveAngle));
+
+    double launcherZ = frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getZ();
+    edu.wpi.first.math.geometry.Translation3d launcherPos =
+        new edu.wpi.first.math.geometry.Translation3d(
+            launcherPos2d.getX(), launcherPos2d.getY(), launcherZ);
+
+    // 2. Real-World Exit Velocity (Forward Kinematics)
+    // The ball's speed relative to the robot depends strictly on RPM and slip factor.
+    double rpm = params.flywheelSpeed();
+    double wheelDiameterMeters = 0.1524; // 6 inches
+    double slipFactor = 0.4; // The true slip factor we derived
+    double exitSpeed = slipFactor * (rpm * Math.PI * wheelDiameterMeters) / 60.0;
+
+    // 3. Convert scalar speed to a 3D vector relative to the robot
+    // Note: Hood angle parameter is assumed to be elevation from horizontal.
+    // If it's from vertical, adjust as: (Math.PI / 2.0) - (baseHoodRad + params.hoodAngle())
+    double baseHoodRad = edu.wpi.first.math.util.Units.degreesToRadians(12.5);
+    double launchRad = (Math.PI / 2.0) - (baseHoodRad + params.hoodAngle());
+
+    double ballRobotRelativeVx = exitSpeed * Math.cos(launchRad);
+    double ballRobotRelativeVy = 0.0;
+    double ballRobotRelativeVz = exitSpeed * Math.sin(launchRad);
+
+    // 4. Rotate to Field Frame based on the robot's physical heading
+    double ballFieldVx =
+        ballRobotRelativeVx * actualDriveAngle.getCos()
+            - ballRobotRelativeVy * actualDriveAngle.getSin();
+    double ballFieldVy =
+        ballRobotRelativeVx * actualDriveAngle.getSin()
+            + ballRobotRelativeVy * actualDriveAngle.getCos();
+
+    // 5. INHERIT ROBOT MOMENTUM (The part the CD thread missed)
+    var robotSpeeds = drive.getChassisSpeeds();
+    double launcherOffsetX = frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getX();
+    double launcherOffsetY = frc.robot.subsystems.shooter.LauncherConstants.robotToLauncher.getY();
+
+    // Tangential velocity (v = w x r) + Translational velocity
+    double launcherRobotRelativeVx =
+        robotSpeeds.vxMetersPerSecond - (robotSpeeds.omegaRadiansPerSecond * launcherOffsetY);
+    double launcherRobotRelativeVy =
+        robotSpeeds.vyMetersPerSecond + (robotSpeeds.omegaRadiansPerSecond * launcherOffsetX);
+
+    // Rotate launcher velocity to field frame
+    double launcherFieldVx =
+        launcherRobotRelativeVx * actualDriveAngle.getCos()
+            - launcherRobotRelativeVy * actualDriveAngle.getSin();
+    double launcherFieldVy =
+        launcherRobotRelativeVx * actualDriveAngle.getSin()
+            + launcherRobotRelativeVy * actualDriveAngle.getCos();
+
+    // 6. Final absolute velocity = Ball exit velocity + Launcher velocity
+    double finalVx = ballFieldVx + launcherFieldVx;
+    double finalVy = ballFieldVy + launcherFieldVy;
+    double finalVz = ballRobotRelativeVz;
+
+    edu.wpi.first.math.geometry.Translation3d launchVelocity =
+        new edu.wpi.first.math.geometry.Translation3d(finalVx, finalVy, finalVz);
+
+    ballSim.launchBall(launcherPos, launchVelocity, rpm);
   }
 
   public Command testAuto() {
