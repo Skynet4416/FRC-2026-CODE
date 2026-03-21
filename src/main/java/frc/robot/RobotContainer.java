@@ -747,18 +747,18 @@ public class RobotContainer {
                     .withTimeout(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
-                trench.cmd().finallyDo(() -> drive.stopWithX())),
-            Commands.parallel(
-                    DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
-                    flywheelSubsystem.runTrackTargetCommand(),
-                    hoodSubsystem.runTrackTargetCommand(),
-                    Commands.repeatingSequence(
-                        Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
-                        new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
-                            .until(() -> !readyToShoot.getAsBoolean())))
-                .withTimeout(5.0),
-            Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
-                .withTimeout(0.2));
+                trench.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
+                        flywheelSubsystem.runTrackTargetCommand(),
+                        hoodSubsystem.runTrackTargetCommand(),
+                        Commands.repeatingSequence(
+                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
+                                .until(() -> !readyToShoot.getAsBoolean())))
+                    .withTimeout(5.0),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2)));
 
     return routine.cmd();
   }
