@@ -734,7 +734,7 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
-                trench.resetOdometry(),
+                // trench.resetOdometry(),
                 trench.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
                         DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
