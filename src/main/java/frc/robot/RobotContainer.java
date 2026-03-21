@@ -637,7 +637,7 @@ public class RobotContainer {
     // The ball's speed relative to the robot depends strictly on RPM and slip factor.
     double rpm = params.flywheelSpeed();
     double wheelDiameterMeters = 0.1524; // 6 inches
-    double slipFactor = 0.244; // The true slip factor we derived
+    double slipFactor = 0.4; // The true slip factor we derived
     double exitSpeed = slipFactor * (rpm * Math.PI * wheelDiameterMeters) / 60.0;
 
     // 3. Convert scalar speed to a 3D vector relative to the robot
