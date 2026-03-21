@@ -184,9 +184,9 @@ public class GeomUtil {
       ChassisSpeeds velocity, Translation2d transform, Rotation2d currentRotation) {
     return new ChassisSpeeds(
         velocity.vxMetersPerSecond
-            + velocity.omegaRadiansPerSecond
-                * (transform.getY() * currentRotation.getCos()
-                    - transform.getX() * currentRotation.getSin()),
+            - velocity.omegaRadiansPerSecond
+                * (transform.getX() * currentRotation.getSin()
+                    + transform.getY() * currentRotation.getCos()),
         velocity.vyMetersPerSecond
             + velocity.omegaRadiansPerSecond
                 * (transform.getX() * currentRotation.getCos()

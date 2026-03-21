@@ -143,7 +143,7 @@ gversion {
     classPackage = "frc.robot"
     className    = "BuildConstants"
     dateFormat   = "yyyy-MM-dd HH:mm:ss z"
-    timeZone     = "America/New_York"
+    timeZone     = "Asia/Jerusalem"
     indent       = "  "
 }
 
@@ -185,8 +185,8 @@ project.compileJava.dependsOn(spotlessApply)
 spotless {
     java {
         target fileTree(".") {
-            include "**/*.java"
-            exclude "**/build/**", "**/build-*/**"
+            include "src/**/*.java"
+            exclude "**/build/**", "**/build-*/**", "src/main/java/frc/robot/BuildConstants.java"
         }
         toggleOffOn()
         googleJavaFormat()
