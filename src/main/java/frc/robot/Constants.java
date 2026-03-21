@@ -15,16 +15,24 @@ import edu.wpi.first.wpilibj.RobotBase;
  * (log replay from a file).
  */
 public final class Constants {
+  // Disables hardware stuff
+  public static boolean disableHAL = true;
+
+  public static void disableHAL() {
+    disableHAL = true;
+  }
+
   public static final Mode simMode = Mode.SIM;
-  public static final Mode currentMode = RobotBase.isReal() ? Mode.REAL : simMode;
+  public static final Mode currentMode =
+      disableHAL ? Mode.SIM : (RobotBase.isReal() ? Mode.REAL : simMode);
   public static final RobotType robot = RobotType.COMPBOT;
   public static final boolean tuningMode = true;
   public static final double loopPeriodSecs = 0.02;
 
-  // Disables hardware stuff
-  public static boolean disableHAL = false;
-
   public static Mode getMode() {
+    if (disableHAL) {
+      return Mode.SIM;
+    }
     return switch (robot) {
       case COMPBOT, ALPHABOT -> RobotBase.isReal() ? Mode.REAL : Mode.REPLAY;
       case SIMBOT -> Mode.SIM;

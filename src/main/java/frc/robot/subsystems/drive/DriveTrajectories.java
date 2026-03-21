@@ -158,62 +158,62 @@ public class DriveTrajectories {
             .stopAtEnd(false)
             .build());
 
-    // Launch --> Neutral Zone
-    paths.put(
-        "launchLeftBumpToNeutralZone",
-        PathRequest.builder()
-            .segments(
-                PathRequestSegment.builder()
-                    .waypoints(
-                        // Starting launch pose
-                        PathWaypoint.from(Launch.leftBump).build(),
-                        // Just before bump
-                        PathWaypoint.from(
-                                new Pose2d(
-                                    FieldConstants.LinesVertical.starting
-                                        - DriveConstants.fullWidthX / 2.0,
-                                    FieldConstants.LinesHorizontal.leftBumpMiddle,
-                                    Rotation2d.kZero))
-                            .build(),
-                        // Beginning of fuel pool
-                        PathWaypoint.from(
-                                new Pose2d(
-                                    FieldConstants.LinesVertical.neutralZoneNear + 2.0,
-                                    FieldConstants.LinesHorizontal.leftBumpMiddle,
-                                    Rotation2d.kZero))
-                            .build())
-                    .build())
-            .stopAtStart(false)
-            .stopAtEnd(false)
-            .build());
+    // // Launch --> Neutral Zone
+    // paths.put(
+    //     "launchLeftBumpToNeutralZone",
+    //     PathRequest.builder()
+    //         .segments(
+    //             PathRequestSegment.builder()
+    //                 .waypoints(
+    //                     // Starting launch pose
+    //                     PathWaypoint.from(Launch.leftBump).build(),
+    //                     // Just before bump
+    //                     PathWaypoint.from(
+    //                             new Pose2d(
+    //                                 FieldConstants.LinesVertical.starting
+    //                                     - DriveConstants.fullWidthX / 2.0,
+    //                                 FieldConstants.LinesHorizontal.leftBumpMiddle,
+    //                                 Rotation2d.kZero))
+    //                         .build(),
+    //                     // Beginning of fuel pool
+    //                     PathWaypoint.from(
+    //                             new Pose2d(
+    //                                 FieldConstants.LinesVertical.neutralZoneNear + 2.0,
+    //                                 FieldConstants.LinesHorizontal.leftBumpMiddle,
+    //                                 Rotation2d.kZero))
+    //                         .build())
+    //                 .build())
+    //         .stopAtStart(false)
+    //         .stopAtEnd(false)
+    //         .build());
 
-    paths.put(
-        "launchRightBumpToNeutralZone",
-        PathRequest.builder()
-            .segments(
-                PathRequestSegment.builder()
-                    .waypoints(
-                        // Starting launch pose
-                        PathWaypoint.from(Launch.rightBump).build(),
-                        // Just before bump
-                        PathWaypoint.from(
-                                new Pose2d(
-                                    FieldConstants.LinesVertical.starting
-                                        - DriveConstants.fullWidthX / 2.0,
-                                    FieldConstants.LinesHorizontal.rightBumpMiddle,
-                                    Rotation2d.kZero))
-                            .build(),
-                        // Beginning of fuel pool
-                        PathWaypoint.from(
-                                new Pose2d(
-                                    FieldConstants.LinesVertical.neutralZoneNear + 2.0,
-                                    FieldConstants.LinesHorizontal.rightBumpMiddle,
-                                    Rotation2d.kZero))
-                            .build())
-                    .build())
-            .stopAtStart(false)
-            .stopAtEnd(false)
-            .build());
+    // paths.put(
+    //     "launchRightBumpToNeutralZone",
+    //     PathRequest.builder()
+    //         .segments(
+    //             PathRequestSegment.builder()
+    //                 .waypoints(
+    //                     // Starting launch pose
+    //                     PathWaypoint.from(Launch.rightBump).build(),
+    //                     // Just before bump
+    //                     PathWaypoint.from(
+    //                             new Pose2d(
+    //                                 FieldConstants.LinesVertical.starting
+    //                                     - DriveConstants.fullWidthX / 2.0,
+    //                                 FieldConstants.LinesHorizontal.rightBumpMiddle,
+    //                                 Rotation2d.kZero))
+    //                         .build(),
+    //                     // Beginning of fuel pool
+    //                     PathWaypoint.from(
+    //                             new Pose2d(
+    //                                 FieldConstants.LinesVertical.neutralZoneNear + 2.0,
+    //                                 FieldConstants.LinesHorizontal.rightBumpMiddle,
+    //                                 Rotation2d.kZero))
+    //                         .build())
+    //                 .build())
+    //         .stopAtStart(false)
+    //         .stopAtEnd(false)
+    //         .build());
 
     paths.put(
         "launchLeftTowerToNeutralZone",

@@ -1,0 +1,85 @@
+{
+  "name" : "VTS",
+  "version" : 2,
+  "hashcode" : "e5b2c908e5c28f06c516ba93d4fdd3ea81c138776644d05060212745e8417ebf",
+  "type" : "Swerve",
+  "variables" : {
+    "expressions" : { },
+    "poses" : { }
+  },
+  "config" : {
+    "frontLeft" : {
+      "x" : {
+        "exp" : "0.269875 m",
+        "val" : 0.269875
+      },
+      "y" : {
+        "exp" : "0.28257499999999997 m",
+        "val" : 0.28257499999999997
+      }
+    },
+    "backLeft" : {
+      "x" : {
+        "exp" : "-0.269875 m",
+        "val" : -0.269875
+      },
+      "y" : {
+        "exp" : "0.28257499999999997 m",
+        "val" : 0.28257499999999997
+      }
+    },
+    "mass" : {
+      "exp" : "68.0388 kg",
+      "val" : 68.0388
+    },
+    "inertia" : {
+      "exp" : "6.0 kg m ^ 2",
+      "val" : 6.0
+    },
+    "gearing" : {
+      "exp" : "7.03125",
+      "val" : 7.03125
+    },
+    "radius" : {
+      "exp" : "0.0508 m",
+      "val" : 0.0508
+    },
+    "vmax" : {
+      "exp" : "553.6417322834645 rad / s",
+      "val" : 553.6417322834645
+    },
+    "tmax" : {
+      "exp" : "0.4266666666666667 N * m",
+      "val" : 0.4266666666666667
+    },
+    "cof" : {
+      "exp" : "1.5",
+      "val" : 1.5
+    },
+    "bumper" : {
+      "front" : {
+        "exp" : "0.43179999999999996 m",
+        "val" : 0.43179999999999996
+      },
+      "side" : {
+        "exp" : "0.4191 m",
+        "val" : 0.4191
+      },
+      "back" : {
+        "exp" : "0.43179999999999996 m",
+        "val" : 0.43179999999999996
+      }
+    },
+    "differentialTrackWidth" : {
+      "exp" : "0.5651499999999999 m",
+      "val" : 0.5651499999999999
+    }
+  },
+  "generationFeatures" : [ ],
+  "codegen" : {
+    "root" : null,
+    "genVars" : true,
+    "genTrajData" : true,
+    "useChoreoLib" : true
+  }
+}

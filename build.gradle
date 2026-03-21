@@ -137,6 +137,19 @@ tasks.withType(JavaCompile) {
     options.compilerArgs.add '-XDstringConcat=inline'
     options.encoding = 'UTF-8'
 }
+// Generate drive trajectories when building (only if disableHAL is true)
+task(generateDriveTrajectories, dependsOn: "classes", type: JavaExec) {
+    mainClass = "frc.robot.util.vts.GenerateTrajectories"
+    classpath = sourceSets.main.runtimeClasspath
+    doFirst {
+        file("src/main/deploy/vts").mkdirs()
+    }
+    onlyIf {
+        def constantsFile = file("src/main/java/frc/robot/Constants.java")
+        constantsFile.exists() && constantsFile.text.contains("public static boolean disableHAL = true;")
+    }
+}
+compileJava.finalizedBy generateDriveTrajectories
 
 // Create version file
 project.compileJava.dependsOn(createVersionFile)
@@ -199,7 +212,7 @@ spotless {
     groovyGradle {
         target fileTree(".") {
             include "**/*.gradle"
-            exclude "**/build/**", "**/build-*/**"
+            exclude "**/build/**", "**/build-*/**", "MA_working_build.gradle"
         }
         greclipse()
         indentWithSpaces(4)
