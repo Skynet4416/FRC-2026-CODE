@@ -11,6 +11,8 @@ import static edu.wpi.first.units.Units.*;
 import static frc.robot.subsystems.vision.VisionConstants.*;
 
 import choreo.auto.AutoFactory;
+import choreo.auto.AutoRoutine;
+import choreo.auto.AutoTrajectory;
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -31,7 +33,6 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.commands.RunBothIndexersCommand;
-import frc.robot.commands.TrajCommnd;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
@@ -235,13 +236,14 @@ public class RobotContainer {
 
     autoFactory =
         new AutoFactory(
-            drive::getPose, // A function that returns the current robot pose
-            drive::resetOdometry, // A function that resets the current robot pose to the
-            // provided Pose2d
-            drive::followTrajectory, // The drive subsystem trajectory follower
-            true, // If alliance flipping should be enabled
-            drive // The drive subsystem
-            );
+                drive::getPose, // A function that returns the current robot pose
+                drive::resetOdometry, // A function that resets the current robot pose to the
+                // provided Pose2d
+                drive::followTrajectory, // The drive subsystem trajectory follower
+                true, // If alliance flipping should be enabled
+                drive // The drive subsystem
+                )
+            .bind("IntakeOpen", Commands.runOnce(() -> leftIntake.setLowered(true), leftIntake));
 
     inConfusionZone =
         new Trigger(
@@ -551,7 +553,7 @@ public class RobotContainer {
 
   private IntakeSubsystem.IntakeSide getDesiredIntakeSide(IntakeSubsystem.IntakeSide bumperSide) {
     Rotation2d rotation = AllianceFlipUtil.apply(drive.getPose().getRotation());
-    if (!inConfusionZone.getAsBoolean()) {
+    if (!inConfusionZone.getAsBoolean() || DriverStation.isAutonomous()) {
       // OUT OF CONFUSION ZONE -> Use bumper field-relative logic
       boolean facingBackwards = Math.abs(rotation.getDegrees()) > 90.0;
       boolean isLeftBumper = bumperSide == IntakeSubsystem.IntakeSide.LEFT;
@@ -664,9 +666,27 @@ public class RobotContainer {
   }
 
   public Command testAuto() {
-    return Commands.sequence(
-        autoFactory.resetOdometry("left_trench"), //
-        new TrajCommnd(autoFactory, "left_trench", drive),
-        new TrajCommnd(autoFactory, "left_trench", drive));
+    // 1. Create the routine (This is required for .bind to be active)
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    // 2. Load the trajectory
+    AutoTrajectory trench = routine.trajectory("left_trench");
+
+    // 3. Build the sequence using the raw WPILib commands
+    // We use .finallyDo() to keep your stopWithX() logic without breaking the triggers
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                trench.resetOdometry(),
+
+                // Run path 1 and stop
+                trench.cmd().finallyDo(() -> drive.stopWithX()),
+
+                // Run path 2 and stop
+                trench.cmd().finallyDo(() -> drive.stopWithX())));
+
+    // 4. Return the routine as a command
+    return routine.cmd();
   }
 }
