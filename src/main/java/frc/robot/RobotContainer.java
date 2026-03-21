@@ -390,7 +390,7 @@ public class RobotContainer {
         new Trigger(
             () ->
                 hoodSubsystem.atSetpoint()
-                    // && flywheelSubsystem.atSetpoint()
+                    && flywheelSubsystem.atSetpoint()
                     && DriveCommands.atLaunchGoal());
 
     Trigger readyToShoot =
@@ -413,7 +413,7 @@ public class RobotContainer {
     //     .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
 
     driveController
-        .L2()
+        .R2()
         .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
@@ -432,8 +432,8 @@ public class RobotContainer {
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
 
-    driveController.L1().onTrue(Commands.runOnce(() -> leftIntake.setLowered(true), leftIntake));
-    driveController.R1().onTrue(Commands.runOnce(() -> rightIntake.setLowered(true), rightIntake));
+    driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
@@ -585,7 +585,7 @@ public class RobotContainer {
       boolean facingBackwards = Math.abs(rotation.getDegrees()) > 90.0;
       boolean isLeftBumper = bumperSide == IntakeSubsystem.IntakeSide.LEFT;
       boolean wantsLeft = isLeftBumper ? !facingBackwards : facingBackwards;
-      return !wantsLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
+      return wantsLeft ? IntakeSubsystem.IntakeSide.LEFT : IntakeSubsystem.IntakeSide.RIGHT;
     }
 
     // IN CONFUSION ZONE -> Use velocity vector (bumper choice doesn't matter)
