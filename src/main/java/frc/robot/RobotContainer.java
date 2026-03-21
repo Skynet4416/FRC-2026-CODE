@@ -69,6 +69,7 @@ import frc.robot.util.geometry.AllianceFlipUtil;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
+import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -136,6 +137,7 @@ public class RobotContainer {
   private final Trigger inConfusionZone;
   private final Trigger leftIntakeLowered;
   private final Trigger rightIntakeLowered;
+  private Trigger readyToShoot;
 
   // Cached state for confusion zone stationary fallback
   private double lastKnownForwardBackwardJoystick = 0.0;
@@ -393,7 +395,7 @@ public class RobotContainer {
                     && flywheelSubsystem.atSetpoint()
                     && DriveCommands.atLaunchGoal());
 
-    Trigger readyToShoot =
+    this.readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
             .and(
                 () ->
@@ -718,37 +720,46 @@ public class RobotContainer {
     ballSim.launchBall(launcherPos, launchVelocity, rpm);
   }
 
+  @AutoLogOutput
+  public boolean readyToShoot() {
+    return readyToShoot.getAsBoolean();
+  }
+
   public Command testAuto() {
-    // 1. Create the routine (This is required for .bind to be active)
     AutoRoutine routine = autoFactory.newRoutine("testAuto");
 
-    // 2. Load the trajectory
     AutoTrajectory trench = routine.trajectory("left_trench");
 
-    // 3. Build the sequence using the raw WPILib commands
-    // We use .finallyDo() to keep your stopWithX() logic without breaking the triggers
     routine
         .active()
         .onTrue(
             Commands.sequence(
                 trench.resetOdometry(),
-
-                // Run path 1 and stop
                 trench.cmd().finallyDo(() -> drive.stopWithX()),
-
-                // Shoot for 5 seconds
                 Commands.parallel(
                         DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
                         flywheelSubsystem.runTrackTargetCommand(),
-                        hoodSubsystem.runTrackTargetCommand())
+                        hoodSubsystem.runTrackTargetCommand(),
+                        Commands.repeatingSequence(
+                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
+                                .until(() -> !readyToShoot.getAsBoolean())))
                     .withTimeout(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
+                trench.cmd().finallyDo(() -> drive.stopWithX())),
+            Commands.parallel(
+                    DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
+                    flywheelSubsystem.runTrackTargetCommand(),
+                    hoodSubsystem.runTrackTargetCommand(),
+                    Commands.repeatingSequence(
+                        Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                        new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
+                            .until(() -> !readyToShoot.getAsBoolean())))
+                .withTimeout(5.0),
+            Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                .withTimeout(0.2));
 
-                // Run path 2 and stop
-                trench.cmd().finallyDo(() -> drive.stopWithX())));
-
-    // 4. Return the routine as a command
     return routine.cmd();
   }
 }
