@@ -37,7 +37,7 @@ public class HoodSubsystem extends SubsystemBase {
       new LoggedTunableNumber("Hood/Homing/VelocityThreshold", 0.05);
 
   private static final LoggedTunableNumber deadbandDeg =
-      new LoggedTunableNumber("Hood/DeadbandDeg", 1.5);
+      new LoggedTunableNumber("Hood/DeadbandDeg", 0.5);
 
   private final LoggedTunableNumber kP =
       new LoggedTunableNumber("Hood/kP", Constants.Subsystems.Shooter.Hood.ClosedLoop.KP);

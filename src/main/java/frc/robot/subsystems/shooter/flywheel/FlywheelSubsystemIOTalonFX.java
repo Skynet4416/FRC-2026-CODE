@@ -12,6 +12,7 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.RGBWColor;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
@@ -21,14 +22,13 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
 
   private final TalonFX leaderMotor;
   private final TalonFX followerMotor;
-  private final CANdle candle = new CANdle(6);
+  private final CANdle candle;
 
   private final VelocityTorqueCurrentFOC velocityRequest = new VelocityTorqueCurrentFOC(0);
   private final VoltageOut voltageRequest = new VoltageOut(0);
 
   private final Alert leaderDisconnected;
   private final Alert followerDisconnected;
-  private final CANdle candle;
 
   SlewRateLimiter rpmLimiter;
 

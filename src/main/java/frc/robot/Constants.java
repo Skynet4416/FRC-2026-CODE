@@ -214,10 +214,8 @@ public final class Constants {
 
       public static class Id {
         public static class Motor {
-          public static final int LEFT_ROLLER = 31;
           public static final int RIGHT_ROLLER = 30;
           public static final int LEFT_ROLLER = 31;
-          public static final int RIGHT_ROLLER = 30;
         }
 
         public static class Pneumatics {
