@@ -199,7 +199,12 @@ public class RobotContainer {
         // Sim robot, instantiate physics sim IO implementations
         driveSimulation =
             new SwerveDriveSimulation(
-                Drive.getMapleSimConfig(), new Pose2d(3, 3, new Rotation2d()));
+                Drive.getMapleSimConfig(),
+                new Pose2d(
+                    AllianceFlipUtil.applyX(3.591),
+                    AllianceFlipUtil.applyY(7.430),
+                    AllianceFlipUtil.apply(Rotation2d.fromDegrees(-90))));
+
         SimulatedArena.getInstance().addDriveTrainSimulation(driveSimulation);
         drive =
             new Drive(
@@ -687,7 +692,11 @@ public class RobotContainer {
   public void resetSimulation() {
     if (Constants.currentMode != Constants.Mode.SIM) return;
 
-    drive.resetOdometry(new Pose2d(4.3, 7.643, Rotation2d.fromDegrees(-85)));
+    drive.resetOdometry(
+        new Pose2d(
+            AllianceFlipUtil.applyX(3.591),
+            AllianceFlipUtil.applyY(7.430),
+            AllianceFlipUtil.apply(Rotation2d.fromDegrees(-90))));
     SimulatedArena.getInstance().resetFieldForAuto();
     ballSim.clearBalls();
     // ballSim.placeFieldBalls();
@@ -802,7 +811,6 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
-                // trench.resetOdometry(),
                 trench.cmd().finallyDo(() -> drive.stopWithX()),
                 autoShoot(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
