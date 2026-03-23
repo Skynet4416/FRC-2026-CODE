@@ -116,7 +116,7 @@ public class RobotContainer {
   // Controllers
   private final CommandPS5Controller driveController = new CommandPS5Controller(0);
   private SwerveDriveSimulation driveSimulation = null;
-
+  private final edu.wpi.first.wpilibj.Timer teleopElapsedTimer = new edu.wpi.first.wpilibj.Timer();
   //   private final CommandPS5Controller mechanismController = new CommandPS5Controller(1);
   private final Alert driverControllerDisconnected =
       new Alert("Driver controller disconnected (port 0).", AlertType.kWarning);
@@ -597,6 +597,60 @@ public class RobotContainer {
             Commands.run(() -> rightIntake.setPercentage(1.0), rightIntake)
                 .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
                 .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
+
+    // ****** RUMBLE ALERTS ******
+
+    // Reset the timer as soon as Teleop starts
+    RobotModeTriggers.teleop().onTrue(Commands.runOnce(teleopElapsedTimer::restart));
+
+    // 1. SHIFT START PULSE
+    // Pulses both sides for 0.4s when a scoring window opens
+    new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().active())
+        .and(RobotModeTriggers.teleop())
+        .onTrue(
+            Commands.runEnd(
+                    () ->
+                        driveController.setRumble(
+                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
+                    () ->
+                        driveController.setRumble(
+                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+                .withTimeout(0.4)
+                .withName("ShiftStartPulse"));
+
+    // 2. SHIFT END COUNTDOWN (5 Seconds)
+    // Pulses the right side at 5, 4, 3, 2, and 1 seconds remaining
+    for (int i = 1; i <= 5; i++) {
+      double countdownTime = i;
+      new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().remainingTime() < countdownTime)
+          .and(RobotModeTriggers.teleop())
+          .and(() -> HubShiftUtil.getShiftedShiftInfo().active())
+          .onTrue(
+              Commands.runEnd(
+                      () ->
+                          driveController.setRumble(
+                              edu.wpi.first.wpilibj.GenericHID.RumbleType.kRightRumble, 1.0),
+                      () ->
+                          driveController.setRumble(
+                              edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+                  .withTimeout(0.2)
+                  .withName("ShiftEndCountdown" + i));
+    }
+
+    // 3. MISSING DATA ALERT
+    // Only rumbles if data is missing AND 1.5 seconds have passed in Teleop
+    RobotModeTriggers.teleop()
+        .and(() -> DriverStation.getGameSpecificMessage().isEmpty())
+        .and(() -> teleopElapsedTimer.hasElapsed(1.5))
+        .whileTrue(
+            Commands.runEnd(
+                    () ->
+                        driveController.setRumble(
+                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
+                    () ->
+                        driveController.setRumble(
+                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+                .withName("MissingDataRumble"));
   }
 
   /** Update dashboard outputs. */
