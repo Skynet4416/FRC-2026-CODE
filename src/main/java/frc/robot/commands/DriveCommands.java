@@ -27,6 +27,7 @@ import frc.robot.FieldConstants;
 import frc.robot.subsystems.drive.Drive;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.LauncherConstants;
+import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.geometry.AllianceFlipUtil;
 import frc.robot.util.geometry.GeomUtil;
@@ -34,17 +35,13 @@ import java.text.DecimalFormat;
 import java.text.NumberFormat;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
 
 public class DriveCommands {
   private static final double DEADBAND = 0.1;
-  // For the joystickDriveAtAngle command
-  private static final double ANGLE_KP = 5.0;
-  private static final double ANGLE_KD = 0.4;
-  private static final double ANGLE_MAX_VELOCITY = 8.0;
-  private static final double ANGLE_MAX_ACCELERATION = 20.0;
   private static final double FF_START_DELAY = 2.0; // Secs
   private static final double FF_RAMP_RATE = 0.1; // Volts/Sec
 
@@ -64,6 +61,51 @@ public class DriveCommands {
       new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMinErrorDeg", 5.0);
   private static final LoggedTunableNumber driveLauncherCORMaxErrorDeg =
       new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMaxErrorDeg", 15.0);
+
+  // Controls the maximum strength of the alignment force (0 to 1).
+  private static final LoggedTunableNumber autoTrenchMaxStrength =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/MaxStrength", Constants.AutoAlignment.Trench.MAX_STRENGTH);
+  // Controls the curve of the alignment force. 1.0 is linear, 2.0+ is exponential.
+  // High values mean you won't feel the pull until you are very close to the target.
+  private static final LoggedTunableNumber autoTrenchExp =
+      new LoggedTunableNumber("DriveCommands/Trench/Exp", Constants.AutoAlignment.Trench.EXP);
+  // How far away (sideways) from the trench line the "magnetic" pull begins.
+  private static final LoggedTunableNumber autoTrenchActivationDistance =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/ActivationDistanceMeters",
+          Constants.AutoAlignment.Trench.THRESHOLD_METERS);
+  // Extends the target line along the field (X-axis). Increasing this makes the alignment
+  // "grab" the robot much earlier as you drive toward the trench from the field.
+  private static final LoggedTunableNumber autoTrenchExtension =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/Extension", Constants.AutoAlignment.Trench.EXTENSION);
+  private static final LoggedTunableNumber autoTrenchInnerSideOffset =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/InnerSideOffset", Constants.AutoAlignment.Trench.INNER_SIDE_OFFSET);
+  private static final LoggedTunableNumber autoTrenchOuterSideOffset =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/OuterSideOffset", Constants.AutoAlignment.Trench.OUTER_SIDE_OFFSET);
+  private static final LoggedTunableNumber autoTrenchYp =
+      new LoggedTunableNumber("DriveCommands/Trench/kP_Y", Constants.AutoAlignment.Trench.KP_Y);
+  private static final LoggedTunableNumber autoTrenchYd =
+      new LoggedTunableNumber("DriveCommands/Trench/kD_Y", Constants.AutoAlignment.Trench.KD_Y);
+  private static final LoggedTunableNumber autoTrenchAngleP =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/kP_Angle", Constants.AutoAlignment.Trench.KP_ANGLE);
+  private static final LoggedTunableNumber autoTrenchAngleD =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/kD_Angle", Constants.AutoAlignment.Trench.KD_ANGLE);
+  private static final LoggedTunableNumber autoTrenchMaxAngleWithIntakesOpen =
+      new LoggedTunableNumber(
+          "DriveCommands/Trench/MaxAngleDeg",
+          Constants.AutoAlignment.Trench.MAX_ANGLE_WITH_INTAKES_OPEN);
+
+  public enum TrenchAlignmentPosition {
+    INNER,
+    MIDDLE,
+    OUTER
+  }
 
   private DriveCommands() {}
 
@@ -310,10 +352,12 @@ public class DriveCommands {
     // Create PID controller
     ProfiledPIDController angleController =
         new ProfiledPIDController(
-            ANGLE_KP,
+            Constants.AutoAlignment.AlignmentCommand.KP,
             0.0,
-            ANGLE_KD,
-            new TrapezoidProfile.Constraints(ANGLE_MAX_VELOCITY, ANGLE_MAX_ACCELERATION));
+            Constants.AutoAlignment.AlignmentCommand.KD,
+            new TrapezoidProfile.Constraints(
+                Constants.AutoAlignment.AlignmentCommand.MAX_VELOCITY,
+                Constants.AutoAlignment.AlignmentCommand.MAX_ACCELERATION));
     angleController.enableContinuousInput(-Math.PI, Math.PI);
     // Construct command
     return Commands.run(
@@ -345,6 +389,195 @@ public class DriveCommands {
 
         // Reset PID controller when command starts
         .beforeStarting(() -> angleController.reset(drive.getRotation().getRadians()));
+  }
+
+  /**
+   * Field relative drive command that automatically centers the robot in the trench while allowing
+   * the driver to control the speed through it.
+   */
+  public static Command autoTrenchAssist(
+      Drive drive,
+      DoubleSupplier xSupplier,
+      DoubleSupplier ySupplier,
+      DoubleSupplier omegaSupplier,
+      DoubleSupplier maxOmegaScalar,
+      BooleanSupplier intakesOpen,
+      Supplier<TrenchAlignmentPosition> positionSupplier) {
+    return new ContinuousConditionalCommand(
+        joystickDrive(drive, xSupplier, ySupplier, omegaSupplier, maxOmegaScalar),
+        trenchAlignDrive(
+            drive, xSupplier, ySupplier, omegaSupplier, maxOmegaScalar, positionSupplier),
+        () ->
+            !Constants.AutoAlignment.Trench.ENABLE
+                || DriverStation.isAutonomous()
+                || (intakesOpen.getAsBoolean()
+                    && Math.abs(AllianceFlipUtil.apply(drive.getRotation()).getDegrees())
+                        > autoTrenchMaxAngleWithIntakesOpen.get()));
+  }
+
+  private static Command trenchAlignDrive(
+      Drive drive,
+      DoubleSupplier xSupplier,
+      DoubleSupplier ySupplier,
+      DoubleSupplier omegaSupplier,
+      DoubleSupplier maxOmegaScalar,
+      Supplier<TrenchAlignmentPosition> positionSupplier) {
+
+    ProfiledPIDController angleController =
+        new ProfiledPIDController(
+            autoTrenchAngleP.get(),
+            0.0,
+            autoTrenchAngleD.get(),
+            new TrapezoidProfile.Constraints(
+                Constants.AutoAlignment.Trench.MAX_VELOCITY,
+                Constants.AutoAlignment.Trench.MAX_ACCELERATION));
+    angleController.enableContinuousInput(-Math.PI, Math.PI);
+
+    ProfiledPIDController yController =
+        new ProfiledPIDController(
+            autoTrenchYp.get(),
+            0.0,
+            autoTrenchYd.get(),
+            new TrapezoidProfile.Constraints(
+                drive.getMaxLinearSpeedMetersPerSec(), drive.getMaxLinearSpeedMetersPerSec() * 2));
+
+    return Commands.run(
+            () -> {
+              // --- 1. State Handling ---
+              boolean isFlipped = AllianceFlipUtil.shouldFlip();
+              Pose2d currentPose = drive.getPose();
+              Rotation2d currentRotation = drive.getRotation();
+              Pose2d flippedPose = AllianceFlipUtil.apply(currentPose);
+
+              // --- 2. Trench Selection & Target Calculation ---
+              // Use flipped pose for consistent trench selection (Blue side perspective)
+              boolean inRightTrench = flippedPose.getY() < FieldConstants.LinesHorizontal.center;
+
+              TrenchAlignmentPosition position = positionSupplier.get();
+              double robotHalfWidth = Units.inchesToMeters(17.407);
+              double innerOffset = autoTrenchInnerSideOffset.get();
+              double outerOffset = autoTrenchOuterSideOffset.get();
+              double targetY;
+              if (inRightTrench) {
+                switch (position) {
+                  case OUTER:
+                    targetY = robotHalfWidth + outerOffset;
+                    break;
+                  case INNER:
+                    targetY =
+                        FieldConstants.LinesHorizontal.rightTrenchOpenStart
+                            - robotHalfWidth
+                            - innerOffset;
+                    break;
+                  default: // MIDDLE
+                    targetY = FieldConstants.LinesHorizontal.rightTrenchOpenStart / 2.0;
+                    break;
+                }
+              } else {
+                switch (position) {
+                  case OUTER:
+                    targetY = FieldConstants.fieldWidth - robotHalfWidth - outerOffset;
+                    break;
+                  case INNER:
+                    targetY =
+                        FieldConstants.LinesHorizontal.leftTrenchOpenEnd
+                            + robotHalfWidth
+                            + innerOffset;
+                    break;
+                  default: // MIDDLE
+                    targetY =
+                        (FieldConstants.LinesHorizontal.leftTrenchOpenEnd
+                                + FieldConstants.fieldWidth)
+                            / 2.0;
+                    break;
+                }
+              }
+
+              Translation2d trenchCenterActual =
+                  AllianceFlipUtil.apply(
+                      new Translation2d(FieldConstants.LinesVertical.hubCenter, targetY));
+              Rotation2d targetRotation =
+                  AllianceFlipUtil.apply(Rotation2d.fromDegrees(inRightTrench ? 90.0 : -90.0));
+
+              // --- 3. Strength Calculation ---
+              double halfLength = (FieldConstants.LeftBump.width / 2.0) + autoTrenchExtension.get();
+              double xDist =
+                  Math.max(
+                      0, Math.abs(currentPose.getX() - trenchCenterActual.getX()) - halfLength);
+              double yDist = Math.abs(currentPose.getY() - trenchCenterActual.getY());
+              double dist = Math.hypot(xDist, yDist);
+
+              double threshold = autoTrenchActivationDistance.get();
+              double maxStr = autoTrenchMaxStrength.get();
+              double exp = autoTrenchExp.get();
+
+              double strength = 0.0;
+              if (dist < threshold) {
+                double base = Math.pow(maxStr, 1.0 / exp);
+                double val = base - base * (dist / threshold);
+                if (val > 0) {
+                  strength = Math.pow(val, exp);
+                }
+              }
+              strength = MathUtil.clamp(strength, 0.0, 1.0);
+
+              // --- 4. PID Calculations & Blending ---
+              // Update PID gains
+              yController.setP(autoTrenchYp.get());
+              yController.setD(autoTrenchYd.get());
+              angleController.setP(autoTrenchAngleP.get());
+              angleController.setD(autoTrenchAngleD.get());
+
+              // Calculate PID outputs
+              double pidFieldY =
+                  yController.calculate(currentPose.getY(), trenchCenterActual.getY());
+              double pidOmega =
+                  angleController.calculate(
+                      currentRotation.getRadians(), targetRotation.getRadians());
+
+              // Driver inputs
+              Translation2d driverLinearVelocity =
+                  getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble())
+                      .times(drive.getMaxLinearSpeedMetersPerSec());
+              if (isFlipped) {
+                driverLinearVelocity = driverLinearVelocity.rotateBy(new Rotation2d(Math.PI));
+              }
+
+              double rawOmega = MathUtil.applyDeadband(omegaSupplier.getAsDouble(), DEADBAND);
+              double driverOmega =
+                  Math.copySign(rawOmega * rawOmega, rawOmega)
+                      * drive.getMaxAngularSpeedRadPerSec()
+                      * maxOmegaScalar.getAsDouble();
+
+              // Blend outputs
+              double blendedFieldY =
+                  driverLinearVelocity.getY() * (1.0 - strength) + pidFieldY * strength;
+              Translation2d blendedFieldVelocity =
+                  new Translation2d(driverLinearVelocity.getX(), blendedFieldY);
+              if (isFlipped) {
+                blendedFieldVelocity = blendedFieldVelocity.rotateBy(new Rotation2d(Math.PI));
+              }
+
+              double blendedOmega = driverOmega * (1.0 - strength) + pidOmega * strength;
+
+              // --- 5. Final Command Output & Logging ---
+              drive.runVelocity(
+                  ChassisSpeeds.fromFieldRelativeSpeeds(
+                      new ChassisSpeeds(
+                          blendedFieldVelocity.getX(), blendedFieldVelocity.getY(), blendedOmega),
+                      isFlipped ? currentRotation.plus(new Rotation2d(Math.PI)) : currentRotation));
+
+              Logger.recordOutput("DriveCommands/Trench/Strength", strength);
+              Logger.recordOutput("DriveCommands/Trench/Distance", dist);
+              Logger.recordOutput(
+                  "AutoAlignment/TargetPose", new Pose2d(trenchCenterActual, targetRotation));
+            },
+            drive)
+        .beforeStarting(
+            () -> {
+              angleController.reset(drive.getRotation().getRadians());
+              yController.reset(drive.getPose().getY());
+            });
   }
 
   /**

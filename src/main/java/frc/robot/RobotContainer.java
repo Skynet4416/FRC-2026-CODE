@@ -130,19 +130,26 @@ public class RobotContainer {
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
   private final LoggedDashboardChooser<Boolean> disableFlywheelAutoSpinupChooser;
   private final LoggedDashboardChooser<Boolean> ignoreHubStateChooser;
+  private final LoggedDashboardChooser<DriveCommands.TrenchAlignmentPosition>
+      trenchAlignmentPositionChooser;
 
   // How much time in seconds to run the wheels when folding
   private static final LoggedTunableNumber intakeRunWheelsWhileFoldingDelay =
       new LoggedTunableNumber("IntakeRunWheelsWhileFoldingDelay", 1.0);
+  private static final LoggedTunableNumber trenchExtension =
+      new LoggedTunableNumber("TrenchExtension", 0.5);
 
   // Triggers
   private final Trigger inConfusionZone;
   private final Trigger leftIntakeLowered;
   private final Trigger rightIntakeLowered;
   private Trigger readyToShoot;
+  private final Trigger autoAlignmentOverride;
 
   // Cached state for confusion zone stationary fallback
   private double lastKnownForwardBackwardJoystick = 0.0;
+
+  private boolean autoAlignmentOverrideState = false;
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -279,6 +286,7 @@ public class RobotContainer {
 
     leftIntakeLowered = new Trigger(leftIntake::isLowered);
     rightIntakeLowered = new Trigger(rightIntake::isLowered);
+    autoAlignmentOverride = new Trigger(() -> autoAlignmentOverrideState);
 
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
@@ -317,6 +325,12 @@ public class RobotContainer {
                         >= minShootingConfidence.get())
             .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+
+    trenchAlignmentPositionChooser = new LoggedDashboardChooser<>("Trench Alignment Position");
+    trenchAlignmentPositionChooser.addDefaultOption(
+        "Middle", DriveCommands.TrenchAlignmentPosition.MIDDLE);
+    trenchAlignmentPositionChooser.addOption("Inner", DriveCommands.TrenchAlignmentPosition.INNER);
+    trenchAlignmentPositionChooser.addOption("Outer", DriveCommands.TrenchAlignmentPosition.OUTER);
 
     // Set up SysId routines
     autoChooser.addOption(
@@ -394,8 +408,27 @@ public class RobotContainer {
     // Drive controls
     DoubleSupplier driverX = () -> -driveController.getLeftY();
     DoubleSupplier driverY = () -> -driveController.getLeftX();
-    DoubleSupplier driverOmega =
-        () -> -driveController.getRightX(); // should be 4 for ds4, 3 for dualsense
+    DoubleSupplier driverOmega = () -> -driveController.getRightX();
+
+    double robotHalfWidth = Units.inchesToMeters(17.407);
+    Trigger nearTrench =
+        new Trigger(
+            () -> {
+              double x = frc.robot.util.geometry.AllianceFlipUtil.applyX(drive.getPose().getX());
+              double y = drive.getPose().getY();
+
+              boolean inTrenchX =
+                  x > (FieldConstants.LeftBump.nearLeftCorner.getX() - trenchExtension.get())
+                      && x < (FieldConstants.LeftBump.farLeftCorner.getX() + trenchExtension.get());
+              boolean inRightTrench =
+                  y > robotHalfWidth
+                      && y < (FieldConstants.LinesHorizontal.rightTrenchOpenStart - robotHalfWidth);
+              boolean inLeftTrench =
+                  y > (FieldConstants.LinesHorizontal.leftTrenchOpenEnd + robotHalfWidth)
+                      && y < (FieldConstants.fieldWidth - robotHalfWidth);
+
+              return inTrenchX && (inRightTrench || inLeftTrench);
+            });
 
     // Default command, normal field-relative drive
     drive.setDefaultCommand(
@@ -410,6 +443,23 @@ public class RobotContainer {
                 () -> -driveController.getLeftY(),
                 () -> -driveController.getLeftX(),
                 () -> Rotation2d.kZero));
+    nearTrench
+        .and(driveController.R2().negate())
+        .and(autoAlignmentOverride.negate())
+        .whileTrue(
+            DriveCommands.autoTrenchAssist(
+                    drive,
+                    driverX,
+                    driverY,
+                    driverOmega,
+                    maxOmegaScalar::get,
+                    () -> leftIntake.isLowered() || rightIntake.isLowered(),
+                    trenchAlignmentPositionChooser::get)
+                .withName("AlignToTrenchCommand"));
+
+    driveController
+        .R3()
+        .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
 
     driveController
         .R2()
@@ -525,6 +575,7 @@ public class RobotContainer {
 
   /** Update dashboard outputs. */
   public void updateDashboardOutputs() {
+    Logger.recordOutput("AutoAlignment/OverrideToggle", autoAlignmentOverrideState);
     // Publish match time
     SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
 
