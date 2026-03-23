@@ -12,6 +12,7 @@ import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import com.ctre.phoenix6.signals.RGBWColor;
+import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
@@ -21,7 +22,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
 
   private final TalonFX leaderMotor;
   private final TalonFX followerMotor;
-  private final CANdle candle = new CANdle(6);
+  private final CANdle candle;
 
   private final VelocityTorqueCurrentFOC velocityRequest = new VelocityTorqueCurrentFOC(0);
   private final VoltageOut voltageRequest = new VoltageOut(0);
@@ -29,11 +30,16 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   private final Alert leaderDisconnected;
   private final Alert followerDisconnected;
 
+  SlewRateLimiter rpmLimiter;
+
   private double targetRPM = 0.0;
 
   public FlywheelSubsystemIOTalonFX() {
     leaderMotor = new TalonFX(Constants.Subsystems.Shooter.Flywheel.Id.LEADER_ID);
     followerMotor = new TalonFX(Constants.Subsystems.Shooter.Flywheel.Id.FOLLOWER_ID);
+    candle = new CANdle(6);
+
+    rpmLimiter = new SlewRateLimiter(5000);
 
     leaderDisconnected = new Alert("Flywheel leader motor disconnected!", AlertType.kWarning);
     followerDisconnected = new Alert("Flywheel follower motor disconnected!", AlertType.kWarning);

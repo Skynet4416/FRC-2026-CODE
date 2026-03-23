@@ -142,9 +142,9 @@ public final class Constants {
 
         public static final class CurrentLimits {
           public static final boolean SUPPLY_ENABLED = true;
-          public static final double SUPPLY_LIMIT_AMPS = 40.0;
-          public static final boolean STATOR_ENABLED = false;
-          public static final double STATOR_LIMIT_AMPS = 0.0;
+          public static final double SUPPLY_LIMIT_AMPS = 80.0;
+          public static final boolean STATOR_ENABLED = true;
+          public static final double STATOR_LIMIT_AMPS = 40.0;
         }
       }
     }
@@ -186,8 +186,8 @@ public final class Constants {
 
         // Stator Limit: Protects the Motor (Prevents Burnout)
         // Keep this HIGH for Shooters to allow fast spin-up.
-        public static final boolean STATOR_ENABLED = false;
-        public static final double STATOR_LIMIT_AMPS = 0.0;
+        public static final boolean STATOR_ENABLED = true;
+        public static final double STATOR_LIMIT_AMPS = 15.0;
       }
     }
 
@@ -203,7 +203,7 @@ public final class Constants {
 
       public static final class CurrentLimits {
         public static final boolean SUPPLY_ENABLED = true;
-        public static final double SUPPLY_LIMIT_AMPS = 40.0;
+        public static final double SUPPLY_LIMIT_AMPS = 30.0;
       }
     }
 
@@ -214,14 +214,13 @@ public final class Constants {
 
       public static class Id {
         public static class Motor {
-          public static final int LEFT_ROLLER = 31;
           public static final int RIGHT_ROLLER = 30;
+          public static final int LEFT_ROLLER = 31;
         }
 
         public static class Pneumatics {
           public static final int LEFT_REVERSE = 1; //
           public static final int LEFT_FORWARDS = 15;
-
           public static final int RIGHT_REVERSE = 2; //
           public static final int RIGHT_FORWARDS = 14;
         }
@@ -246,8 +245,8 @@ public final class Constants {
 
         // Stator Limit: Protects the Motor (Prevents Burnout)
         // Keep this HIGH for Shooters to allow fast spin-up.
-        public static final boolean STATOR_ENABLED = false;
-        public static final double STATOR_LIMIT_AMPS = 0.0;
+        public static final boolean STATOR_ENABLED = true;
+        public static final double STATOR_LIMIT_AMPS = 40.0;
       }
     }
 

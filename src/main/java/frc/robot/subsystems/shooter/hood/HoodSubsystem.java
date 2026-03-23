@@ -28,7 +28,7 @@ public class HoodSubsystem extends SubsystemBase {
 
   private boolean hoodZeroed = false;
 
-  private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 20.0);
+  private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 1.0);
   private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.75);
   public static final LoggedTunableNumber toleranceDeg =
       new LoggedTunableNumber("Hood/ToleranceDeg", 1.0);
@@ -121,10 +121,10 @@ public class HoodSubsystem extends SubsystemBase {
   public void setTargetAngle(double degrees) {
     if (hoodZeroed) {
       if (Math.abs(getAngle() - degrees) <= deadbandDeg.get()) {
+        io.set(0);
         io.stop();
         return;
-      }
-      io.setTargetAngle(degrees);
+      } else io.setTargetAngle(degrees);
     }
   }
 
@@ -194,6 +194,7 @@ public class HoodSubsystem extends SubsystemBase {
   public void zero() {
     io.setAngle(Constants.Subsystems.Shooter.Hood.MIN_ANGLE_DEG);
     hoodZeroed = true;
+    io.set(0);
   }
 
   public boolean isZeroed() {

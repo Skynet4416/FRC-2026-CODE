@@ -115,9 +115,9 @@ public class LaunchCalculator {
       LoggedTunableNumber hoodAngleDeg, LoggedTunableNumber flywheelSpeed) {}
 
   private static final LoggedTunableNumber maxIdleSpeed =
-      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 2000);
+      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 5000);
 
-  private static final double xPassTarget = Units.inchesToMeters(37);
+  private static final double xPassTarget = Units.inchesToMeters(12);
   private static final double yPassTarget = Units.inchesToMeters(65);
 
   // Boxes of bad
@@ -277,7 +277,7 @@ public class LaunchCalculator {
             hoodAngle + Units.degreesToRadians(hoodAngleOffsetDeg),
             hoodVelocity,
             flywheelVelocity,
-            MathUtil.clamp(flywheelVelocity, 0, maxIdleSpeed.get()),
+            MathUtil.clamp(flywheelVelocity / 1.5, 0, maxIdleSpeed.get()),
             lookaheadLauncherToTargetDistance,
             launcherToTargetDistance,
             timeOfFlight,

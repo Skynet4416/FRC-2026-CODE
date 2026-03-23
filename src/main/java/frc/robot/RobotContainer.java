@@ -10,6 +10,9 @@ package frc.robot;
 import static edu.wpi.first.units.Units.*;
 import static frc.robot.subsystems.vision.VisionConstants.*;
 
+import choreo.auto.AutoFactory;
+import choreo.auto.AutoRoutine;
+import choreo.auto.AutoTrajectory;
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
@@ -66,6 +69,7 @@ import frc.robot.util.geometry.AllianceFlipUtil;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
+import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -82,6 +86,7 @@ public class RobotContainer {
   private final IntakeSubsystem leftIntake;
   private final IntakeSubsystem rightIntake;
   private final Compressor compressor;
+  private final AutoFactory autoFactory;
 
   private static final LoggedTunableNumber intakeSwitchDelay =
       new LoggedTunableNumber("IntakeSwitchDelay", 0.5);
@@ -132,6 +137,7 @@ public class RobotContainer {
   private final Trigger inConfusionZone;
   private final Trigger leftIntakeLowered;
   private final Trigger rightIntakeLowered;
+  private Trigger readyToShoot;
 
   // Cached state for confusion zone stationary fallback
   private double lastKnownForwardBackwardJoystick = 0.0;
@@ -249,6 +255,17 @@ public class RobotContainer {
         break;
     }
 
+    autoFactory =
+        new AutoFactory(
+                drive::getPose, // A function that returns the current robot pose
+                drive::resetOdometry, // A function that resets the current robot pose to the
+                // provided Pose2d
+                drive::followTrajectory, // The drive subsystem trajectory follower
+                true, // If alliance flipping should be enabled
+                drive // The drive subsystem
+                )
+            .bind("IntakeOpen", Commands.runOnce(() -> leftIntake.setLowered(true), leftIntake));
+
     inConfusionZone =
         new Trigger(
             () -> {
@@ -317,8 +334,23 @@ public class RobotContainer {
     autoChooser.addOption(
         "Flywheel SysId (Dynamic Reverse)",
         flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-
+    autoChooser.addOption("Choreo Test", testAuto());
     // Configure the button bindings
+
+    autoChooser.onChange(
+        (listener -> {
+          // Pose2d[] poses = Choreo.loadTrajectory(listener.getName()).get().getPoses();
+          //     double[] arr = new double[poses.length * 3];
+          //     int ndx = 0;
+          //     for (Pose2d pose : poses) {
+          //       Translation2d translation = AllianceFlipUtil.apply(pose.getTranslation());
+          //       arr[ndx + 0] = translation.getX();
+          //       arr[ndx + 1] = translation.getY();
+          //       arr[ndx + 2] = AllianceFlipUtil.apply(pose.getRotation()).getDegrees();
+          //       ndx += 3;
+          //     }
+          //     Logger.recordOutput("Choreo/Trajectory", arr);
+        }));
     configureButtonBindings();
   }
 
@@ -363,7 +395,7 @@ public class RobotContainer {
                     && flywheelSubsystem.atSetpoint()
                     && DriveCommands.atLaunchGoal());
 
-    Trigger readyToShoot =
+    this.readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
             .and(
                 () ->
@@ -550,7 +582,7 @@ public class RobotContainer {
 
   private IntakeSubsystem.IntakeSide getDesiredIntakeSide(IntakeSubsystem.IntakeSide bumperSide) {
     Rotation2d rotation = AllianceFlipUtil.apply(drive.getPose().getRotation());
-    if (!inConfusionZone.getAsBoolean()) {
+    if (!inConfusionZone.getAsBoolean() || DriverStation.isAutonomous()) {
       // OUT OF CONFUSION ZONE -> Use bumper field-relative logic
       boolean facingBackwards = Math.abs(rotation.getDegrees()) > 90.0;
       boolean isLeftBumper = bumperSide == IntakeSubsystem.IntakeSide.LEFT;
@@ -686,5 +718,48 @@ public class RobotContainer {
         new edu.wpi.first.math.geometry.Translation3d(finalVx, finalVy, finalVz);
 
     ballSim.launchBall(launcherPos, launchVelocity, rpm);
+  }
+
+  @AutoLogOutput
+  public boolean readyToShoot() {
+    return readyToShoot.getAsBoolean();
+  }
+
+  public Command testAuto() {
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    AutoTrajectory trench = routine.trajectory("left_trench");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                // trench.resetOdometry(),
+                trench.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
+                        flywheelSubsystem.runTrackTargetCommand(),
+                        hoodSubsystem.runTrackTargetCommand(),
+                        Commands.repeatingSequence(
+                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
+                                .until(() -> !readyToShoot.getAsBoolean())))
+                    .withTimeout(5.0),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                trench.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
+                        flywheelSubsystem.runTrackTargetCommand(),
+                        hoodSubsystem.runTrackTargetCommand(),
+                        Commands.repeatingSequence(
+                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
+                                .until(() -> !readyToShoot.getAsBoolean())))
+                    .withTimeout(5.0),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2)));
+
+    return routine.cmd();
   }
 }

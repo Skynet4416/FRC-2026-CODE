@@ -9,6 +9,7 @@ package frc.robot.subsystems.drive;
 
 import static edu.wpi.first.units.Units.*;
 
+import choreo.trajectory.SwerveSample;
 import com.pathplanner.lib.auto.AutoBuilder;
 import com.pathplanner.lib.config.ModuleConfig;
 import com.pathplanner.lib.config.PIDConstants;
@@ -20,6 +21,7 @@ import edu.wpi.first.hal.FRCNetComm.tInstances;
 import edu.wpi.first.hal.FRCNetComm.tResourceType;
 import edu.wpi.first.hal.HAL;
 import edu.wpi.first.math.Matrix;
+import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.estimator.SwerveDrivePoseEstimator;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
@@ -32,6 +34,7 @@ import edu.wpi.first.math.kinematics.SwerveModuleState;
 import edu.wpi.first.math.numbers.N1;
 import edu.wpi.first.math.numbers.N3;
 import edu.wpi.first.math.system.plant.DCMotor;
+import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
 import edu.wpi.first.wpilibj.DriverStation;
@@ -71,8 +74,19 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
               Math.hypot(TunerConstants.BackLeft.LocationX, TunerConstants.BackLeft.LocationY),
               Math.hypot(TunerConstants.BackRight.LocationX, TunerConstants.BackRight.LocationY)));
 
+  private static final double DriveKP = 2;
+  private static final double RotationKP = 1;
+
+  private final PPHolonomicDriveController drivePID =
+      new PPHolonomicDriveController(
+          new PIDConstants(DriveKP, 0.0, 0.0), new PIDConstants(RotationKP, 0.0, 0.0));
+
+  private final PIDController m_pathXController = new PIDController(DriveKP, 0, 0);
+  private final PIDController m_pathYController = new PIDController(DriveKP, 0, 0);
+  private final PIDController m_pathThetaController = new PIDController(RotationKP, 0, 0);
+
   // PathPlanner config constants
-  private static final double ROBOT_MASS_KG = 52;
+  private static final double ROBOT_MASS_KG = 65.0;
   private static final double ROBOT_MOI = 6.883;
   private static final double WHEEL_COF = 1.2;
   private static final RobotConfig PP_CONFIG =
@@ -152,6 +166,9 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
     modules[2] = new Module(blModuleIO, 2, TunerConstants.BackLeft);
     modules[3] = new Module(brModuleIO, 3, TunerConstants.BackRight);
 
+    m_pathThetaController.enableContinuousInput(-Math.PI, Math.PI);
+    m_pathThetaController.setTolerance(Units.degreesToRadians(1.5));
+
     // Usage reporting for swerve template
     HAL.report(tResourceType.kResourceType_RobotDrive, tInstances.kRobotDriveSwerve_AdvantageKit);
 
@@ -164,8 +181,7 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
         this::resetOdometry,
         this::getChassisSpeeds,
         this::runVelocity,
-        new PPHolonomicDriveController(
-            new PIDConstants(5.0, 0.0, 0.0), new PIDConstants(5.0, 0.0, 0.0)),
+        drivePID,
         PP_CONFIG,
         () -> DriverStation.getAlliance().orElse(Alliance.Blue) == Alliance.Red,
         this);
@@ -432,8 +448,29 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
 
   /** Resets the current odometry pose. */
   public void resetOdometry(Pose2d pose) {
-    resetSimulationPoseCallBack.accept(pose);
-    poseEstimator.resetPosition(rawGyroRotation, getModulePositions(), pose);
+    poseEstimator.resetPose(pose);
+  }
+
+  public void followTrajectory(SwerveSample target) {
+    // Get the current pose of the robot
+    Pose2d pose = getPose();
+    Pose2d targetPose = target.getPose();
+
+    // Generate the next speeds for the robot
+    ChassisSpeeds speeds =
+        ChassisSpeeds.fromFieldRelativeSpeeds(
+            target.vx + m_pathXController.calculate(pose.getX(), targetPose.getX()),
+            target.vy + m_pathYController.calculate(pose.getY(), targetPose.getY()),
+            target.omega
+                + m_pathThetaController.calculate(pose.getRotation().getRadians(), target.heading),
+            getRotation());
+
+    Logger.recordOutput("Choreo/RobotAngle", getRotation());
+    Logger.recordOutput("Choreo/TargetPose", targetPose);
+    Logger.recordOutput("Choreo/CurrentPose", pose);
+
+    // Apply the generated speeds
+    runVelocity(speeds);
   }
 
   /** Adds a new timestamped vision measurement. */
