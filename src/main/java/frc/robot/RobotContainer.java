@@ -68,6 +68,7 @@ import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
 import frc.robot.util.geometry.AllianceFlipUtil;
+import java.util.Optional;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
@@ -120,6 +121,7 @@ public class RobotContainer {
   //   private final CommandPS5Controller mechanismController = new CommandPS5Controller(1);
   private final Alert driverControllerDisconnected =
       new Alert("Driver controller disconnected (port 0).", AlertType.kWarning);
+  private final Alert autoWinnerNotSet = new Alert("!!! AUTO WINNER NOT SET !!!", AlertType.kError);
   //   private final Alert mechanismControllerDisconnected =
   //       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
@@ -130,6 +132,7 @@ public class RobotContainer {
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
   private final LoggedDashboardChooser<Boolean> disableFlywheelAutoSpinupChooser;
   private final LoggedDashboardChooser<Boolean> ignoreHubStateChooser;
+  private final LoggedDashboardChooser<String> allianceWinOverrideChooser;
   private final LoggedDashboardChooser<DriveCommands.TrenchAlignmentPosition>
       trenchAlignmentPositionChooser;
 
@@ -307,8 +310,23 @@ public class RobotContainer {
     ignoreHubStateChooser.addOption("Yes", true);
     ignoreHubStateChooser.addDefaultOption("No", false);
 
+    allianceWinOverrideChooser = new LoggedDashboardChooser<>("Alliance Win Override");
+    allianceWinOverrideChooser.addDefaultOption("None", "None");
+    allianceWinOverrideChooser.addOption("Won", "Won");
+    allianceWinOverrideChooser.addOption("Lost", "Lost");
+
     disableFlywheelAutoSpinup = new Trigger(disableFlywheelAutoSpinupChooser::get);
     ignoreHubState = new Trigger(ignoreHubStateChooser::get);
+
+    HubShiftUtil.setAllianceWinOverride(
+        () -> {
+          String dashValue = allianceWinOverrideChooser.get();
+          if (dashValue != null) {
+            if (dashValue.equals("Won")) return Optional.of(true);
+            if (dashValue.equals("Lost")) return Optional.of(false);
+          }
+          return Optional.empty();
+        });
     Trigger hubActiveOrPassing =
         new Trigger(
             () ->
@@ -651,7 +669,9 @@ public class RobotContainer {
                     () ->
                         driveController.setRumble(
                             edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
-                .withName("MissingDataRumble"));
+                .withName("MissingDataRumble"))
+        .whileTrue(
+            Commands.startEnd(() -> autoWinnerNotSet.set(true), () -> autoWinnerNotSet.set(false)));
   }
 
   /** Update dashboard outputs. */
