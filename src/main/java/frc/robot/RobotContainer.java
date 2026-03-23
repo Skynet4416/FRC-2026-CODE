@@ -19,8 +19,6 @@ import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
-import edu.wpi.first.math.geometry.Rotation3d;
-import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
@@ -44,7 +42,6 @@ import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.intake.IntakeSubsystemIO;
 import frc.robot.subsystems.intake.IntakeSubsystemIOSim;
 import frc.robot.subsystems.intake.IntakeSubsystemIOTalonFX;
-import frc.robot.subsystems.shooter.FuelPhysicsSim;
 import frc.robot.subsystems.shooter.FuelPhysicsSim;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
@@ -109,17 +106,9 @@ public class RobotContainer {
   // before the robot is allowed to fire.
   private static final LoggedTunableNumber minShootingConfidence =
       new LoggedTunableNumber("LaunchCalculator/MinShootingConfidence", 80.0);
-
-  // Value between 0 - 100 that determines how reliable the SOTM solution must be
-  // (based on solver convergence, velocity stability, vision, heading, and distance)
-  // before the robot is allowed to fire.
-  private static final LoggedTunableNumber minShootingConfidence =
-      new LoggedTunableNumber("LaunchCalculator/MinShootingConfidence", 80.0);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
-  private final FuelPhysicsSim ballSim = new FuelPhysicsSim("Sim/Fuel");
-
   private final FuelPhysicsSim ballSim = new FuelPhysicsSim("Sim/Fuel");
 
   // Controllers
@@ -171,13 +160,6 @@ public class RobotContainer {
         vision =
             new Vision(
                 drive,
-                new VisionIOLimelight(
-                    VisionConstants.camera0Name, drive::getRotation, new Transform3d()), // r
-                new VisionIOLimelight(
-                    VisionConstants.camera1Name,
-                    drive::getRotation,
-                    new Transform3d(
-                        0, 0.25, 0, new Rotation3d(0, 0, Units.degreesToRadians(-11))))); // l
                 new VisionIOLimelight(
                     VisionConstants.camera0Name, drive::getRotation, new Transform3d()), // r
                 new VisionIOLimelight(
@@ -242,9 +224,6 @@ public class RobotContainer {
                 new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.RIGHT),
                 IntakeSubsystem.IntakeSide.RIGHT);
         compressor = null;
-
-        ballSim.enable();
-        // ballSim.placeFieldBalls();
 
         ballSim.enable();
         // ballSim.placeFieldBalls();

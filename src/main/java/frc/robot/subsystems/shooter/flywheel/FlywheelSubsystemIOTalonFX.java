@@ -4,10 +4,8 @@ import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.SolidColor;
-import com.ctre.phoenix6.controls.SolidColor;
 import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
-import com.ctre.phoenix6.hardware.CANdle;
 import com.ctre.phoenix6.hardware.CANdle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
@@ -86,7 +84,6 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   @Override
   public void updateInputs(FlywheelIOInputs inputs) {
     inputs.velocityRPM = leaderMotor.getVelocity().getValueAsDouble() * 60.0;
-    inputs.velocityRPM = leaderMotor.getVelocity().getValueAsDouble() * 60.0;
 
     inputs.appliedVolts = leaderMotor.getMotorVoltage().getValueAsDouble();
 
@@ -100,8 +97,6 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
         Math.abs(inputs.velocityRPM - targetRPM)
                 <= Constants.Subsystems.Shooter.Flywheel.RPM_TOLERANCE
             && inputs.velocityRPM > 200;
-                <= Constants.Subsystems.Shooter.Flywheel.RPM_TOLERANCE
-            && inputs.velocityRPM > 200;
 
     inputs.rotations = leaderMotor.getRotorPosition().getValueAsDouble();
     leaderDisconnected.set(!inputs.connected);
@@ -111,17 +106,10 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
     candle.setControl(
         new SolidColor(0, 64)
             .withColor(new RGBWColor((int) ((1 - charge) * 255), (int) (charge * 255), 0)));
-
-    double charge = (leaderMotor.getSupplyVoltage().getValueAsDouble() - 8) / 4.0;
-    candle.setControl(
-        new SolidColor(0, 64)
-            .withColor(new RGBWColor((int) ((1 - charge) * 255), (int) (charge * 255), 0)));
   }
 
   @Override
   public void setTargetRPM(double rpm) {
-    targetRPM = rpm * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
-    double targetMotorRPS = (targetRPM / 60.0);
     targetRPM = rpm * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
     double targetMotorRPS = (targetRPM / 60.0);
     leaderMotor.setControl(velocityRequest.withVelocity(targetMotorRPS));
