@@ -44,6 +44,8 @@ import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.intake.IntakeSubsystemIO;
 import frc.robot.subsystems.intake.IntakeSubsystemIOSim;
 import frc.robot.subsystems.intake.IntakeSubsystemIOTalonFX;
+import frc.robot.subsystems.leds.LedSubsystem;
+import frc.robot.subsystems.leds.ledSubsystemIOCandle;
 import frc.robot.subsystems.shooter.FuelPhysicsSim;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
@@ -87,6 +89,7 @@ public class RobotContainer {
   private final Drive drive;
   private final IntakeSubsystem leftIntake;
   private final IntakeSubsystem rightIntake;
+  private final LedSubsystem ledSubsystem;
   private final Compressor compressor;
   private final AutoFactory autoFactory;
 
@@ -153,6 +156,8 @@ public class RobotContainer {
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
+    ledSubsystem = new LedSubsystem(new ledSubsystemIOCandle());
+
     switch (Constants.currentMode) {
       case REAL:
         // Real robot, instantiate hardware IO implementations
@@ -438,6 +443,7 @@ public class RobotContainer {
     // Default command, normal field-relative drive
     drive.setDefaultCommand(
         DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega, maxOmegaScalar::get));
+    // ledSubsystem.setDefaultCommand(Commands.run(ledSubsystem::SetIdle));
 
     // Lock to 0 when A button is held
     driveController
@@ -492,6 +498,11 @@ public class RobotContainer {
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand())
+        .whileTrue(
+            Commands.run(
+                () -> {
+                  ledSubsystem.SetAiming();
+                }))
         .onFalse(
             Commands.deadline(
                 Commands.waitSeconds(1.0),
@@ -508,8 +519,11 @@ public class RobotContainer {
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0),
                 Commands.repeatingSequence(
-                    Commands.waitSeconds(0.25),
-                    Commands.runOnce(this::launchSimulatedProjectile))));
+                    Commands.waitSeconds(0.25), Commands.runOnce(this::launchSimulatedProjectile)),
+                Commands.run(
+                    () -> {
+                      ledSubsystem.SetShooting();
+                    })));
 
     // Test specific button for simulated launch
 

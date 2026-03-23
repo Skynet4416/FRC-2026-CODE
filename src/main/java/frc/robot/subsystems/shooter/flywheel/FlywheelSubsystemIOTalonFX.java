@@ -3,15 +3,12 @@ package frc.robot.subsystems.shooter.flywheel;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
-import com.ctre.phoenix6.controls.SolidColor;
 import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
-import com.ctre.phoenix6.hardware.CANdle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
-import com.ctre.phoenix6.signals.RGBWColor;
 import edu.wpi.first.math.filter.SlewRateLimiter;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
@@ -22,7 +19,6 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
 
   private final TalonFX leaderMotor;
   private final TalonFX followerMotor;
-  private final CANdle candle;
 
   private final VelocityTorqueCurrentFOC velocityRequest = new VelocityTorqueCurrentFOC(0);
   private final VoltageOut voltageRequest = new VoltageOut(0);
@@ -37,7 +33,6 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
   public FlywheelSubsystemIOTalonFX() {
     leaderMotor = new TalonFX(Constants.Subsystems.Shooter.Flywheel.Id.LEADER_ID);
     followerMotor = new TalonFX(Constants.Subsystems.Shooter.Flywheel.Id.FOLLOWER_ID);
-    candle = new CANdle(6);
 
     rpmLimiter = new SlewRateLimiter(5000);
 
@@ -101,11 +96,6 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
     inputs.rotations = leaderMotor.getRotorPosition().getValueAsDouble();
     leaderDisconnected.set(!inputs.connected);
     followerDisconnected.set(!followerMotor.isConnected());
-
-    double charge = (leaderMotor.getSupplyVoltage().getValueAsDouble() - 8) / 4.0;
-    candle.setControl(
-        new SolidColor(0, 64)
-            .withColor(new RGBWColor((int) ((1 - charge) * 255), (int) (charge * 255), 0)));
   }
 
   @Override
