@@ -175,7 +175,7 @@ public class RobotContainer {
                     VisionConstants.camera1Name,
                     drive::getRotation,
                     new Transform3d(
-                        0, 0.25, 0, new Rotation3d(0, 0, Units.degreesToRadians(-11))))); // l
+                        0, 0.0, 0, new Rotation3d(0, 0, Units.degreesToRadians(0))))); // l
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOTalonFX());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOTalonFX());
@@ -465,12 +465,37 @@ public class RobotContainer {
     driveController
         .R3()
         .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
+    Trigger hubActiveOrPassing =
+        new Trigger(
+            () ->
+                HubShiftUtil.getShiftedShiftInfo().active()
+                    || LaunchCalculator.getInstance().getParameters().passing());
+
+    Trigger inLaunchingTolerance =
+        new Trigger(
+            () ->
+                hoodSubsystem.atSetpoint()
+                    && flywheelSubsystem.atSetpoint()
+                    && DriveCommands.atLaunchGoal());
+
+    this.readyToShoot =
+        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
+            .and(
+                () ->
+                    LaunchCalculator.getInstance().getParameters().confidence()
+                        >= minShootingConfidence.get())
+            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
         .R2()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
-        .whileTrue(hoodSubsystem.runTrackTargetCommand());
+        .whileTrue(hoodSubsystem.runTrackTargetCommand())
+        .onFalse(
+            Commands.deadline(
+                Commands.waitSeconds(1.0),
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.5)));
 
     // driveController
     //     .cross()
@@ -481,7 +506,7 @@ public class RobotContainer {
         .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
-                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem),
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0),
                 Commands.repeatingSequence(
                     Commands.waitSeconds(0.25),
                     Commands.runOnce(this::launchSimulatedProjectile))));
@@ -503,16 +528,12 @@ public class RobotContainer {
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
     SmartDashboard.putData(
         "Run both Indexers",
-        new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
+        new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0));
     SmartDashboard.putData(
-        "Stop both Indexers",
-        Commands.runOnce(
-            () -> {
-              spindexerSubsystem.stop();
-              shooterIndexerSubsystem.stop();
-            },
-            spindexerSubsystem,
-            shooterIndexerSubsystem));
+        "Invert both Indexers",
+        Commands.deadline(
+            Commands.waitSeconds(1.0),
+            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -1.0)));
 
     // Reset gyro to 0° when B button is pressed
     driveController
@@ -627,7 +648,7 @@ public class RobotContainer {
                   desired == IntakeSubsystem.IntakeSide.LEFT ? leftIntake : rightIntake;
               IntakeSubsystem other =
                   desired == IntakeSubsystem.IntakeSide.LEFT ? rightIntake : leftIntake;
-
+              ;
               if (target.isLowered()) {
                 // Target already open → toggle it closed
                 return Commands.runOnce(() -> target.setLowered(false));
@@ -805,18 +826,39 @@ public class RobotContainer {
 
   public Command testAuto() {
     AutoRoutine routine = autoFactory.newRoutine("testAuto");
-    AutoTrajectory trench = routine.trajectory("left_trench");
+
+    AutoTrajectory trenchShallowIntake = routine.trajectory("left_trench_Shallow_Intake");
+    AutoTrajectory trenchDeepIntake = routine.trajectory("left_trench_Deep_Intake");
 
     routine
         .active()
         .onTrue(
             Commands.sequence(
-                trench.cmd().finallyDo(() -> drive.stopWithX()),
-                autoShoot(5.0),
+                // trench.resetOdometry(),
+                trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
+                        flywheelSubsystem.runTrackTargetCommand(),
+                        hoodSubsystem.runTrackTargetCommand(),
+                        Commands.repeatingSequence(
+                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                            new RunBothIndexersCommand(
+                                    spindexerSubsystem, shooterIndexerSubsystem, 1.0)
+                                .until(() -> !readyToShoot.getAsBoolean())))
+                    .withTimeout(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
-                trench.cmd().finallyDo(() -> drive.stopWithX()),
-                autoShoot(5.0),
+                trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
+                        flywheelSubsystem.runTrackTargetCommand(),
+                        hoodSubsystem.runTrackTargetCommand(),
+                        Commands.repeatingSequence(
+                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                            new RunBothIndexersCommand(
+                                    spindexerSubsystem, shooterIndexerSubsystem, 1.0)
+                                .until(() -> !readyToShoot.getAsBoolean())))
+                    .withTimeout(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2)));
 
@@ -836,7 +878,7 @@ public class RobotContainer {
             hoodSubsystem.runTrackTargetCommand(),
             Commands.repeatingSequence(
                 Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
-                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0)
                     .until(() -> !readyToShoot.getAsBoolean())),
             Commands.repeatingSequence(
                 Commands.waitSeconds(0.25),

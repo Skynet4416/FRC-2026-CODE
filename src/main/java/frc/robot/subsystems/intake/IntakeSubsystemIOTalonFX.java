@@ -57,6 +57,8 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
         Constants.Subsystems.Intake.CurrentLimits.SUPPLY_ENABLED;
     config.CurrentLimits.SupplyCurrentLimit =
         Constants.Subsystems.Intake.CurrentLimits.SUPPLY_LIMIT_AMPS;
+    config.CurrentLimits.SupplyCurrentLowerTime = 1.0;
+    config.CurrentLimits.SupplyCurrentLowerLimit = 10.0;
 
     config.CurrentLimits.StatorCurrentLimitEnable =
         Constants.Subsystems.Intake.CurrentLimits.STATOR_ENABLED;
@@ -95,13 +97,13 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
     this.requestedPercentage = 0.0;
-    motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
+    // motor.setControl(velocityRequest.withVelocity(rpm / 60.0));
   }
 
   @Override
   public void setVoltage(double volts) {
     this.requestedPercentage = 0.0;
-    motor.setControl(voltageRequest.withOutput(volts));
+    // motor.setControl(voltageRequest.withOutput(volts));
   }
 
   @Override
@@ -117,7 +119,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
 
   @Override
   public void stop() {
-    setVoltage(0);
+    motor.set(0);
     this.currentSetpoint = 0.0;
     this.requestedPercentage = 0.0;
   }
