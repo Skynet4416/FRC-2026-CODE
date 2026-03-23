@@ -63,7 +63,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void setTargetRPM(double rpm) {
-    io.setTargetRPM(rpm * frc.robot.Constants.Subsystems.Intake.GEAR_RATIO);
+    io.setTargetRPM(rpm);
   }
 
   public double getTargetRPM() {
@@ -75,7 +75,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public double getVelocityRPM() {
-    return inputs.velocityRPM / frc.robot.Constants.Subsystems.Intake.GEAR_RATIO;
+    return inputs.velocityRPM;
   }
 
   public double getAppliedVolts() {
