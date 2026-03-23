@@ -117,11 +117,11 @@ public class RobotContainer {
   private final CommandPS5Controller driveController = new CommandPS5Controller(0);
   private SwerveDriveSimulation driveSimulation = null;
 
-  private final CommandPS5Controller mechanismController = new CommandPS5Controller(1);
+  //   private final CommandPS5Controller mechanismController = new CommandPS5Controller(1);
   private final Alert driverControllerDisconnected =
       new Alert("Driver controller disconnected (port 0).", AlertType.kWarning);
-  private final Alert mechanismControllerDisconnected =
-      new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
+  //   private final Alert mechanismControllerDisconnected =
+  //       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
 
   private final Trigger disableFlywheelAutoSpinup;
   private final Trigger ignoreHubState;
@@ -587,8 +587,8 @@ public class RobotContainer {
     // Controller disconnected alerts
     driverControllerDisconnected.set(
         !DriverStation.isJoystickConnected(driveController.getHID().getPort()));
-    mechanismControllerDisconnected.set(
-        !DriverStation.isJoystickConnected(mechanismController.getHID().getPort()));
+    // mechanismControllerDisconnected.set(
+    //     !DriverStation.isJoystickConnected(mechanismController.getHID().getPort()));
 
     double currentVY = -driveController.getLeftY();
     if (Math.abs(currentVY) >= 0.05) {
