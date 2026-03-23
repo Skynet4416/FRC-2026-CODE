@@ -38,7 +38,7 @@ public class HoodSubsystemIOSim implements HoodSubsystemIO {
     motorSim =
         new DCMotorSim(
             LinearSystemId.createDCMotorSystem(
-                gearbox, 0.001, Constants.Subsystems.Shooter.Hood.GEAR_RATIO),
+                gearbox, 0.02, Constants.Subsystems.Shooter.Hood.GEAR_RATIO),
             gearbox);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
