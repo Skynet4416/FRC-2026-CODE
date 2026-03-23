@@ -467,6 +467,7 @@ public class RobotContainer {
                 () -> -driveController.getLeftX(),
                 () -> Rotation2d.kZero));
     nearTrench
+        .and(RobotModeTriggers.teleop())
         .and(driveController.R2().negate())
         .and(autoAlignmentOverride.negate())
         .whileTrue(
