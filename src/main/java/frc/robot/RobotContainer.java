@@ -39,6 +39,7 @@ import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.intake.IntakeSubsystemIO;
 import frc.robot.subsystems.intake.IntakeSubsystemIOSim;
 import frc.robot.subsystems.intake.IntakeSubsystemIOTalonFX;
+import frc.robot.subsystems.led.*;
 import frc.robot.subsystems.shooter.FuelPhysicsSim;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
@@ -104,6 +105,7 @@ public class RobotContainer {
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
+  private final LedSubsystem ledSubsystem;
   private final FuelPhysicsSim ballSim = new FuelPhysicsSim("Sim/Fuel");
 
   // Controllers
@@ -178,6 +180,7 @@ public class RobotContainer {
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
         compressor.enableAnalog(80, 110);
+        ledSubsystem = new LedSubsystem(new LedSubsystemIOCandle());
         break;
 
       case SIM:
@@ -221,6 +224,7 @@ public class RobotContainer {
 
         ballSim.enable();
         // ballSim.placeFieldBalls();
+        ledSubsystem = new LedSubsystem(new LedSubsystemIOSim());
         break;
 
       default:
@@ -246,6 +250,7 @@ public class RobotContainer {
         rightIntake =
             new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.RIGHT);
         compressor = null;
+        ledSubsystem = new LedSubsystem(new LedSubsystemIO() {});
         break;
     }
 

@@ -258,5 +258,9 @@ public final class Constants {
         public static final int THIRD_MOTOR = 52;
       }
     }
+
+    public static final class Led {
+      public static final int CANDLE_ID = 6;
+    }
   }
 }
