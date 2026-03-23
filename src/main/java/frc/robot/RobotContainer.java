@@ -789,7 +789,7 @@ public class RobotContainer {
     ballSim.launchBall(launcherPos, launchVelocity, rpm);
   }
 
-  @AutoLogOutput
+  @AutoLogOutput(key = "LaunchCalculator/ReadyToShoot")
   public boolean readyToShoot() {
     return readyToShoot.getAsBoolean();
   }
