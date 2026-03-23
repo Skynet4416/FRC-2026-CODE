@@ -28,7 +28,7 @@ public class HoodSubsystem extends SubsystemBase {
 
   private boolean hoodZeroed = false;
 
-  private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 0.0);
+  private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 20.0);
   private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.75);
   public static final LoggedTunableNumber toleranceDeg =
       new LoggedTunableNumber("Hood/ToleranceDeg", 1.0);

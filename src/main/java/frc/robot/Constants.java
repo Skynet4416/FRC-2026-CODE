@@ -81,12 +81,12 @@ public final class Constants {
 
     public static final class Shooter {
       public static final class Flywheel {
-        public static final double GEAR_RATIO = 72 / 56;
+        public static final double GEAR_RATIO = (double) 72 / 56;
         public static final boolean MOTOR_COAST = true;
         public static final boolean SHOOTER_INVERTED = true;
 
         public static final double DEFAULT_TARGET_RPM = 1000.0;
-        public static final double RPM_TOLERANCE = 100.0;
+        public static final double RPM_TOLERANCE = 200.0;
 
         public static class Id {
           public static final int LEADER_ID = 40;
@@ -94,7 +94,6 @@ public final class Constants {
         }
 
         public static final class ClosedLoop {
-
           public static final double KP = 10;
           public static final double KI = 0.0;
           public static final double KD = 0.0;
@@ -121,7 +120,7 @@ public final class Constants {
       }
 
       public static final class Hood {
-        public static final double GEAR_RATIO = 875.0 / 38.0;
+        public static final double GEAR_RATIO = (double) 875.0 / 38.0;
         public static final boolean INVERTED = false;
         public static final double STALL_CURRENT_LIMIT = 40.0; // Amps
         public static final double MAX_ANGLE_DEG = 68.0;
@@ -215,15 +214,16 @@ public final class Constants {
 
       public static class Id {
         public static class Motor {
-          public static final int LEFT_ROLLER = 30;
-          public static final int RIGHT_ROLLER = 31;
+          public static final int LEFT_ROLLER = 31;
+          public static final int RIGHT_ROLLER = 30;
         }
 
         public static class Pneumatics {
-          public static final int LEFT_REVERSE = 2; //
-          public static final int LEFT_FORWARDS = 14;
-          public static final int RIGHT_REVERSE = 1; //
-          public static final int RIGHT_FORWARDS = 15;
+          public static final int LEFT_REVERSE = 1; //
+          public static final int LEFT_FORWARDS = 15;
+
+          public static final int RIGHT_REVERSE = 2; //
+          public static final int RIGHT_FORWARDS = 14;
         }
       }
 
