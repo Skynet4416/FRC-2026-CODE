@@ -638,10 +638,11 @@ public class RobotContainer {
     }
 
     // 3. MISSING DATA ALERT
-    // Only rumbles if data is missing AND 1.5 seconds have passed in Teleop
+    // Rumbles if data is missing, no override is set, and 1.0 second has passed in Teleop
     RobotModeTriggers.teleop()
-        .and(() -> DriverStation.getGameSpecificMessage().isEmpty())
-        .and(() -> teleopElapsedTimer.hasElapsed(1.5))
+        .and(() -> !(DriverStation.getGameSpecificMessage().length() > 0))
+        .and(() -> HubShiftUtil.getAllianceWinOverride().isEmpty())
+        .and(() -> teleopElapsedTimer.hasElapsed(1.0))
         .whileTrue(
             Commands.runEnd(
                     () ->
