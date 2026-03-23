@@ -59,11 +59,11 @@ public class DriveCommands {
   private static final LoggedTunableNumber driveLaunchToleranceDeg =
       new LoggedTunableNumber("DriveCommands/Launching/ToleranceDeg", 4.0);
   private static final LoggedTunableNumber driveLaunchMaxPolarVelocityRadPerSec =
-      new LoggedTunableNumber("DriveCommands/Launching/MaxPolarVelocityRadPerSec", 0.6);
+      new LoggedTunableNumber("DriveCommands/Launching/MaxPolarVelocityRadPerSec", 0.4);
   private static final LoggedTunableNumber driveLauncherCORMinErrorDeg =
-      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMinErrorDeg", 15.0);
+      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMinErrorDeg", 5.0);
   private static final LoggedTunableNumber driveLauncherCORMaxErrorDeg =
-      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMaxErrorDeg", 30.0);
+      new LoggedTunableNumber("DriveCommands/Launching/DriveLauncherCORMaxErrorDeg", 15.0);
 
   private DriveCommands() {}
 
@@ -199,20 +199,19 @@ public class DriveCommands {
                         .getAngle()
                         .minus(fieldRelativeLinearVelocity.getAngle())
                         .getRadians());
-            double robotHubDistance =
-                LaunchCalculator.getInstance().getParameters().distanceNoLookahead();
-            double hubAngle =
-                driveLaunchMaxPolarVelocityRadPerSec.get()
-                    * LaunchCalculator.getInstance().getNaiveTOF(robotHubDistance);
+            double robotHubDistance = parameters.distanceNoLookahead();
+            double timeOfFlight = parameters.timeOfFlight();
+            if (timeOfFlight <= 0.0) {
+              timeOfFlight = LaunchCalculator.getInstance().getNaiveTOF(robotHubDistance);
+            }
+            double hubAngle = driveLaunchMaxPolarVelocityRadPerSec.get() * timeOfFlight;
             double lookaheadAngle = Math.PI - robotAngle - hubAngle;
 
             // Calculate limit if triangle is valid (otherwise no limit)
             if (lookaheadAngle > 0) {
               double robotLookaheadDistance =
                   robotHubDistance * Math.sin(hubAngle) / Math.sin(lookaheadAngle);
-              maxLinearVelocityMagnitude =
-                  robotLookaheadDistance
-                      / LaunchCalculator.getInstance().getNaiveTOF(robotHubDistance);
+              maxLinearVelocityMagnitude = robotLookaheadDistance / timeOfFlight;
             }
 
             // Apply limit to velocity
@@ -245,6 +244,10 @@ public class DriveCommands {
                       omegaOutput),
                   launcherToRobot.times(1.0 - corScalar),
                   Drive.getInstance().getRotation());
+          Logger.recordOutput(
+              "Shaki drive velocity",
+              ChassisSpeeds.fromFieldRelativeSpeeds(
+                  fieldRelativeSpeedsWithOffset, Drive.getInstance().getRotation()));
           drive.runVelocity(
               ChassisSpeeds.fromFieldRelativeSpeeds(
                   fieldRelativeSpeedsWithOffset, Drive.getInstance().getRotation()));
@@ -273,6 +276,7 @@ public class DriveCommands {
               "DriveCommands/Launching/SetpointPose",
               new Pose2d(Drive.getInstance().getPose().getTranslation(), parameters.driveAngle()));
           Logger.recordOutput("DriveCommands/Launching/AtGoalTolerance", atLaunchGoal());
+          Logger.recordOutput("DriveCommands/Launching/ShotConfidence", parameters.confidence());
           Logger.recordOutput(
               "DriveCommands/Launching/ErrorPosition",
               parameters.driveAngle().minus(Drive.getInstance().getRotation()));

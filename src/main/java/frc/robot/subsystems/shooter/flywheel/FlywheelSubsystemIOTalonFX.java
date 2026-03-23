@@ -3,12 +3,15 @@ package frc.robot.subsystems.shooter.flywheel;
 import com.ctre.phoenix6.configs.Slot0Configs;
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.Follower;
+import com.ctre.phoenix6.controls.SolidColor;
 import com.ctre.phoenix6.controls.VelocityTorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.hardware.CANdle;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
+import com.ctre.phoenix6.signals.RGBWColor;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
@@ -18,6 +21,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
 
   private final TalonFX leaderMotor;
   private final TalonFX followerMotor;
+  private final CANdle candle = new CANdle(6);
 
   private final VelocityTorqueCurrentFOC velocityRequest = new VelocityTorqueCurrentFOC(0);
   private final VoltageOut voltageRequest = new VoltageOut(0);
@@ -73,10 +77,7 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
 
   @Override
   public void updateInputs(FlywheelIOInputs inputs) {
-    inputs.velocityRPM =
-        leaderMotor.getVelocity().getValueAsDouble()
-            * 60.0
-            / Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
+    inputs.velocityRPM = leaderMotor.getVelocity().getValueAsDouble() * 60.0;
 
     inputs.appliedVolts = leaderMotor.getMotorVoltage().getValueAsDouble();
 
@@ -88,17 +89,23 @@ public class FlywheelSubsystemIOTalonFX implements FlywheelSubsystemIO {
     inputs.setpointRPM = targetRPM;
     inputs.atSetpoint =
         Math.abs(inputs.velocityRPM - targetRPM)
-            <= Constants.Subsystems.Shooter.Flywheel.RPM_TOLERANCE;
+                <= Constants.Subsystems.Shooter.Flywheel.RPM_TOLERANCE
+            && inputs.velocityRPM > 200;
 
     inputs.rotations = leaderMotor.getRotorPosition().getValueAsDouble();
     leaderDisconnected.set(!inputs.connected);
     followerDisconnected.set(!followerMotor.isConnected());
+
+    double charge = (leaderMotor.getSupplyVoltage().getValueAsDouble() - 8) / 4.0;
+    candle.setControl(
+        new SolidColor(0, 64)
+            .withColor(new RGBWColor((int) ((1 - charge) * 255), (int) (charge * 255), 0)));
   }
 
   @Override
   public void setTargetRPM(double rpm) {
-    targetRPM = rpm;
-    double targetMotorRPS = (rpm / 60.0) * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
+    targetRPM = rpm * Constants.Subsystems.Shooter.Flywheel.GEAR_RATIO;
+    double targetMotorRPS = (targetRPM / 60.0);
     leaderMotor.setControl(velocityRequest.withVelocity(targetMotorRPS));
   }
 
