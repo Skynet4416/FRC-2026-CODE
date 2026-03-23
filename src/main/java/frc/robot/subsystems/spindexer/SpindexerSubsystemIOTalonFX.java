@@ -39,6 +39,8 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
         Constants.Subsystems.Spindexer.CurrentLimits.SUPPLY_ENABLED;
     config.CurrentLimits.SupplyCurrentLimit =
         Constants.Subsystems.Spindexer.CurrentLimits.SUPPLY_LIMIT_AMPS;
+    config.CurrentLimits.SupplyCurrentLowerTime = 1.0;
+    config.CurrentLimits.SupplyCurrentLowerLimit = 15.0;
 
     config.CurrentLimits.StatorCurrentLimitEnable =
         Constants.Subsystems.Spindexer.CurrentLimits.STATOR_ENABLED;

@@ -182,12 +182,12 @@ public final class Constants {
         public static final boolean SUPPLY_ENABLED = true;
 
         // TODO tune this value
-        public static final double SUPPLY_LIMIT_AMPS = 30; // Holding limit
+        public static final double SUPPLY_LIMIT_AMPS = 120; // Holding limit
 
         // Stator Limit: Protects the Motor (Prevents Burnout)
         // Keep this HIGH for Shooters to allow fast spin-up.
-        public static final boolean STATOR_ENABLED = true;
-        public static final double STATOR_LIMIT_AMPS = 15.0;
+        public static final boolean STATOR_ENABLED = false;
+        public static final double STATOR_LIMIT_AMPS = 25.0;
       }
     }
 
@@ -241,11 +241,11 @@ public final class Constants {
         public static final boolean SUPPLY_ENABLED = true;
 
         // TODO tune this value
-        public static final double SUPPLY_LIMIT_AMPS = 40; // Holding limit
+        public static final double SUPPLY_LIMIT_AMPS = 120; // Holding limit
 
         // Stator Limit: Protects the Motor (Prevents Burnout)
         // Keep this HIGH for Shooters to allow fast spin-up.
-        public static final boolean STATOR_ENABLED = true;
+        public static final boolean STATOR_ENABLED = false;
         public static final double STATOR_LIMIT_AMPS = 40.0;
       }
     }

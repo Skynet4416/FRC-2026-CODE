@@ -6,6 +6,7 @@ import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation3d;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.util.Color;
 import edu.wpi.first.wpilibj.util.Color8Bit;
 import edu.wpi.first.wpilibj2.command.Command;
@@ -29,6 +30,12 @@ public class IntakeSubsystem extends SubsystemBase {
   private final SysIdRoutine sysIdRoutine;
   private final LoggedTunableNumber targetRpm;
   protected final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
+
+  private double stuckTime = 0.0;
+  private double CURRENT_CUTOFF_THRSHOLD =
+      40; // intake motor will shut off if current exceeds this threshold
+  private boolean stuck = false;
+  private boolean reversed = false;
 
   // Mechanism2d
   private final LoggedMechanism2d mech;
@@ -71,6 +78,11 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void setLowered(boolean lowered) {
+    if (lowered) {
+      this.stuck = false;
+      this.reversed = false;
+      this.stuckTime = 0;
+    }
     io.setLowered(lowered);
   }
 
@@ -103,11 +115,11 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void runVolts(double volts) {
-    io.setVoltage(volts);
+    io.setVoltage(stuck ? 0 : (reversed ? -volts : volts));
   }
 
   public void setPercentage(double percentage) {
-    io.setPercentage(percentage);
+    io.setPercentage(stuck ? 0 : (reversed ? -percentage : percentage));
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
@@ -121,6 +133,24 @@ public class IntakeSubsystem extends SubsystemBase {
   @Override
   public void periodic() {
     io.updateInputs(inputs);
+    double currTime = Timer.getFPGATimestamp();
+    if (Math.abs(getVelocityRPM()) > 0) {
+      if (!stuck) {
+        if (inputs.supplyCurrentAmps < CURRENT_CUTOFF_THRSHOLD) {
+          stuckTime = currTime;
+        }
+      }
+
+      reversed = currTime - stuckTime > 0.2;
+
+      if (currTime - stuckTime > 0.5) {
+        stop();
+        stuck = true;
+      }
+      Logger.recordOutput("Intake Stopped", stuck);
+      Logger.recordOutput("Intake Stop Time", currTime - stuckTime);
+    }
+
     String prefix = side == IntakeSide.LEFT ? "IntakeLeft" : "IntakeRight";
     Logger.processInputs(prefix, inputs);
 
