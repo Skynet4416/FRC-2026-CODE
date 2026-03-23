@@ -271,18 +271,18 @@ public final class Constants {
     public static class Trench {
       // For trench alignment
       public static final boolean ENABLE = true;
-      public static final double MAX_STRENGTH = 1.0;
+      public static final double MAX_STRENGTH = 0.5;
       public static final double EXP = 2.0;
       public static final double THRESHOLD_METERS = 1.5;
 
-      public static final double KP_Y = 10.0;
-      public static final double KD_Y = 1.0;
+      public static final double KP_Y = 1.0;
+      public static final double KD_Y = 0.0;
 
-      public static final double KP_ANGLE = 15.0;
-      public static final double KD_ANGLE = 1.0;
+      public static final double KP_ANGLE = 2.0;
+      public static final double KD_ANGLE = 0.0;
 
       // How much to extend the "magnet"
-      public static final double EXTENSION = 1.0;
+      public static final double EXTENSION = 0.2;
 
       // How much to push the inner/outer target to the center of the trench
       public static final double INNER_SIDE_OFFSET = 0.0;
