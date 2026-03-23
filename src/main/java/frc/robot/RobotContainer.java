@@ -294,6 +294,27 @@ public class RobotContainer {
 
     disableFlywheelAutoSpinup = new Trigger(disableFlywheelAutoSpinupChooser::get);
     ignoreHubState = new Trigger(ignoreHubStateChooser::get);
+    Trigger hubActiveOrPassing =
+        new Trigger(
+            () ->
+                HubShiftUtil.getShiftedShiftInfo().active()
+                    || LaunchCalculator.getInstance().getParameters().passing());
+
+    Trigger inLaunchingTolerance =
+        new Trigger(
+            () ->
+                hoodSubsystem.atSetpoint()
+                    && flywheelSubsystem.atSetpoint()
+                    && DriveCommands.atLaunchGoal());
+
+    this.readyToShoot =
+        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
+            .and(
+                () ->
+                    LaunchCalculator.getInstance().getParameters().confidence()
+                        >= minShootingConfidence.get())
+            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     // Set up SysId routines
     autoChooser.addOption(
@@ -381,28 +402,6 @@ public class RobotContainer {
                 () -> -driveController.getLeftY(),
                 () -> -driveController.getLeftX(),
                 () -> Rotation2d.kZero));
-
-    Trigger hubActiveOrPassing =
-        new Trigger(
-            () ->
-                HubShiftUtil.getShiftedShiftInfo().active()
-                    || LaunchCalculator.getInstance().getParameters().passing());
-
-    Trigger inLaunchingTolerance =
-        new Trigger(
-            () ->
-                hoodSubsystem.atSetpoint()
-                    && flywheelSubsystem.atSetpoint()
-                    && DriveCommands.atLaunchGoal());
-
-    this.readyToShoot =
-        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(
-                () ->
-                    LaunchCalculator.getInstance().getParameters().confidence()
-                        >= minShootingConfidence.get())
-            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
-            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
         .R2()
@@ -727,7 +726,6 @@ public class RobotContainer {
 
   public Command testAuto() {
     AutoRoutine routine = autoFactory.newRoutine("testAuto");
-
     AutoTrajectory trench = routine.trajectory("left_trench");
 
     routine
@@ -736,30 +734,36 @@ public class RobotContainer {
             Commands.sequence(
                 // trench.resetOdometry(),
                 trench.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
-                        flywheelSubsystem.runTrackTargetCommand(),
-                        hoodSubsystem.runTrackTargetCommand(),
-                        Commands.repeatingSequence(
-                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
-                            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
-                                .until(() -> !readyToShoot.getAsBoolean())))
-                    .withTimeout(5.0),
+                autoShoot(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trench.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
-                        flywheelSubsystem.runTrackTargetCommand(),
-                        hoodSubsystem.runTrackTargetCommand(),
-                        Commands.repeatingSequence(
-                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
-                            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
-                                .until(() -> !readyToShoot.getAsBoolean())))
-                    .withTimeout(5.0),
+                autoShoot(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2)));
 
     return routine.cmd();
+  }
+
+  /**
+   * Returns a command that aims and shoots for a given duration. Runs the flywheel, hood tracking,
+   * indexers (when ready), and simulated projectile launches in parallel.
+   *
+   * @param timeoutSeconds how long to attempt shooting before moving on
+   */
+  private Command autoShoot(double timeoutSeconds) {
+    return Commands.parallel(
+            DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
+            flywheelSubsystem.runTrackTargetCommand(),
+            hoodSubsystem.runTrackTargetCommand(),
+            Commands.repeatingSequence(
+                Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem)
+                    .until(() -> !readyToShoot.getAsBoolean())),
+            Commands.repeatingSequence(
+                Commands.waitSeconds(0.25),
+                Commands.runOnce(this::launchSimulatedProjectile)
+                    .onlyIf(() -> readyToShoot.getAsBoolean())))
+        .withTimeout(timeoutSeconds);
   }
 }
