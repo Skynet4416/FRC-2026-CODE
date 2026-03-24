@@ -897,7 +897,7 @@ public class RobotContainer {
 
   @AutoLogOutput(key = "LaunchCalculator/ReadyToShoot")
   public boolean readyToShoot() {
-    return readyToShoot.getAsBoolean();
+    return readyToShoot != null && readyToShoot.getAsBoolean();
   }
 
   public Command testAuto() {
@@ -912,29 +912,11 @@ public class RobotContainer {
             Commands.sequence(
                 // trench.resetOdometry(),
                 trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
-                        flywheelSubsystem.runTrackTargetCommand(),
-                        hoodSubsystem.runTrackTargetCommand(),
-                        Commands.repeatingSequence(
-                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
-                            new RunBothIndexersCommand(
-                                    spindexerSubsystem, shooterIndexerSubsystem, 1.0)
-                                .until(() -> !readyToShoot.getAsBoolean())))
-                    .withTimeout(5.0),
+                autoShoot(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
-                        flywheelSubsystem.runTrackTargetCommand(),
-                        hoodSubsystem.runTrackTargetCommand(),
-                        Commands.repeatingSequence(
-                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
-                            new RunBothIndexersCommand(
-                                    spindexerSubsystem, shooterIndexerSubsystem, 1.0)
-                                .until(() -> !readyToShoot.getAsBoolean())))
-                    .withTimeout(5.0),
+                autoShoot(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2)));
 
@@ -953,13 +935,13 @@ public class RobotContainer {
             flywheelSubsystem.runTrackTargetCommand(),
             hoodSubsystem.runTrackTargetCommand(),
             Commands.repeatingSequence(
-                Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                Commands.waitUntil(() -> readyToShoot != null && readyToShoot.getAsBoolean()),
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0)
-                    .until(() -> !readyToShoot.getAsBoolean())),
+                    .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())),
             Commands.repeatingSequence(
                 Commands.waitSeconds(0.25),
                 Commands.runOnce(this::launchSimulatedProjectile)
-                    .onlyIf(() -> readyToShoot.getAsBoolean())))
+                    .onlyIf(() -> readyToShoot != null && readyToShoot.getAsBoolean())))
         .withTimeout(timeoutSeconds);
   }
 }
