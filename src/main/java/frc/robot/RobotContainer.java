@@ -156,8 +156,6 @@ public class RobotContainer {
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
-    ledSubsystem = new LedSubsystem(new ledSubsystemIOCandle());
-
     switch (Constants.currentMode) {
       case REAL:
         // Real robot, instantiate hardware IO implementations
@@ -274,6 +272,15 @@ public class RobotContainer {
         break;
     }
 
+    ledSubsystem =
+        new LedSubsystem(
+            new ledSubsystemIOCandle(),
+            shooterIndexerSubsystem,
+            flywheelSubsystem,
+            spindexerSubsystem,
+            leftIntake,
+            rightIntake);
+
     autoFactory =
         new AutoFactory(
                 drive::getPose, // A function that returns the current robot pose
@@ -314,27 +321,6 @@ public class RobotContainer {
 
     disableFlywheelAutoSpinup = new Trigger(disableFlywheelAutoSpinupChooser::get);
     ignoreHubState = new Trigger(ignoreHubStateChooser::get);
-    Trigger hubActiveOrPassing =
-        new Trigger(
-            () ->
-                HubShiftUtil.getShiftedShiftInfo().active()
-                    || LaunchCalculator.getInstance().getParameters().passing());
-
-    Trigger inLaunchingTolerance =
-        new Trigger(
-            () ->
-                hoodSubsystem.atSetpoint()
-                    && flywheelSubsystem.atSetpoint()
-                    && DriveCommands.atLaunchGoal());
-
-    this.readyToShoot =
-        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(
-                () ->
-                    LaunchCalculator.getInstance().getParameters().confidence()
-                        >= minShootingConfidence.get())
-            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
-            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     trenchAlignmentPositionChooser = new LoggedDashboardChooser<>("Trench Alignment Position");
     trenchAlignmentPositionChooser.addDefaultOption(
@@ -471,11 +457,6 @@ public class RobotContainer {
     driveController
         .R3()
         .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
-    Trigger hubActiveOrPassing =
-        new Trigger(
-            () ->
-                HubShiftUtil.getShiftedShiftInfo().active()
-                    || LaunchCalculator.getInstance().getParameters().passing());
 
     Trigger inLaunchingTolerance =
         new Trigger(
@@ -486,27 +467,17 @@ public class RobotContainer {
 
     this.readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(
-                () ->
-                    LaunchCalculator.getInstance().getParameters().confidence()
-                        >= minShootingConfidence.get())
-            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
         .R2()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
-        .whileTrue(hoodSubsystem.runTrackTargetCommand())
-        .whileTrue(
-            Commands.run(
-                () -> {
-                  ledSubsystem.SetAiming();
-                }))
-        .onFalse(
-            Commands.deadline(
-                Commands.waitSeconds(1.0),
-                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.5)));
+        .whileTrue(hoodSubsystem.runTrackTargetCommand());
+    // .onFalse(
+    //     Commands.deadline(
+    //         Commands.waitSeconds(1.0),
+    //         new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.5)));
 
     // driveController
     //     .cross()
@@ -519,11 +490,8 @@ public class RobotContainer {
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0),
                 Commands.repeatingSequence(
-                    Commands.waitSeconds(0.25), Commands.runOnce(this::launchSimulatedProjectile)),
-                Commands.run(
-                    () -> {
-                      ledSubsystem.SetShooting();
-                    })));
+                    Commands.waitSeconds(0.25),
+                    Commands.runOnce(this::launchSimulatedProjectile))));
 
     // Test specific button for simulated launch
 
@@ -583,7 +551,8 @@ public class RobotContainer {
               if (leftIntake.isLowered()) {
                 leftIntake.setPercentage(1.0);
               } else {
-                leftIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.5 : 0.0);
+                leftIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
+                leftIntake.setPercentage(0.0);
               }
             },
             leftIntake));
@@ -593,7 +562,8 @@ public class RobotContainer {
               if (rightIntake.isLowered()) {
                 rightIntake.setPercentage(1.0);
               } else {
-                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.2 : 0.0);
+                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
+                rightIntake.setPercentage(0.0);
               }
             },
             rightIntake));
@@ -602,13 +572,13 @@ public class RobotContainer {
     leftIntakeLowered
         .onTrue(Commands.runOnce(() -> leftIntake.setPercentage(1.0), leftIntake))
         .onFalse(
-            Commands.run(() -> leftIntake.setPercentage(1.0), leftIntake)
+            Commands.run(() -> leftIntake.setPercentage(0.2), leftIntake)
                 .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
                 .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
     rightIntakeLowered
         .onTrue(Commands.runOnce(() -> rightIntake.setPercentage(1.0), rightIntake))
         .onFalse(
-            Commands.run(() -> rightIntake.setPercentage(1.0), rightIntake)
+            Commands.run(() -> rightIntake.setPercentage(0.2), rightIntake)
                 .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
                 .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
   }

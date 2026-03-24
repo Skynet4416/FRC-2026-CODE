@@ -30,6 +30,7 @@ public class IntakeSubsystem extends SubsystemBase {
   private final SysIdRoutine sysIdRoutine;
   private final LoggedTunableNumber targetRpm;
   protected final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
+  private double targetPercentage;
 
   private double stuckTime = 0.0;
   private double CURRENT_CUTOFF_THRSHOLD =
@@ -73,6 +74,10 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setTargetRPM(rpm);
   }
 
+  public double getTargetPercentage() {
+    return targetPercentage;
+  }
+
   public double getTargetRPM() {
     return targetRpm.get();
   }
@@ -103,6 +108,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void stop() {
+    targetPercentage = 0;
     io.stop();
   }
 
@@ -119,6 +125,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void setPercentage(double percentage) {
+    targetPercentage = percentage;
     io.setPercentage(stuck ? 0 : (reversed ? -percentage : percentage));
   }
 
@@ -128,6 +135,14 @@ public class IntakeSubsystem extends SubsystemBase {
 
   public Command sysIdDynamic(SysIdRoutine.Direction direction) {
     return sysIdRoutine.dynamic(direction);
+  }
+
+  public boolean isStuck() {
+    return stuck;
+  }
+
+  public boolean isReversed() {
+    return reversed;
   }
 
   @Override
