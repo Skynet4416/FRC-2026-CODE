@@ -29,6 +29,7 @@ import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -67,6 +68,7 @@ import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
+import frc.robot.util.elasticlib.Elastic;
 import frc.robot.util.geometry.AllianceFlipUtil;
 import java.util.Optional;
 import java.util.function.DoubleSupplier;
@@ -124,6 +126,9 @@ public class RobotContainer {
   private final Alert autoWinnerNotSet = new Alert("!!! AUTO WINNER NOT SET !!!", AlertType.kError);
   //   private final Alert mechanismControllerDisconnected =
   //       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
+
+  // For elastic
+  private final Field2d field = new Field2d();
 
   private final Trigger disableFlywheelAutoSpinup;
   private final Trigger ignoreHubState;
@@ -244,6 +249,8 @@ public class RobotContainer {
 
         ballSim.enable();
         // ballSim.placeFieldBalls();
+
+        SmartDashboard.putData("Field", field);
         break;
 
       default:
@@ -428,6 +435,10 @@ public class RobotContainer {
     RobotModeTriggers.disabled()
         .onTrue(Commands.runOnce(HubShiftUtil::initialize).ignoringDisable(true));
 
+    // Elastic tab switching
+    RobotModeTriggers.teleop().onTrue(Commands.runOnce(() -> Elastic.selectTab("Teleoperated")));
+    RobotModeTriggers.autonomous().onTrue(Commands.runOnce(() -> Elastic.selectTab("Autonomous")));
+
     // Drive controls
     DoubleSupplier driverX = () -> -driveController.getLeftY();
     DoubleSupplier driverY = () -> -driveController.getLeftX();
@@ -598,7 +609,7 @@ public class RobotContainer {
               if (rightIntake.isLowered()) {
                 rightIntake.setPercentage(1.0);
               } else {
-                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.5 : 0.0);
+                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.2 : 0.0);
               }
             },
             rightIntake));
@@ -679,7 +690,7 @@ public class RobotContainer {
   public void updateDashboardOutputs() {
     Logger.recordOutput("AutoAlignment/OverrideToggle", autoAlignmentOverrideState);
     // Publish match time
-    SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
+    SmartDashboard.putNumber("Match Time", HubShiftUtil.getMatchTime());
 
     // Controller disconnected alerts
     driverControllerDisconnected.set(
@@ -705,6 +716,9 @@ public class RobotContainer {
     SmartDashboard.putBoolean(
         "Shifts/Active First?",
         DriverStation.getAlliance().orElse(Alliance.Blue) == HubShiftUtil.getFirstActiveAlliance());
+
+    // For displaying in Elastic
+    field.setRobotPose(drive.getPose());
   }
 
   /**
