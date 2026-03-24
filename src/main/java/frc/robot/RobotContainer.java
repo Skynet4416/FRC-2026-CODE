@@ -598,7 +598,7 @@ public class RobotContainer {
               if (rightIntake.isLowered()) {
                 rightIntake.setPercentage(1.0);
               } else {
-                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.2 : 0.0);
+                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.5 : 0.0);
               }
             },
             rightIntake));
