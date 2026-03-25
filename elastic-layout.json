@@ -9,10 +9,10 @@
         "containers": [
           {
             "title": "Limelight Right",
-            "x": 384.0,
-            "y": 128.0,
-            "width": 256.0,
-            "height": 256.0,
+            "x": 768.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 384.0,
             "type": "Camera Stream",
             "properties": {
               "topic": "/CameraPublisher/limelight-right-processed",
@@ -22,10 +22,10 @@
           },
           {
             "title": "Limelight Left",
-            "x": 640.0,
-            "y": 128.0,
-            "width": 256.0,
-            "height": 256.0,
+            "x": 384.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 384.0,
             "type": "Camera Stream",
             "properties": {
               "topic": "/CameraPublisher/limelight-left-processed",
@@ -35,7 +35,7 @@
           },
           {
             "title": "System Alerts",
-            "x": 512.0,
+            "x": 768.0,
             "y": 384.0,
             "width": 384.0,
             "height": 256.0,
@@ -47,8 +47,8 @@
           },
           {
             "title": "Match Time",
-            "x": 896.0,
-            "y": 512.0,
+            "x": 512.0,
+            "y": 384.0,
             "width": 256.0,
             "height": 128.0,
             "type": "Match Time",
@@ -63,10 +63,10 @@
           },
           {
             "title": "Shift Active",
-            "x": 896.0,
-            "y": 384.0,
-            "width": 256.0,
-            "height": 128.0,
+            "x": 256.0,
+            "y": 0.0,
+            "width": 128.0,
+            "height": 384.0,
             "type": "Boolean Box",
             "properties": {
               "topic": "/SmartDashboard/Shifts/Shift Active",
@@ -80,10 +80,10 @@
           },
           {
             "title": "Field",
-            "x": 896.0,
-            "y": 128.0,
-            "width": 256.0,
-            "height": 256.0,
+            "x": 1152.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 768.0,
             "type": "Field",
             "properties": {
               "topic": "/SmartDashboard/Field",
@@ -93,7 +93,7 @@
               "robot_length": 0.884,
               "show_other_objects": true,
               "show_trajectories": true,
-              "field_rotation": -90.0,
+              "field_rotation": 90.0,
               "robot_color": 4294198070,
               "trajectory_color": 4294967295,
               "show_robot_outside_widget": true
@@ -101,9 +101,9 @@
           },
           {
             "title": "Active First?",
-            "x": 256.0,
+            "x": 768.0,
             "y": 640.0,
-            "width": 256.0,
+            "width": 384.0,
             "height": 128.0,
             "type": "Boolean Box",
             "properties": {
@@ -118,37 +118,35 @@
           },
           {
             "title": "Game State",
-            "x": 256.0,
-            "y": 512.0,
-            "width": 256.0,
+            "x": 0.0,
+            "y": 384.0,
+            "width": 384.0,
             "height": 128.0,
-            "type": "Text Display",
+            "type": "Large Text Display",
             "properties": {
               "topic": "/SmartDashboard/Shifts/Game State",
               "period": 0.06,
-              "data_type": "string",
-              "show_submit_button": false
+              "data_type": "string"
             }
           },
           {
             "title": "Remaining Shift Time",
-            "x": 1152.0,
-            "y": 128.0,
+            "x": 0.0,
+            "y": 0.0,
             "width": 256.0,
-            "height": 128.0,
-            "type": "Text Display",
+            "height": 384.0,
+            "type": "Large Text Display",
             "properties": {
               "topic": "/SmartDashboard/Shifts/Remaining Shift Time",
               "period": 0.06,
-              "data_type": "string",
-              "show_submit_button": false
+              "data_type": "string"
             }
           },
           {
             "title": "READY TO SHOOT",
-            "x": 256.0,
-            "y": 384.0,
-            "width": 256.0,
+            "x": 0.0,
+            "y": 512.0,
+            "width": 384.0,
             "height": 128.0,
             "type": "Boolean Box",
             "properties": {
@@ -171,9 +169,9 @@
         "containers": [
           {
             "title": "Choreo Routine Chooser",
-            "x": 640.0,
-            "y": 512.0,
-            "width": 384.0,
+            "x": 896.0,
+            "y": 640.0,
+            "width": 256.0,
             "height": 128.0,
             "type": "ComboBox Chooser",
             "properties": {
@@ -184,20 +182,20 @@
           },
           {
             "title": "Robot Location (Auto)",
-            "x": 1024.0,
-            "y": 384.0,
-            "width": 256.0,
-            "height": 256.0,
+            "x": 1152.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 768.0,
             "type": "Field",
             "properties": {
               "topic": "/SmartDashboard/Field",
               "period": 0.06,
               "field_game": "Rebuilt",
-              "robot_width": 0.85,
-              "robot_length": 0.85,
+              "robot_width": 0.884,
+              "robot_length": 0.884,
               "show_other_objects": true,
               "show_trajectories": true,
-              "field_rotation": -90.0,
+              "field_rotation": 90.0,
               "robot_color": 4294198070,
               "trajectory_color": 4294967295,
               "show_robot_outside_widget": true
@@ -205,8 +203,8 @@
           },
           {
             "title": "Choreo Alerts",
-            "x": 640.0,
-            "y": 256.0,
+            "x": 896.0,
+            "y": 384.0,
             "width": 256.0,
             "height": 256.0,
             "type": "Alerts",
@@ -217,7 +215,7 @@
           },
           {
             "title": "System Alerts",
-            "x": 1280.0,
+            "x": 640.0,
             "y": 384.0,
             "width": 256.0,
             "height": 256.0,
@@ -229,8 +227,8 @@
           },
           {
             "title": "Autonomous Selected",
-            "x": 1280.0,
-            "y": 128.0,
+            "x": 640.0,
+            "y": 640.0,
             "width": 256.0,
             "height": 128.0,
             "type": "Boolean Box",
@@ -246,10 +244,10 @@
           },
           {
             "title": "Enabled",
-            "x": 1280.0,
-            "y": 256.0,
+            "x": 256.0,
+            "y": 0.0,
             "width": 128.0,
-            "height": 128.0,
+            "height": 384.0,
             "type": "Boolean Box",
             "properties": {
               "topic": "/AdvantageKit/DriverStation/Enabled",
@@ -263,10 +261,10 @@
           },
           {
             "title": "MatchTime",
-            "x": 896.0,
-            "y": 256.0,
-            "width": 128.0,
-            "height": 256.0,
+            "x": 384.0,
+            "y": 384.0,
+            "width": 256.0,
+            "height": 128.0,
             "type": "Match Time",
             "properties": {
               "topic": "/SmartDashboard/Match Time",
@@ -279,9 +277,9 @@
           },
           {
             "title": "ReadyToShoot",
-            "x": 1408.0,
-            "y": 256.0,
-            "width": 128.0,
+            "x": 0.0,
+            "y": 512.0,
+            "width": 384.0,
             "height": 128.0,
             "type": "Boolean Box",
             "properties": {
@@ -296,30 +294,54 @@
           },
           {
             "title": "Game State",
-            "x": 1024.0,
-            "y": 256.0,
-            "width": 128.0,
+            "x": 0.0,
+            "y": 384.0,
+            "width": 384.0,
             "height": 128.0,
-            "type": "Text Display",
+            "type": "Large Text Display",
             "properties": {
               "topic": "/SmartDashboard/Shifts/Game State",
               "period": 0.06,
-              "data_type": "string",
-              "show_submit_button": false
+              "data_type": "string"
             }
           },
           {
             "title": "Remaining Shift Time",
-            "x": 1152.0,
-            "y": 256.0,
-            "width": 128.0,
-            "height": 128.0,
-            "type": "Text Display",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 256.0,
+            "height": 384.0,
+            "type": "Large Text Display",
             "properties": {
               "topic": "/SmartDashboard/Shifts/Remaining Shift Time",
               "period": 0.06,
-              "data_type": "string",
-              "show_submit_button": false
+              "data_type": "string"
+            }
+          },
+          {
+            "title": "Limelight Left",
+            "x": 384.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 384.0,
+            "type": "Camera Stream",
+            "properties": {
+              "topic": "/CameraPublisher/limelight-left-processed",
+              "period": 0.06,
+              "rotation_turns": 0
+            }
+          },
+          {
+            "title": "Limelight Right",
+            "x": 768.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 384.0,
+            "type": "Camera Stream",
+            "properties": {
+              "topic": "/CameraPublisher/limelight-right-processed",
+              "period": 0.06,
+              "rotation_turns": 0
             }
           }
         ]
@@ -332,7 +354,7 @@
         "containers": [
           {
             "title": "Flywheel RPM",
-            "x": 768.0,
+            "x": 512.0,
             "y": 512.0,
             "width": 256.0,
             "height": 256.0,
@@ -348,7 +370,7 @@
           },
           {
             "title": "Hood Angle",
-            "x": 1024.0,
+            "x": 768.0,
             "y": 512.0,
             "width": 256.0,
             "height": 256.0,
@@ -365,7 +387,7 @@
           {
             "title": "Flywheel At Setpoint",
             "x": 512.0,
-            "y": 0.0,
+            "y": 384.0,
             "width": 256.0,
             "height": 128.0,
             "type": "Boolean Box",
@@ -381,8 +403,8 @@
           },
           {
             "title": "Hood At Setpoint",
-            "x": 512.0,
-            "y": 128.0,
+            "x": 768.0,
+            "y": 384.0,
             "width": 256.0,
             "height": 128.0,
             "type": "Boolean Box",
@@ -398,7 +420,7 @@
           },
           {
             "title": "Left Intake Lowered",
-            "x": 768.0,
+            "x": 512.0,
             "y": 0.0,
             "width": 256.0,
             "height": 128.0,
@@ -415,7 +437,7 @@
           },
           {
             "title": "Right Intake Lowered",
-            "x": 1024.0,
+            "x": 768.0,
             "y": 0.0,
             "width": 256.0,
             "height": 128.0,
@@ -432,7 +454,7 @@
           },
           {
             "title": "Left Intake Power",
-            "x": 768.0,
+            "x": 512.0,
             "y": 128.0,
             "width": 256.0,
             "height": 128.0,
@@ -446,7 +468,7 @@
           },
           {
             "title": "Right Intake Power",
-            "x": 1024.0,
+            "x": 768.0,
             "y": 128.0,
             "width": 256.0,
             "height": 128.0,
@@ -460,8 +482,8 @@
           },
           {
             "title": "System Alerts",
-            "x": 768.0,
-            "y": 256.0,
+            "x": 0.0,
+            "y": 0.0,
             "width": 256.0,
             "height": 256.0,
             "type": "Alerts",
@@ -472,8 +494,8 @@
           },
           {
             "title": "Override: Run Wheels Folding",
-            "x": 1024.0,
-            "y": 384.0,
+            "x": 0.0,
+            "y": 512.0,
             "width": 256.0,
             "height": 128.0,
             "type": "Split Button Chooser",
@@ -484,7 +506,7 @@
           },
           {
             "title": "Trench Alignment Position",
-            "x": 512.0,
+            "x": 256.0,
             "y": 512.0,
             "width": 256.0,
             "height": 128.0,
@@ -497,8 +519,8 @@
           },
           {
             "title": "Ignore Hub State",
-            "x": 1024.0,
-            "y": 256.0,
+            "x": 256.0,
+            "y": 384.0,
             "width": 256.0,
             "height": 128.0,
             "type": "Split Button Chooser",
@@ -509,7 +531,7 @@
           },
           {
             "title": "Disable Flywheel Auto Spinup",
-            "x": 512.0,
+            "x": 0.0,
             "y": 384.0,
             "width": 256.0,
             "height": 128.0,
@@ -521,7 +543,7 @@
           },
           {
             "title": "Alliance Win Override",
-            "x": 512.0,
+            "x": 0.0,
             "y": 256.0,
             "width": 256.0,
             "height": 128.0,
@@ -534,7 +556,7 @@
           },
           {
             "title": "Spindexer Percentage",
-            "x": 1280.0,
+            "x": 1024.0,
             "y": 0.0,
             "width": 384.0,
             "height": 256.0,
@@ -550,7 +572,7 @@
           },
           {
             "title": "ShooterIndexer Percentage",
-            "x": 1280.0,
+            "x": 1024.0,
             "y": 256.0,
             "width": 384.0,
             "height": 256.0,
