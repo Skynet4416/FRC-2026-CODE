@@ -104,6 +104,17 @@ public class HubShiftUtil {
     return currentSchedule;
   }
 
+  public static double getMatchTime() {
+    if (frc.robot.Constants.currentMode == frc.robot.Constants.Mode.SIM) {
+      if (DriverStation.isAutonomous()) {
+        return Math.max(0, 160.0 - shiftTimer.get());
+      } else if (DriverStation.isTeleop()) {
+        return Math.max(0, 140.0 - shiftTimer.get());
+      }
+    }
+    return DriverStation.getMatchTime();
+  }
+
   private static ShiftInfo getShiftInfo(
       boolean[] currentSchedule, double[] shiftStartTimes, double[] shiftEndTimes) {
     double timerValue = shiftTimer.get();
@@ -112,7 +123,7 @@ public class HubShiftUtil {
     double stateTimeRemaining = 0.0;
     boolean active = false;
     ShiftEnum currentShift = ShiftEnum.DISABLED;
-    double fieldTeleopTime = 140.0 - DriverStation.getMatchTime();
+    double fieldTeleopTime = 140.0 - getMatchTime();
 
     if (DriverStation.isAutonomousEnabled()) {
       stateTimeElapsed = currentTime;

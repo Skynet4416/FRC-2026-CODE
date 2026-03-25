@@ -3,209 +3,53 @@
  "version":2,
  "type":"Swerve",
  "variables":{
-  "expressions":{
-   "BallIntakeSpeed":{
-    "dimension":"LinVel",
-    "var":{
-     "exp":"1.5 m / s",
-     "val":1.5
-    }
-   },
-   "maxVelocity":{
-    "dimension":"LinVel",
-    "var":{
-     "exp":"3 m / s",
-     "val":3.0
-    }
-   }
-  },
-  "poses":{
-   "hubCenterStart":{
-    "x":{
-     "exp":"3.58 m",
-     "val":3.58
-    },
-    "y":{
-     "exp":"4.035 m",
-     "val":4.035
-    },
-    "heading":{
-     "exp":"0 rad",
-     "val":0.0
-    }
-   },
-   "launchLeftTower":{
-    "x":{
-     "exp":"2.605 m",
-     "val":2.605
-    },
-    "y":{
-     "exp":"5.117 m",
-     "val":5.117
-    },
-    "heading":{
-     "exp":"0 rad",
-     "val":0.0
-    }
-   },
-   "launchRightTower":{
-    "x":{
-     "exp":"2.605 m",
-     "val":2.605
-    },
-    "y":{
-     "exp":"2.376 m",
-     "val":2.376
-    },
-    "heading":{
-     "exp":"0 rad",
-     "val":0.0
-    }
-   },
-   "leftClimbEdge":{
-    "x":{
-     "exp":"1.06 m",
-     "val":1.06
-    },
-    "y":{
-     "exp":"4.617 m",
-     "val":4.617
-    },
-    "heading":{
-     "exp":"0 rad",
-     "val":0.0
-    }
-   },
-   "leftThroughDepot":{
-    "x":{
-     "exp":"0.5 m",
-     "val":0.5
-    },
-    "y":{
-     "exp":"7.039 m",
-     "val":7.039
-    },
-    "heading":{
-     "exp":"0 rad",
-     "val":0.0
-    }
-   },
-   "leftTrench":{
-    "x":{
-     "exp":"3.58 m",
-     "val":3.58
-    },
-    "y":{
-     "exp":"7.232 m",
-     "val":7.232
-    },
-    "heading":{
-     "exp":"0 rad",
-     "val":0.0
-    }
-   },
-   "outpost":{
-    "x":{
-     "exp":"0.7 m",
-     "val":0.7
-    },
-    "y":{
-     "exp":"0.65 m",
-     "val":0.65
-    },
-    "heading":{
-     "exp":"180 deg",
-     "val":3.141592653589793
-    }
-   },
-   "rightClimbEdge":{
-    "x":{
-     "exp":"1.06 m",
-     "val":1.06
-    },
-    "y":{
-     "exp":"2.876 m",
-     "val":2.876
-    },
-    "heading":{
-     "exp":"90 deg",
-     "val":1.5707963267948966
-    }
-   },
-   "rightThroughDepot":{
-    "x":{
-     "exp":"0.5 m",
-     "val":0.5
-    },
-    "y":{
-     "exp":"4.888 m",
-     "val":4.888
-    },
-    "heading":{
-     "exp":"0 rad",
-     "val":0.0
-    }
-   },
-   "rightTrench":{
-    "x":{
-     "exp":"3.58 m",
-     "val":3.58
-    },
-    "y":{
-     "exp":"0.837 m",
-     "val":0.837
-    },
-    "heading":{
-     "exp":"0 deg",
-     "val":0.0
-    }
-   }
-  }
+  "expressions":{},
+  "poses":{}
  },
  "config":{
   "frontLeft":{
    "x":{
-    "exp":"10 in",
-    "val":0.254
+    "exp":"11 in",
+    "val":0.2794
    },
    "y":{
-    "exp":"10 in",
-    "val":0.254
+    "exp":"11 in",
+    "val":0.2794
    }
   },
   "backLeft":{
    "x":{
-    "exp":"-10 in",
-    "val":-0.254
+    "exp":"-11 in",
+    "val":-0.2794
    },
    "y":{
-    "exp":"10 in",
-    "val":0.254
+    "exp":"11 in",
+    "val":0.2794
    }
   },
   "mass":{
-   "exp":"52 kg",
-   "val":52.0
+   "exp":"150 lbs",
+   "val":68.0388555
   },
   "inertia":{
    "exp":"6 kg m ^ 2",
    "val":6.0
   },
   "gearing":{
-   "exp":"5.4",
-   "val":5.4
+   "exp":"6.5",
+   "val":6.5
   },
   "radius":{
    "exp":"2 in",
    "val":0.0508
   },
   "vmax":{
-   "exp":"5800 RPM",
-   "val":607.3745796940267
+   "exp":"6000 RPM",
+   "val":628.3185307179587
   },
   "tmax":{
-   "exp":"3.8 N * m",
-   "val":3.8
+   "exp":"1.2 N * m",
+   "val":1.2
   },
   "cof":{
    "exp":"1.5",
@@ -213,16 +57,16 @@
   },
   "bumper":{
    "front":{
-    "exp":"17.406 in",
-    "val":0.4421124
+    "exp":"16 in",
+    "val":0.4064
    },
    "side":{
-    "exp":"17.406 in",
-    "val":0.4421124
+    "exp":"16 in",
+    "val":0.4064
    },
    "back":{
-    "exp":"17.406 in",
-    "val":0.4421124
+    "exp":"16 in",
+    "val":0.4064
    }
   },
   "differentialTrackWidth":{

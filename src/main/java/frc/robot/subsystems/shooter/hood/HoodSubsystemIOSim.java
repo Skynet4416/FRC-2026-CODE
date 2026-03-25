@@ -38,7 +38,7 @@ public class HoodSubsystemIOSim implements HoodSubsystemIO {
     motorSim =
         new DCMotorSim(
             LinearSystemId.createDCMotorSystem(
-                gearbox, 0.001, Constants.Subsystems.Shooter.Hood.GEAR_RATIO),
+                gearbox, 0.05, Constants.Subsystems.Shooter.Hood.GEAR_RATIO),
             gearbox);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
@@ -75,6 +75,24 @@ public class HoodSubsystemIOSim implements HoodSubsystemIO {
     talonFXSim.setSupplyVoltage(RobotController.getBatteryVoltage());
 
     double motorVoltage = talonFXSim.getMotorVoltage();
+
+    // Simulated friction and damping
+    // This stabilizes the simulation with the real-world tuned PID values (high kP and kS)
+    double velocityRadPerSec = motorSim.getAngularVelocityRadPerSec();
+    double frictionVolts = Constants.Subsystems.Shooter.Hood.ClosedLoop.KS;
+    double dampingVolts = velocityRadPerSec * 0.1;
+
+    if (Math.abs(velocityRadPerSec) > 1e-3) {
+      motorVoltage -= Math.signum(velocityRadPerSec) * frictionVolts;
+    } else {
+      if (Math.abs(motorVoltage) < frictionVolts) {
+        motorVoltage = 0;
+      } else {
+        motorVoltage -= Math.signum(motorVoltage) * frictionVolts;
+      }
+    }
+    motorVoltage -= dampingVolts;
+
     motorSim.setInputVoltage(motorVoltage);
     motorSim.update(0.02);
 

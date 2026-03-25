@@ -29,6 +29,7 @@ import edu.wpi.first.wpilibj.DriverStation.Alliance;
 import edu.wpi.first.wpilibj.GenericHID;
 import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.XboxController;
+import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
@@ -69,7 +70,9 @@ import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
+import frc.robot.util.elasticlib.Elastic;
 import frc.robot.util.geometry.AllianceFlipUtil;
+import java.util.Optional;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
@@ -119,12 +122,16 @@ public class RobotContainer {
   // Controllers
   private final CommandPS5Controller driveController = new CommandPS5Controller(0);
   private SwerveDriveSimulation driveSimulation = null;
-
+  private final edu.wpi.first.wpilibj.Timer teleopElapsedTimer = new edu.wpi.first.wpilibj.Timer();
   //   private final CommandPS5Controller mechanismController = new CommandPS5Controller(1);
   private final Alert driverControllerDisconnected =
       new Alert("Driver controller disconnected (port 0).", AlertType.kWarning);
+  private final Alert autoWinnerNotSet = new Alert("!!! AUTO WINNER NOT SET !!!", AlertType.kError);
   //   private final Alert mechanismControllerDisconnected =
   //       new Alert("Mechanism controller disconnected (port 1).", AlertType.kWarning);
+
+  // For elastic
+  private final Field2d field = new Field2d();
 
   private final Trigger disableFlywheelAutoSpinup;
   private final Trigger ignoreHubState;
@@ -133,6 +140,7 @@ public class RobotContainer {
   private final LoggedDashboardChooser<Boolean> runWheelsWhenFoldingChooser;
   private final LoggedDashboardChooser<Boolean> disableFlywheelAutoSpinupChooser;
   private final LoggedDashboardChooser<Boolean> ignoreHubStateChooser;
+  private final LoggedDashboardChooser<String> allianceWinOverrideChooser;
   private final LoggedDashboardChooser<DriveCommands.TrenchAlignmentPosition>
       trenchAlignmentPositionChooser;
 
@@ -244,6 +252,8 @@ public class RobotContainer {
 
         ballSim.enable();
         // ballSim.placeFieldBalls();
+
+        SmartDashboard.putData("Field", field);
         break;
 
       default:
@@ -319,8 +329,44 @@ public class RobotContainer {
     ignoreHubStateChooser.addOption("Yes", true);
     ignoreHubStateChooser.addDefaultOption("No", false);
 
+    allianceWinOverrideChooser = new LoggedDashboardChooser<>("Alliance Win Override");
+    allianceWinOverrideChooser.addDefaultOption("None", "None");
+    allianceWinOverrideChooser.addOption("Won", "Won");
+    allianceWinOverrideChooser.addOption("Lost", "Lost");
+
     disableFlywheelAutoSpinup = new Trigger(disableFlywheelAutoSpinupChooser::get);
     ignoreHubState = new Trigger(ignoreHubStateChooser::get);
+
+    HubShiftUtil.setAllianceWinOverride(
+        () -> {
+          String dashValue = allianceWinOverrideChooser.get();
+          if (dashValue != null) {
+            if (dashValue.equals("Won")) return Optional.of(true);
+            if (dashValue.equals("Lost")) return Optional.of(false);
+          }
+          return Optional.empty();
+        });
+    Trigger hubActiveOrPassing =
+        new Trigger(
+            () ->
+                HubShiftUtil.getShiftedShiftInfo().active()
+                    || LaunchCalculator.getInstance().getParameters().passing());
+
+    Trigger inLaunchingTolerance =
+        new Trigger(
+            () ->
+                hoodSubsystem.atSetpoint()
+                    && flywheelSubsystem.atSetpoint()
+                    && DriveCommands.atLaunchGoal());
+
+    this.readyToShoot =
+        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
+            .and(
+                () ->
+                    LaunchCalculator.getInstance().getParameters().confidence()
+                        >= minShootingConfidence.get())
+            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
+            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     trenchAlignmentPositionChooser = new LoggedDashboardChooser<>("Trench Alignment Position");
     trenchAlignmentPositionChooser.addDefaultOption(
@@ -367,7 +413,7 @@ public class RobotContainer {
     autoChooser.addOption(
         "Flywheel SysId (Dynamic Reverse)",
         flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption("Choreo Test", testAuto());
+    autoChooser.addDefaultOption("Choreo Test", testAuto());
     // Configure the button bindings
 
     autoChooser.onChange(
@@ -400,6 +446,10 @@ public class RobotContainer {
     RobotModeTriggers.autonomous().onTrue(Commands.runOnce(HubShiftUtil::initialize));
     RobotModeTriggers.disabled()
         .onTrue(Commands.runOnce(HubShiftUtil::initialize).ignoringDisable(true));
+
+    // Elastic tab switching
+    RobotModeTriggers.teleop().onTrue(Commands.runOnce(() -> Elastic.selectTab("Teleoperated")));
+    RobotModeTriggers.autonomous().onTrue(Commands.runOnce(() -> Elastic.selectTab("Autonomous")));
 
     // Drive controls
     DoubleSupplier driverX = () -> -driveController.getLeftY();
@@ -441,6 +491,7 @@ public class RobotContainer {
                 () -> -driveController.getLeftX(),
                 () -> Rotation2d.kZero));
     nearTrench
+        .and(RobotModeTriggers.teleop())
         .and(driveController.R2().negate())
         .and(autoAlignmentOverride.negate())
         .whileTrue(
@@ -582,13 +633,70 @@ public class RobotContainer {
             Commands.run(() -> rightIntake.setPercentage(0.2), rightIntake)
                 .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
                 .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
+
+    // ****** RUMBLE ALERTS ******
+
+    // Reset the timer as soon as Teleop starts
+    RobotModeTriggers.teleop().onTrue(Commands.runOnce(teleopElapsedTimer::restart));
+
+    // 1. SHIFT START PULSE
+    // Pulses both sides for 0.4s when a scoring window opens
+    new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().active())
+        .and(RobotModeTriggers.teleop())
+        .onTrue(
+            Commands.runEnd(
+                    () ->
+                        driveController.setRumble(
+                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
+                    () ->
+                        driveController.setRumble(
+                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+                .withTimeout(0.4)
+                .withName("ShiftStartPulse"));
+
+    // 2. SHIFT END COUNTDOWN (5 Seconds)
+    // Pulses the right side at 5, 4, 3, 2, and 1 seconds remaining
+    for (int i = 1; i <= 5; i++) {
+      double countdownTime = i;
+      new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().remainingTime() < countdownTime)
+          .and(RobotModeTriggers.teleop())
+          .and(() -> HubShiftUtil.getShiftedShiftInfo().active())
+          .onTrue(
+              Commands.runEnd(
+                      () ->
+                          driveController.setRumble(
+                              edu.wpi.first.wpilibj.GenericHID.RumbleType.kRightRumble, 1.0),
+                      () ->
+                          driveController.setRumble(
+                              edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+                  .withTimeout(0.2)
+                  .withName("ShiftEndCountdown" + i));
+    }
+
+    // 3. MISSING DATA ALERT
+    // Rumbles if data is missing, no override is set, and 1.0 second has passed in Teleop
+    RobotModeTriggers.teleop()
+        .and(() -> !(DriverStation.getGameSpecificMessage().length() > 0))
+        .and(() -> HubShiftUtil.getAllianceWinOverride().isEmpty())
+        .and(() -> teleopElapsedTimer.hasElapsed(1.0))
+        .whileTrue(
+            Commands.runEnd(
+                    () ->
+                        driveController.setRumble(
+                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
+                    () ->
+                        driveController.setRumble(
+                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+                .withName("MissingDataRumble"))
+        .whileTrue(
+            Commands.startEnd(() -> autoWinnerNotSet.set(true), () -> autoWinnerNotSet.set(false)));
   }
 
   /** Update dashboard outputs. */
   public void updateDashboardOutputs() {
     Logger.recordOutput("AutoAlignment/OverrideToggle", autoAlignmentOverrideState);
     // Publish match time
-    SmartDashboard.putNumber("Match Time", DriverStation.getMatchTime());
+    SmartDashboard.putNumber("Match Time", HubShiftUtil.getMatchTime());
 
     // Controller disconnected alerts
     driverControllerDisconnected.set(
@@ -614,6 +722,9 @@ public class RobotContainer {
     SmartDashboard.putBoolean(
         "Shifts/Active First?",
         DriverStation.getAlliance().orElse(Alliance.Blue) == HubShiftUtil.getFirstActiveAlliance());
+
+    // For displaying in Elastic
+    field.setRobotPose(drive.getPose());
   }
 
   /**
@@ -806,7 +917,7 @@ public class RobotContainer {
 
   @AutoLogOutput(key = "LaunchCalculator/ReadyToShoot")
   public boolean readyToShoot() {
-    return readyToShoot.getAsBoolean();
+    return readyToShoot != null && readyToShoot.getAsBoolean();
   }
 
   public Command testAuto() {
@@ -820,30 +931,14 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 // trench.resetOdometry(),
+                // For solo game - shoot the first 8 balls, TODO: test this
+                autoShoot(2.0),
                 trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
-                        flywheelSubsystem.runTrackTargetCommand(),
-                        hoodSubsystem.runTrackTargetCommand(),
-                        Commands.repeatingSequence(
-                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
-                            new RunBothIndexersCommand(
-                                    spindexerSubsystem, shooterIndexerSubsystem, 1.0)
-                                .until(() -> !readyToShoot.getAsBoolean())))
-                    .withTimeout(5.0),
+                autoShoot(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                        DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
-                        flywheelSubsystem.runTrackTargetCommand(),
-                        hoodSubsystem.runTrackTargetCommand(),
-                        Commands.repeatingSequence(
-                            Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
-                            new RunBothIndexersCommand(
-                                    spindexerSubsystem, shooterIndexerSubsystem, 1.0)
-                                .until(() -> !readyToShoot.getAsBoolean())))
-                    .withTimeout(5.0),
+                autoShoot(5.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2)));
 
@@ -862,13 +957,13 @@ public class RobotContainer {
             flywheelSubsystem.runTrackTargetCommand(),
             hoodSubsystem.runTrackTargetCommand(),
             Commands.repeatingSequence(
-                Commands.waitUntil(() -> readyToShoot.getAsBoolean()),
+                Commands.waitUntil(() -> readyToShoot != null && readyToShoot.getAsBoolean()),
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0)
-                    .until(() -> !readyToShoot.getAsBoolean())),
+                    .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())),
             Commands.repeatingSequence(
                 Commands.waitSeconds(0.25),
                 Commands.runOnce(this::launchSimulatedProjectile)
-                    .onlyIf(() -> readyToShoot.getAsBoolean())))
+                    .onlyIf(() -> readyToShoot != null && readyToShoot.getAsBoolean())))
         .withTimeout(timeoutSeconds);
   }
 }
