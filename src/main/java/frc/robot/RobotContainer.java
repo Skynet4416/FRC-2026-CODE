@@ -578,12 +578,12 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    flywheelSubsystem.setDefaultCommand(
-        new ContinuousConditionalCommand(
-            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-            flywheelSubsystem.runAtSpeedRPMCommand(
-                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-            disableFlywheelAutoSpinup));
+    // flywheelSubsystem.setDefaultCommand(
+    //     new ContinuousConditionalCommand(
+    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+    //         flywheelSubsystem.runAtSpeedRPMCommand(
+    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+    //         disableFlywheelAutoSpinup));
 
     // flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
 
