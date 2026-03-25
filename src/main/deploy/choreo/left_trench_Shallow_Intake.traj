@@ -367,6 +367,6 @@
   "splits":[0]
  },
  "events":[
-   {"name":"IntakeOpen", "from":{"target":1, "targetTimestamp":0.89137, "offset":{"exp":"0 s", "val":0.0}}, "event":null},
+   {"name":"IntakeOpen", "from":{"target":0, "targetTimestamp":0.0, "offset":{"exp":"0 s", "val":0.0}}, "event":null},
    {"name":"Shoot", "from":{"target":12, "targetTimestamp":6.80102, "offset":{"exp":"0 s", "val":0.0}}, "event":null}]
 }
