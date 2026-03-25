@@ -461,9 +461,10 @@ public class RobotContainer {
     Trigger inLaunchingTolerance =
         new Trigger(
             () ->
-                hoodSubsystem.atSetpoint()
-                    && flywheelSubsystem.atSetpoint()
-                    && DriveCommands.atLaunchGoal());
+                LaunchCalculator.getInstance().getParameters().passing()
+                    || (hoodSubsystem.atSetpoint()
+                        && flywheelSubsystem.atSetpoint()
+                        && DriveCommands.atLaunchGoal()));
 
     this.readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
