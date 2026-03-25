@@ -498,10 +498,11 @@
             "y": 512.0,
             "width": 256.0,
             "height": 128.0,
-            "type": "Split Button Chooser",
+            "type": "ComboBox Chooser",
             "properties": {
               "topic": "/SmartDashboard/Run Wheels When Folding",
-              "period": 0.06
+              "period": 0.06,
+              "sort_options": false
             }
           },
           {
@@ -523,10 +524,11 @@
             "y": 384.0,
             "width": 256.0,
             "height": 128.0,
-            "type": "Split Button Chooser",
+            "type": "ComboBox Chooser",
             "properties": {
               "topic": "/SmartDashboard/Ignore Hub State",
-              "period": 0.06
+              "period": 0.06,
+              "sort_options": false
             }
           },
           {
@@ -535,10 +537,11 @@
             "y": 384.0,
             "width": 256.0,
             "height": 128.0,
-            "type": "Split Button Chooser",
+            "type": "ComboBox Chooser",
             "properties": {
               "topic": "/SmartDashboard/Disable Flywheel Auto Spinup",
-              "period": 0.06
+              "period": 0.06,
+              "sort_options": false
             }
           },
           {
