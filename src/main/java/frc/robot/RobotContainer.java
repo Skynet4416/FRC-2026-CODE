@@ -64,7 +64,6 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
-import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -578,6 +577,7 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
+    // For comp
     // flywheelSubsystem.setDefaultCommand(
     //     new ContinuousConditionalCommand(
     //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
@@ -585,8 +585,14 @@ public class RobotContainer {
     //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
     //         disableFlywheelAutoSpinup));
 
-    // flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
+    // For tuning
+    flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
 
+    // For comp
+    // hoodSubsystem.setDefaultCommand(
+    //     Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
+
+    // For tuning
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
 
