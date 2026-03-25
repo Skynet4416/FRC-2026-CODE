@@ -204,6 +204,8 @@ public class RobotContainer {
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
         compressor.enableAnalog(80, 110);
+
+        SmartDashboard.putData("Field", field);
         break;
 
       case SIM:
@@ -252,7 +254,6 @@ public class RobotContainer {
 
         ballSim.enable();
         // ballSim.placeFieldBalls();
-
         SmartDashboard.putData("Field", field);
         break;
 
@@ -929,22 +930,14 @@ public class RobotContainer {
                 // trench.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
                 autoShoot(2.0),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
                 trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                    autoShoot(2.5),
-                    Commands.sequence(
-                        Commands.waitSeconds(1),
-                        Commands.runOnce(() -> leftIntake.setLowered(false), leftIntake))),
+                autoShoot(2.5),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                    autoShoot(2.5),
-                    Commands.sequence(
-                        Commands.waitSeconds(1),
-                        Commands.runOnce(() -> leftIntake.setLowered(false), leftIntake))),
-                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
-                    .withTimeout(0.2)));
+                autoShoot(2.5)));
 
     return routine.cmd();
   }
@@ -969,5 +962,54 @@ public class RobotContainer {
                 Commands.runOnce(this::launchSimulatedProjectile)
                     .onlyIf(() -> readyToShoot != null && readyToShoot.getAsBoolean())))
         .withTimeout(timeoutSeconds);
+  }
+
+  public Command testAutoWithIntakeFolding() {
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    AutoTrajectory trenchShallowIntake = routine.trajectory("left_trench_Shallow_Intake");
+    AutoTrajectory trenchDeepIntake = routine.trajectory("left_trench_Deep_Intake");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                // trench.resetOdometry(),
+                // For solo game - shoot the first 8 balls, TODO: test this
+                Commands.parallel(
+                    autoShoot(2.0),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            }))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            }))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            })))));
+
+    return routine.cmd();
   }
 }
