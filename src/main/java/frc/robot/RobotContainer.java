@@ -635,39 +635,39 @@ public class RobotContainer {
     // Reset the timer as soon as Teleop starts
     RobotModeTriggers.teleop().onTrue(Commands.runOnce(teleopElapsedTimer::restart));
 
-    // 1. SHIFT START PULSE
-    // Pulses both sides for 0.4s when a scoring window opens
-    new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().active())
-        .and(RobotModeTriggers.teleop())
-        .onTrue(
-            Commands.runEnd(
-                    () ->
-                        driveController.setRumble(
-                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
-                    () ->
-                        driveController.setRumble(
-                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
-                .withTimeout(0.4)
-                .withName("ShiftStartPulse"));
+    // // 1. SHIFT START PULSE
+    // // Pulses both sides for 0.4s when a scoring window opens
+    // new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().active())
+    //     .and(RobotModeTriggers.teleop())
+    //     .onTrue(
+    //         Commands.runEnd(
+    //                 () ->
+    //                     driveController.setRumble(
+    //                         edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
+    //                 () ->
+    //                     driveController.setRumble(
+    //                         edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+    //             .withTimeout(0.4)
+    //             .withName("ShiftStartPulse"));
 
-    // 2. SHIFT END COUNTDOWN (5 Seconds)
-    // Pulses the right side at 5, 4, 3, 2, and 1 seconds remaining
-    for (int i = 1; i <= 5; i++) {
-      double countdownTime = i;
-      new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().remainingTime() < countdownTime)
-          .and(RobotModeTriggers.teleop())
-          .and(() -> HubShiftUtil.getShiftedShiftInfo().active())
-          .onTrue(
-              Commands.runEnd(
-                      () ->
-                          driveController.setRumble(
-                              edu.wpi.first.wpilibj.GenericHID.RumbleType.kRightRumble, 1.0),
-                      () ->
-                          driveController.setRumble(
-                              edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
-                  .withTimeout(0.2)
-                  .withName("ShiftEndCountdown" + i));
-    }
+    // // 2. SHIFT END COUNTDOWN (5 Seconds)
+    // // Pulses the right side at 5, 4, 3, 2, and 1 seconds remaining
+    // for (int i = 1; i <= 5; i++) {
+    //   double countdownTime = i;
+    //   new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().remainingTime() < countdownTime)
+    //       .and(RobotModeTriggers.teleop())
+    //       .and(() -> HubShiftUtil.getShiftedShiftInfo().active())
+    //       .onTrue(
+    //           Commands.runEnd(
+    //                   () ->
+    //                       driveController.setRumble(
+    //                           edu.wpi.first.wpilibj.GenericHID.RumbleType.kRightRumble, 1.0),
+    //                   () ->
+    //                       driveController.setRumble(
+    //                           edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+    //               .withTimeout(0.2)
+    //               .withName("ShiftEndCountdown" + i));
+    // }
 
     // 3. MISSING DATA ALERT
     // Rumbles if data is missing, no override is set, and 1.0 second has passed in Teleop
