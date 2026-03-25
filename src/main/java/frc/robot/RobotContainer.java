@@ -346,26 +346,22 @@ public class RobotContainer {
           }
           return Optional.empty();
         });
-    Trigger hubActiveOrPassing =
-        new Trigger(
-            () ->
-                HubShiftUtil.getShiftedShiftInfo().active()
-                    || LaunchCalculator.getInstance().getParameters().passing());
+    // Trigger hubActiveOrPassing =
+    //     new Trigger(
+    //         () ->
+    //             HubShiftUtil.getShiftedShiftInfo().active()
+    //                 || LaunchCalculator.getInstance().getParameters().passing());
 
     Trigger inLaunchingTolerance =
         new Trigger(
             () ->
-                hoodSubsystem.atSetpoint()
-                    && flywheelSubsystem.atSetpoint()
-                    && DriveCommands.atLaunchGoal());
+                (hoodSubsystem.atSetpoint()
+                        && flywheelSubsystem.atSetpoint()
+                        && DriveCommands.atLaunchGoal())
+                    || LaunchCalculator.getInstance().getParameters().passing());
 
     this.readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(
-                () ->
-                    LaunchCalculator.getInstance().getParameters().confidence()
-                        >= minShootingConfidence.get())
-            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     trenchAlignmentPositionChooser = new LoggedDashboardChooser<>("Trench Alignment Position");
