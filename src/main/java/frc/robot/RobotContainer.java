@@ -929,11 +929,11 @@ public class RobotContainer {
             Commands.sequence(
                 // trench.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
-                autoShoot(2.0),
+                autoShoot(3.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                autoShoot(2.5),
+                autoShoot(5),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
