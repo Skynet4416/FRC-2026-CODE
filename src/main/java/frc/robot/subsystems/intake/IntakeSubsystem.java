@@ -156,9 +156,9 @@ public class IntakeSubsystem extends SubsystemBase {
         }
       }
 
-      reversed = currTime - stuckTime > 0.2;
+      reversed = currTime - stuckTime > 0.375;
 
-      if (currTime - stuckTime > 0.5) {
+      if (currTime - stuckTime > 0.75) {
         stop();
         stuck = true;
       }

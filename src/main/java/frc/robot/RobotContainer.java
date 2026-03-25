@@ -930,11 +930,19 @@ public class RobotContainer {
                 // For solo game - shoot the first 8 balls, TODO: test this
                 autoShoot(2.0),
                 trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                autoShoot(5.0),
+                Commands.parallel(
+                    autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1),
+                        Commands.runOnce(() -> leftIntake.setLowered(false), leftIntake))),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                autoShoot(5.0),
+                Commands.parallel(
+                    autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1),
+                        Commands.runOnce(() -> leftIntake.setLowered(false), leftIntake))),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2)));
 

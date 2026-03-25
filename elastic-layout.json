@@ -8,32 +8,6 @@
         "layouts": [],
         "containers": [
           {
-            "title": "Limelight Right",
-            "x": 768.0,
-            "y": 0.0,
-            "width": 384.0,
-            "height": 384.0,
-            "type": "Camera Stream",
-            "properties": {
-              "topic": "/CameraPublisher/limelight-right-processed",
-              "period": 0.06,
-              "rotation_turns": 0
-            }
-          },
-          {
-            "title": "Limelight Left",
-            "x": 384.0,
-            "y": 0.0,
-            "width": 384.0,
-            "height": 384.0,
-            "type": "Camera Stream",
-            "properties": {
-              "topic": "/CameraPublisher/limelight-left-processed",
-              "period": 0.06,
-              "rotation_turns": 0
-            }
-          },
-          {
             "title": "System Alerts",
             "x": 768.0,
             "y": 384.0,
@@ -158,6 +132,32 @@
               "true_icon": "None",
               "false_icon": "None"
             }
+          },
+          {
+            "title": "limelight-left",
+            "x": 384.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 384.0,
+            "type": "Camera Stream",
+            "properties": {
+              "topic": "/CameraPublisher/limelight-left",
+              "period": 0.06,
+              "rotation_turns": 0
+            }
+          },
+          {
+            "title": "limelight-right",
+            "x": 768.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 384.0,
+            "type": "Camera Stream",
+            "properties": {
+              "topic": "/CameraPublisher/limelight-right",
+              "period": 0.06,
+              "rotation_turns": 0
+            }
           }
         ]
       }
@@ -167,19 +167,6 @@
       "grid_layout": {
         "layouts": [],
         "containers": [
-          {
-            "title": "Choreo Routine Chooser",
-            "x": 896.0,
-            "y": 640.0,
-            "width": 256.0,
-            "height": 128.0,
-            "type": "ComboBox Chooser",
-            "properties": {
-              "topic": "/SmartDashboard/Auto Choices",
-              "period": 0.06,
-              "sort_options": false
-            }
-          },
           {
             "title": "Robot Location (Auto)",
             "x": 1152.0,
@@ -319,27 +306,40 @@
             }
           },
           {
-            "title": "Limelight Left",
+            "title": "Choreo Routine Chooser",
+            "x": 896.0,
+            "y": 640.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "ComboBox Chooser",
+            "properties": {
+              "topic": "/SmartDashboard/Auto Choices",
+              "period": 0.06,
+              "sort_options": false
+            }
+          },
+          {
+            "title": "limelight-left",
             "x": 384.0,
             "y": 0.0,
             "width": 384.0,
             "height": 384.0,
             "type": "Camera Stream",
             "properties": {
-              "topic": "/CameraPublisher/limelight-left-processed",
+              "topic": "/CameraPublisher/limelight-left",
               "period": 0.06,
               "rotation_turns": 0
             }
           },
           {
-            "title": "Limelight Right",
+            "title": "limelight-right",
             "x": 768.0,
             "y": 0.0,
             "width": 384.0,
             "height": 384.0,
             "type": "Camera Stream",
             "properties": {
-              "topic": "/CameraPublisher/limelight-right-processed",
+              "topic": "/CameraPublisher/limelight-right",
               "period": 0.06,
               "rotation_turns": 0
             }
