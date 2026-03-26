@@ -60,19 +60,17 @@ public class LaunchCalculator {
 
     shotCalc = new ShotCalculator(config);
 
-    // Load your calibration data into the solver
-    // shotCalc.loadLUTEntry(1.436259713, 2200.0, 5.0, 0.6);
-    // shotCalc.loadLUTEntry(2.056853558, 2500.0, 7.0, 0.6);
-    // shotCalc.loadLUTEntry(2.5, 2750.0, 9.0, 6.5);
-    // shotCalc.loadLUTEntry(3.0, 3150.0, 15.0, 0.7);
-    // shotCalc.loadLUTEntry(3.5, 3400.0, 18.0, 0.70);
-    // shotCalc.loadLUTEntry(4.0, 3700.0, 23.0, 0.85);
-    // shotCalc.loadLUTEntry(4.5, 4500.0, 26.0, 1.0);
-    // shotCalc.loadLUTEntry(5.0, 4800.0, 29.0, 1.2);
+    // כיול גן
+    // shotCalc.loadLUTEntry(1.37, 1800.0, 6.0, 0.83);
+    // shotCalc.loadLUTEntry(2.7, 2100.0, 23.0, 0.85);
+    // shotCalc.loadLUTEntry(4.45, 2500.0, 32.0, 0.92);
 
-    shotCalc.loadLUTEntry(1.37, 1800.0, 6.0, 0.83);
-    shotCalc.loadLUTEntry(2.7, 2100.0, 23.0, 0.85);
-    shotCalc.loadLUTEntry(4.45, 2500.0, 32.0, 0.92);
+    // כיול בחוץ
+    shotCalc.loadLUTEntry(1.48, 2000.0, 8.0, 1.00);
+    shotCalc.loadLUTEntry(2.3, 2350.0, 13.0, 1.1);
+    shotCalc.loadLUTEntry(3.6, 3100.0, 18.0, 1.2);
+    shotCalc.loadLUTEntry(4.4, 3500.0, 22.0, 1.15);
+    shotCalc.loadLUTEntry(4.7, 4000.0, 31.0, 1.07);
   }
 
   public static LaunchCalculator getInstance() {
@@ -231,7 +229,8 @@ public class LaunchCalculator {
     } else {
       // --- NEW PHYSICS-BASED SOTM SOLVER FOR HUB ---
       Translation2d target =
-          AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d());
+          AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d())
+              .plus(new Translation2d(-0.4, -0.25));
 
       // Dynamic forward vector to prevent the solver from invalidating shots from "behind" the hub.
       Translation2d hubForward = target.minus(estimatedPose.getTranslation());
