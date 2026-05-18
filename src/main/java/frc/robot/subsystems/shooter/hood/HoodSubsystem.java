@@ -33,6 +33,7 @@ public class HoodSubsystem extends SubsystemBase {
   public static final LoggedTunableNumber toleranceDeg =
       new LoggedTunableNumber("Hood/ToleranceDeg", 1.0);
 
+  // For zeroing, if it zero's too early - decrease, not zeroing - increase
   private static final LoggedTunableNumber homingVelocityThreshold =
       new LoggedTunableNumber("Hood/Homing/VelocityThreshold", 2);
 
