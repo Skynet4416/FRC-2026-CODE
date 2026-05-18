@@ -347,11 +347,12 @@ public class RobotContainer {
           }
           return Optional.empty();
         });
-    // Trigger hubActiveOrPassing =
-    //     new Trigger(
-    //         () ->
-    //             HubShiftUtil.getShiftedShiftInfo().active()
-    //                 || LaunchCalculator.getInstance().getParameters().passing());
+
+    Trigger hubActiveOrPassing =
+        new Trigger(
+            () ->
+                HubShiftUtil.getOfficialShiftInfo().active()
+                    || LaunchCalculator.getInstance().getParameters().passing());
 
     Trigger inLaunchingTolerance =
         new Trigger(
@@ -361,9 +362,13 @@ public class RobotContainer {
                         && DriveCommands.atLaunchGoal())
                     || LaunchCalculator.getInstance().getParameters().passing());
 
+    // Last and state makes it only shoot if hub is active / passing / override is set (in elastic)
     this.readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+            .and(
+                inLaunchingTolerance
+                    .debounce(0.25, DebounceType.kFalling)
+                    .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean()));
 
     trenchAlignmentPositionChooser = new LoggedDashboardChooser<>("Trench Alignment Position");
     trenchAlignmentPositionChooser.addDefaultOption(
@@ -506,6 +511,7 @@ public class RobotContainer {
         .R3()
         .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
 
+    // Careful with this one, can shoot ball outside of field boundaries when passing
     Trigger inLaunchingTolerance =
         new Trigger(
             () ->
