@@ -45,6 +45,8 @@ import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.intake.IntakeSubsystemIO;
 import frc.robot.subsystems.intake.IntakeSubsystemIOSim;
 import frc.robot.subsystems.intake.IntakeSubsystemIOTalonFX;
+import frc.robot.subsystems.leds.LedSubsystem;
+import frc.robot.subsystems.leds.ledSubsystemIOCandle;
 import frc.robot.subsystems.shooter.FuelPhysicsSim;
 import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
@@ -90,6 +92,7 @@ public class RobotContainer {
   private final Drive drive;
   private final IntakeSubsystem leftIntake;
   private final IntakeSubsystem rightIntake;
+  private final LedSubsystem ledSubsystem;
   private final Compressor compressor;
   private final AutoFactory autoFactory;
 
@@ -201,6 +204,8 @@ public class RobotContainer {
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
         compressor.enableAnalog(80, 110);
+
+        SmartDashboard.putData("Field", field);
         break;
 
       case SIM:
@@ -249,7 +254,6 @@ public class RobotContainer {
 
         ballSim.enable();
         // ballSim.placeFieldBalls();
-
         SmartDashboard.putData("Field", field);
         break;
 
@@ -278,6 +282,15 @@ public class RobotContainer {
         compressor = null;
         break;
     }
+
+    ledSubsystem =
+        new LedSubsystem(
+            new ledSubsystemIOCandle(),
+            shooterIndexerSubsystem,
+            flywheelSubsystem,
+            spindexerSubsystem,
+            leftIntake,
+            rightIntake);
 
     autoFactory =
         new AutoFactory(
@@ -334,27 +347,28 @@ public class RobotContainer {
           }
           return Optional.empty();
         });
+
     Trigger hubActiveOrPassing =
         new Trigger(
             () ->
-                HubShiftUtil.getShiftedShiftInfo().active()
+                HubShiftUtil.getOfficialShiftInfo().active()
                     || LaunchCalculator.getInstance().getParameters().passing());
 
     Trigger inLaunchingTolerance =
         new Trigger(
             () ->
-                hoodSubsystem.atSetpoint()
-                    && flywheelSubsystem.atSetpoint()
-                    && DriveCommands.atLaunchGoal());
+                (hoodSubsystem.atSetpoint()
+                        && flywheelSubsystem.atSetpoint()
+                        && DriveCommands.atLaunchGoal())
+                    || LaunchCalculator.getInstance().getParameters().passing());
 
+    // Last and state makes it only shoot if hub is active / passing / override is set (in elastic)
     this.readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
             .and(
-                () ->
-                    LaunchCalculator.getInstance().getParameters().confidence()
-                        >= minShootingConfidence.get())
-            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
-            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+                inLaunchingTolerance
+                    .debounce(0.25, DebounceType.kFalling)
+                    .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean()));
 
     trenchAlignmentPositionChooser = new LoggedDashboardChooser<>("Trench Alignment Position");
     trenchAlignmentPositionChooser.addDefaultOption(
@@ -467,6 +481,7 @@ public class RobotContainer {
     // Default command, normal field-relative drive
     drive.setDefaultCommand(
         DriveCommands.joystickDrive(drive, driverX, driverY, driverOmega, maxOmegaScalar::get));
+    // ledSubsystem.setDefaultCommand(Commands.run(ledSubsystem::SetIdle));
 
     // Lock to 0 when A button is held
     driveController
@@ -495,37 +510,29 @@ public class RobotContainer {
     driveController
         .R3()
         .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
-    Trigger hubActiveOrPassing =
-        new Trigger(
-            () ->
-                HubShiftUtil.getShiftedShiftInfo().active()
-                    || LaunchCalculator.getInstance().getParameters().passing());
 
+    // Careful with this one, can shoot ball outside of field boundaries when passing
     Trigger inLaunchingTolerance =
         new Trigger(
             () ->
-                hoodSubsystem.atSetpoint()
-                    && flywheelSubsystem.atSetpoint()
-                    && DriveCommands.atLaunchGoal());
+                LaunchCalculator.getInstance().getParameters().passing()
+                    || (hoodSubsystem.atSetpoint()
+                        && flywheelSubsystem.atSetpoint()
+                        && DriveCommands.atLaunchGoal()));
 
     this.readyToShoot =
         new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(
-                () ->
-                    LaunchCalculator.getInstance().getParameters().confidence()
-                        >= minShootingConfidence.get())
-            .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean())
             .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
         .R2()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
-        .whileTrue(hoodSubsystem.runTrackTargetCommand())
-        .onFalse(
-            Commands.deadline(
-                Commands.waitSeconds(1.0),
-                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.5)));
+        .whileTrue(hoodSubsystem.runTrackTargetCommand());
+    // .onFalse(
+    //     Commands.deadline(
+    //         Commands.waitSeconds(1.0),
+    //         new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.5)));
 
     // driveController
     //     .cross()
@@ -599,7 +606,8 @@ public class RobotContainer {
               if (leftIntake.isLowered()) {
                 leftIntake.setPercentage(1.0);
               } else {
-                leftIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.5 : 0.0);
+                leftIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
+                leftIntake.setPercentage(0.0);
               }
             },
             leftIntake));
@@ -609,7 +617,8 @@ public class RobotContainer {
               if (rightIntake.isLowered()) {
                 rightIntake.setPercentage(1.0);
               } else {
-                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.2 : 0.0);
+                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
+                rightIntake.setPercentage(0.0);
               }
             },
             rightIntake));
@@ -618,13 +627,13 @@ public class RobotContainer {
     leftIntakeLowered
         .onTrue(Commands.runOnce(() -> leftIntake.setPercentage(1.0), leftIntake))
         .onFalse(
-            Commands.run(() -> leftIntake.setPercentage(1.0), leftIntake)
+            Commands.run(() -> leftIntake.setPercentage(0.2), leftIntake)
                 .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
                 .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
     rightIntakeLowered
         .onTrue(Commands.runOnce(() -> rightIntake.setPercentage(1.0), rightIntake))
         .onFalse(
-            Commands.run(() -> rightIntake.setPercentage(1.0), rightIntake)
+            Commands.run(() -> rightIntake.setPercentage(0.2), rightIntake)
                 .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
                 .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
 
@@ -633,39 +642,39 @@ public class RobotContainer {
     // Reset the timer as soon as Teleop starts
     RobotModeTriggers.teleop().onTrue(Commands.runOnce(teleopElapsedTimer::restart));
 
-    // 1. SHIFT START PULSE
-    // Pulses both sides for 0.4s when a scoring window opens
-    new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().active())
-        .and(RobotModeTriggers.teleop())
-        .onTrue(
-            Commands.runEnd(
-                    () ->
-                        driveController.setRumble(
-                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
-                    () ->
-                        driveController.setRumble(
-                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
-                .withTimeout(0.4)
-                .withName("ShiftStartPulse"));
+    // // 1. SHIFT START PULSE
+    // // Pulses both sides for 0.4s when a scoring window opens
+    // new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().active())
+    //     .and(RobotModeTriggers.teleop())
+    //     .onTrue(
+    //         Commands.runEnd(
+    //                 () ->
+    //                     driveController.setRumble(
+    //                         edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
+    //                 () ->
+    //                     driveController.setRumble(
+    //                         edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+    //             .withTimeout(0.4)
+    //             .withName("ShiftStartPulse"));
 
-    // 2. SHIFT END COUNTDOWN (5 Seconds)
-    // Pulses the right side at 5, 4, 3, 2, and 1 seconds remaining
-    for (int i = 1; i <= 5; i++) {
-      double countdownTime = i;
-      new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().remainingTime() < countdownTime)
-          .and(RobotModeTriggers.teleop())
-          .and(() -> HubShiftUtil.getShiftedShiftInfo().active())
-          .onTrue(
-              Commands.runEnd(
-                      () ->
-                          driveController.setRumble(
-                              edu.wpi.first.wpilibj.GenericHID.RumbleType.kRightRumble, 1.0),
-                      () ->
-                          driveController.setRumble(
-                              edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
-                  .withTimeout(0.2)
-                  .withName("ShiftEndCountdown" + i));
-    }
+    // // 2. SHIFT END COUNTDOWN (5 Seconds)
+    // // Pulses the right side at 5, 4, 3, 2, and 1 seconds remaining
+    // for (int i = 1; i <= 5; i++) {
+    //   double countdownTime = i;
+    //   new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().remainingTime() < countdownTime)
+    //       .and(RobotModeTriggers.teleop())
+    //       .and(() -> HubShiftUtil.getShiftedShiftInfo().active())
+    //       .onTrue(
+    //           Commands.runEnd(
+    //                   () ->
+    //                       driveController.setRumble(
+    //                           edu.wpi.first.wpilibj.GenericHID.RumbleType.kRightRumble, 1.0),
+    //                   () ->
+    //                       driveController.setRumble(
+    //                           edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
+    //               .withTimeout(0.2)
+    //               .withName("ShiftEndCountdown" + i));
+    // }
 
     // 3. MISSING DATA ALERT
     // Rumbles if data is missing, no override is set, and 1.0 second has passed in Teleop
@@ -926,15 +935,15 @@ public class RobotContainer {
             Commands.sequence(
                 // trench.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
-                autoShoot(2.0),
+                autoShoot(3.0),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
                 trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                autoShoot(5.0),
+                autoShoot(5),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                autoShoot(5.0),
-                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
-                    .withTimeout(0.2)));
+                autoShoot(2.5)));
 
     return routine.cmd();
   }
@@ -959,5 +968,54 @@ public class RobotContainer {
                 Commands.runOnce(this::launchSimulatedProjectile)
                     .onlyIf(() -> readyToShoot != null && readyToShoot.getAsBoolean())))
         .withTimeout(timeoutSeconds);
+  }
+
+  public Command testAutoWithIntakeFolding() {
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    AutoTrajectory trenchShallowIntake = routine.trajectory("left_trench_Shallow_Intake");
+    AutoTrajectory trenchDeepIntake = routine.trajectory("left_trench_Deep_Intake");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                // trench.resetOdometry(),
+                // For solo game - shoot the first 8 balls, TODO: test this
+                Commands.parallel(
+                    autoShoot(2.0),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            }))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            }))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            })))));
+
+    return routine.cmd();
   }
 }
