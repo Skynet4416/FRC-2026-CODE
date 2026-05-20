@@ -44,7 +44,7 @@ public class RunBothIndexersCommand extends Command {
   // Called every time the scheduler runs while the command is scheduled.
   @Override
   public void execute() {
-    spindexerSubsystem.setPercentage(direction ? targetPercentage : -targetPercentage);
+    spindexerSubsystem.setPercentage(true ? targetPercentage : -targetPercentage);
     shooterIndexerSubsystem.setShooterIndexer(targetPercentage);
 
     Logger.recordOutput("Indexer direction?", direction);
@@ -56,7 +56,7 @@ public class RunBothIndexersCommand extends Command {
     if (Math.abs(spindexerSubsystem.getVelocityRPM()) > 500) {
       stuckTime = currentTime;
     } else if (currentTime - stuckTime > 0.5) {
-      direction = false;
+      // direction = false;
       stuckTime = currentTime;
     }
   }

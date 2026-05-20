@@ -59,6 +59,10 @@ public class FlywheelSubsystem extends SubsystemBase {
     return inputs.velocityRPM;
   }
 
+  public double getSetpoint() {
+    return inputs.setpointRPM;
+  }
+
   public double getAppliedVolts() {
     return inputs.appliedVolts;
   }

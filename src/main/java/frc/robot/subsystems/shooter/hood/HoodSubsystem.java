@@ -33,8 +33,9 @@ public class HoodSubsystem extends SubsystemBase {
   public static final LoggedTunableNumber toleranceDeg =
       new LoggedTunableNumber("Hood/ToleranceDeg", 1.0);
 
+  // For zeroing, if it zero's too early - decrease, not zeroing - increase
   private static final LoggedTunableNumber homingVelocityThreshold =
-      new LoggedTunableNumber("Hood/Homing/VelocityThreshold", 0.05);
+      new LoggedTunableNumber("Hood/Homing/VelocityThreshold", 2);
 
   private static final LoggedTunableNumber deadbandDeg =
       new LoggedTunableNumber("Hood/DeadbandDeg", 0.5);
@@ -179,7 +180,9 @@ public class HoodSubsystem extends SubsystemBase {
 
   /**
    * Command to zero the hood. Lowers manually until velocity drops below threshold, then resets
-   * position to MIN_ANGLE. Includes a tunable delay to ignore initial inrush.
+   * position to MIN_ANGLE. Includes a tunable delay to ignore initial inrush. - Note: Weird
+   * behavior seen in comp, increase velocity threshold if fails to zero, or close the hood
+   * physically and and call zero() in IO
    */
   public Command zeroCommand() {
     return run(() -> io.setVoltage(Constants.Subsystems.Shooter.Hood.HOMING_VOLTS))
