@@ -571,6 +571,11 @@ public class RobotContainer {
             Commands.waitSeconds(1.0),
             new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -1.0)));
 
+    SmartDashboard.putData(
+        "Lower left intake", Commands.runOnce(() -> leftIntake.setLowered(true)));
+    SmartDashboard.putData(
+        "Rasise left intake", Commands.runOnce(() -> leftIntake.setLowered(false)));
+
     // Reset gyro to 0° when B button is pressed
     driveController
         .circle()
