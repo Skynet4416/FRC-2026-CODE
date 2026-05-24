@@ -34,7 +34,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
   private double stuckTime = 0.0;
   private double CURRENT_CUTOFF_THRSHOLD =
-      40; // intake motor will shut off if current exceeds this threshold
+      60; // intake motor will shut off if current exceeds this threshold
   private boolean stuck = false;
   private boolean reversed = false;
 
@@ -121,12 +121,12 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void runVolts(double volts) {
-    io.setVoltage(stuck ? 0 : (reversed ? -volts : volts));
+    io.setVoltage(stuck ? 0 : (reversed ? -(volts * 0.5) : volts));
   }
 
   public void setPercentage(double percentage) {
     targetPercentage = percentage;
-    io.setPercentage(stuck ? 0 : (reversed ? -percentage : percentage));
+    io.setPercentage(stuck ? 0 : (reversed ? -(percentage * 0.5) : percentage));
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {

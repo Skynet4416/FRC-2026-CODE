@@ -50,7 +50,7 @@ public class DriveCommands {
 
   // For the joystickDriveWhileLaunching
   private static final LoggedTunableNumber driveLaunchKp =
-      new LoggedTunableNumber("DriveCommands/Launching/kP", 8.0);
+      new LoggedTunableNumber("DriveCommands/Launching/kP", 16.0);
   private static final LoggedTunableNumber driveLaunchKd =
       new LoggedTunableNumber("DriveCommands/Launching/kD", 0.5);
   private static final LoggedTunableNumber driveLaunchToleranceDeg =

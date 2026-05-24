@@ -29,12 +29,12 @@ public class HoodSubsystem extends SubsystemBase {
   private boolean hoodZeroed = false;
 
   private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 1.0);
-  private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.75);
+  private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.5);
   public static final LoggedTunableNumber toleranceDeg =
       new LoggedTunableNumber("Hood/ToleranceDeg", 1.0);
 
   private static final LoggedTunableNumber homingVelocityThreshold =
-      new LoggedTunableNumber("Hood/Homing/VelocityThreshold", 0.05);
+      new LoggedTunableNumber("Hood/Homing/VelocityThreshold", 50.0);
 
   private static final LoggedTunableNumber deadbandDeg =
       new LoggedTunableNumber("Hood/DeadbandDeg", 0.5);
@@ -119,7 +119,7 @@ public class HoodSubsystem extends SubsystemBase {
   }
 
   public void setTargetAngle(double degrees) {
-    if (hoodZeroed) {
+    if (hoodZeroed || true) {
       if (Math.abs(getAngle() - degrees) <= deadbandDeg.get()) {
         io.set(0);
         io.stop();
@@ -129,7 +129,7 @@ public class HoodSubsystem extends SubsystemBase {
   }
 
   public void setTargetAngleWithVelocity(double degrees, double velocityRPM) {
-    if (hoodZeroed) {
+    if (hoodZeroed || true) {
       if (Math.abs(getAngle() - degrees) <= deadbandDeg.get()) {
         io.stop();
         return;
@@ -148,7 +148,7 @@ public class HoodSubsystem extends SubsystemBase {
 
   public boolean atSetpoint() {
     return DriverStation.isEnabled()
-        && hoodZeroed
+        && (hoodZeroed || true)
         && Math.abs(getAngle() - inputs.targetAngle) <= toleranceDeg.get();
   }
 

@@ -66,11 +66,11 @@ public class LaunchCalculator {
     // shotCalc.loadLUTEntry(4.45, 2500.0, 32.0, 0.92);
 
     // כיול בחוץ
-    shotCalc.loadLUTEntry(1.48, 2000.0, 8.0, 1.00);
-    shotCalc.loadLUTEntry(2.3, 2350.0, 13.0, 1.1);
-    shotCalc.loadLUTEntry(3.6, 3100.0, 18.0, 1.2);
-    shotCalc.loadLUTEntry(4.4, 3500.0, 22.0, 1.15);
-    shotCalc.loadLUTEntry(4.7, 4000.0, 31.0, 1.07);
+    shotCalc.loadLUTEntry(1.48, 2000.0 / 2, 8.0, 1.00);
+    shotCalc.loadLUTEntry(2.3, 2350.0 / 2, 13.0, 1.1);
+    shotCalc.loadLUTEntry(3.6, 3100.0 / 2, 18.0, 1.2);
+    shotCalc.loadLUTEntry(4.4, 3500.0 / 2, 22.0, 1.15);
+    shotCalc.loadLUTEntry(4.7, 4000.0 / 2, 31.0, 1.07);
   }
 
   public static LaunchCalculator getInstance() {
@@ -140,9 +140,9 @@ public class LaunchCalculator {
     passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(45.0));
     passingHoodAngleMap.put(7.80, Rotation2d.fromDegrees(45.0));
 
-    passingFlywheelSpeedMap.put(5.46, 4000.0);
-    passingFlywheelSpeedMap.put(6.62, 4000.0);
-    passingFlywheelSpeedMap.put(7.80, 4000.0);
+    passingFlywheelSpeedMap.put(5.46, 2200.0);
+    passingFlywheelSpeedMap.put(6.62, 2200.0);
+    passingFlywheelSpeedMap.put(7.80, 2200.0);
 
     passingTimeOfFlightMap.put(passingMinDistance, 1.0);
     passingTimeOfFlightMap.put(passingMaxDistance, 2.5);
@@ -230,7 +230,7 @@ public class LaunchCalculator {
       // --- NEW PHYSICS-BASED SOTM SOLVER FOR HUB ---
       Translation2d target =
           AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d())
-              .plus(new Translation2d(-0.4, -0.25));
+              .plus(new Translation2d(-0.35, -0.25));
 
       // Dynamic forward vector to prevent the solver from invalidating shots from "behind" the hub.
       Translation2d hubForward = target.minus(estimatedPose.getTranslation());

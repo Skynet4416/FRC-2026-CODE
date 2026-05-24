@@ -33,6 +33,7 @@ import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.InstantCommand;
 import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
@@ -66,7 +67,6 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
 import frc.robot.subsystems.vision.*;
-import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.SuppliedWaitCommand;
@@ -542,6 +542,9 @@ public class RobotContainer {
                     Commands.waitSeconds(0.25),
                     Commands.runOnce(this::launchSimulatedProjectile))));
 
+    driveController
+        .povUp()
+        .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -1.0));
     // Test specific button for simulated launch
 
     // Switch to X pattern when X button is pressed
@@ -555,6 +558,13 @@ public class RobotContainer {
     driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
 
+    SmartDashboard.putData(
+        "ResetRobot",
+        new InstantCommand(
+            () -> {
+              drive.resetOdometry(
+                  new Pose2d(new Translation2d(3, 3.75), Rotation2d.fromDegrees(180)));
+            }));
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
     SmartDashboard.putData(
@@ -579,14 +589,14 @@ public class RobotContainer {
                     drive)
                 .ignoringDisable(true));
 
-    flywheelSubsystem.setDefaultCommand(
-        new ContinuousConditionalCommand(
-            Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
-            flywheelSubsystem.runAtSpeedRPMCommand(
-                () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
-            disableFlywheelAutoSpinup));
+    // flywheelSubsystem.setDefaultCommand(
+    //     new ContinuousConditionalCommand(
+    //         Commands.runOnce(flywheelSubsystem::stop, flywheelSubsystem),
+    //         flywheelSubsystem.runAtSpeedRPMCommand(
+    //             () -> LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed()),
+    //         disableFlywheelAutoSpinup));
 
-    // flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
+    flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
 
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
@@ -600,8 +610,8 @@ public class RobotContainer {
               if (leftIntake.isLowered()) {
                 leftIntake.setPercentage(1.0);
               } else {
-                leftIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
-                leftIntake.setPercentage(0.0);
+                leftIntake.setPercentage(spindexerSubsystem.getAppliedVolts() > 0.1 ? 0.25 : 0.0);
+                // leftIntake.setPercentage(0.0);
               }
             },
             leftIntake));
@@ -611,8 +621,8 @@ public class RobotContainer {
               if (rightIntake.isLowered()) {
                 rightIntake.setPercentage(1.0);
               } else {
-                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
-                rightIntake.setPercentage(0.0);
+                rightIntake.setPercentage(spindexerSubsystem.getAppliedVolts() > 0.1 ? 0.25 : 0.0);
+                // rightIntake.setPercentage(0.0);
               }
             },
             rightIntake));
@@ -712,10 +722,10 @@ public class RobotContainer {
     // Update from HubShiftUtil
     SmartDashboard.putString(
         "Shifts/Remaining Shift Time",
-        String.format("%.1f", Math.max(HubShiftUtil.getShiftedShiftInfo().remainingTime(), 0.0)));
-    SmartDashboard.putBoolean("Shifts/Shift Active", HubShiftUtil.getShiftedShiftInfo().active());
+        String.format("%.1f", Math.max(HubShiftUtil.getOfficialShiftInfo().remainingTime(), 0.0)));
+    SmartDashboard.putBoolean("Shifts/Shift Active", HubShiftUtil.getOfficialShiftInfo().active());
     SmartDashboard.putString(
-        "Shifts/Game State", HubShiftUtil.getShiftedShiftInfo().currentShift().toString());
+        "Shifts/Game State", HubShiftUtil.getOfficialShiftInfo().currentShift().toString());
     SmartDashboard.putBoolean(
         "Shifts/Active First?",
         DriverStation.getAlliance().orElse(Alliance.Blue) == HubShiftUtil.getFirstActiveAlliance());
@@ -927,7 +937,8 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
-                // trench.resetOdometry(),
+                Commands.runOnce(() -> hoodSubsystem.zero()),
+                trenchShallowIntake.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
                 autoShoot(3.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
