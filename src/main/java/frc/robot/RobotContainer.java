@@ -571,6 +571,7 @@ public class RobotContainer {
         Commands.deadline(
             Commands.waitSeconds(1.0),
             new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -1.0)));
+    SmartDashboard.putData("Zero Hood", hoodSubsystem.zeroCommand());
 
     // Reset gyro to 0° when B button is pressed
     driveController
