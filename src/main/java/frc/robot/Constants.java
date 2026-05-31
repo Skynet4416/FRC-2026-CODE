@@ -223,6 +223,8 @@ public final class Constants {
           public static final int LEFT_FORWARDS = 15;
           public static final int RIGHT_REVERSE = 2; //
           public static final int RIGHT_FORWARDS = 14;
+          public static final int SINGLE_REVERSE = 1; //
+          public static final int SINGLE_FORWARDS = 14;
         }
       }
 

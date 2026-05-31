@@ -35,8 +35,8 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
             : Constants.Subsystems.Intake.Id.Motor.RIGHT_ROLLER;
     int forwardChannel =
         side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Pneumatics.LEFT_FORWARDS
-            : Constants.Subsystems.Intake.Id.Pneumatics.RIGHT_FORWARDS;
+            ? Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_FORWARDS
+            : Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_FORWARDS;
     int reverseChannel =
         side == IntakeSubsystem.IntakeSide.LEFT
             ? Constants.Subsystems.Intake.Id.Pneumatics.LEFT_REVERSE

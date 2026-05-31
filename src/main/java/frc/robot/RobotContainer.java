@@ -197,9 +197,7 @@ public class RobotContainer {
                 new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.LEFT),
                 IntakeSubsystem.IntakeSide.LEFT);
         rightIntake =
-            new IntakeSubsystem(
-                new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.RIGHT),
-                IntakeSubsystem.IntakeSide.RIGHT);
+            new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.RIGHT);
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
         compressor.enableAnalog(80, 110);
@@ -246,9 +244,7 @@ public class RobotContainer {
                 new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.LEFT),
                 IntakeSubsystem.IntakeSide.LEFT);
         rightIntake =
-            new IntakeSubsystem(
-                new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.RIGHT),
-                IntakeSubsystem.IntakeSide.RIGHT);
+            new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.RIGHT);
         compressor = null;
 
         ballSim.enable();
@@ -608,7 +604,7 @@ public class RobotContainer {
         Commands.run(
             () -> {
               if (leftIntake.isLowered()) {
-                leftIntake.setPercentage(1.0);
+                // leftIntake.setPercentage(1.0);
               } else {
                 leftIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
                 leftIntake.setPercentage(0.0);
@@ -746,7 +742,8 @@ public class RobotContainer {
   private Command smartIntakeCommand(IntakeSubsystem.IntakeSide bumperSide) {
     return Commands.defer(
             () -> {
-              IntakeSubsystem.IntakeSide desired = getDesiredIntakeSide(bumperSide);
+              IntakeSubsystem.IntakeSide desired =
+                  IntakeSubsystem.IntakeSide.LEFT; // getDesiredIntakeSide(bumperSide);
               IntakeSubsystem target =
                   desired == IntakeSubsystem.IntakeSide.LEFT ? leftIntake : rightIntake;
               IntakeSubsystem other =
