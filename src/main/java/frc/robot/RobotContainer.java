@@ -604,7 +604,7 @@ public class RobotContainer {
         Commands.run(
             () -> {
               if (leftIntake.isLowered()) {
-                // leftIntake.setPercentage(1.0);
+                leftIntake.setPercentage(1.0);
               } else {
                 leftIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
                 leftIntake.setPercentage(0.0);
