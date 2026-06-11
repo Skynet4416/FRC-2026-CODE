@@ -513,11 +513,11 @@ public class RobotContainer {
 
     // Switch to X pattern when X button is pressed
     // driveController.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
-    final Runnable resetOdometry =
-        Constants.currentMode == Constants.Mode.SIM
-            ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
-            : () ->
-                drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
+    // final Runnable resetOdometry =
+    //     Constants.currentMode == Constants.Mode.SIM
+    //         ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
+    //         : () ->
+    //             drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
 
     // driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     // driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
@@ -572,7 +572,8 @@ public class RobotContainer {
     flywheelSubsystem.setDefaultCommand(flywheelSubsystem.runFlywheelCommand());
 
     hoodSubsystem.setDefaultCommand(
-        Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
+        Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand())
+            .withName("HoodDefault"));
 
     // --- Intake roller logic ---
 
@@ -894,7 +895,8 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
-                // trench.resetOdometry(),
+                trench.resetOdometry(),
+
                 // For solo game - shoot the first 8 balls, TODO: test this
                 autoShoot(3.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
@@ -938,7 +940,8 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
-                // trench.resetOdometry(),
+                trench.resetOdometry(),
+
                 // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.sequence(
                     Commands.runOnce(
@@ -985,7 +988,8 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
-                // trench.resetOdometry(),
+                trench.resetOdometry(),
+
                 // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.sequence(
                     Commands.runOnce(
@@ -1031,7 +1035,7 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
-                // trench.resetOdometry(),
+                trench.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 Commands.sequence(
