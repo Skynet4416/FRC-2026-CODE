@@ -516,7 +516,7 @@ public class RobotContainer {
 
     // Lower the intake while R2 is held, raise it when released
     driveController
-        .R2()
+        .L2()
         .onTrue(Commands.runOnce(() -> leftIntake.setLowered(true)))
         .onFalse(Commands.runOnce(() -> leftIntake.setLowered(false)));
 
