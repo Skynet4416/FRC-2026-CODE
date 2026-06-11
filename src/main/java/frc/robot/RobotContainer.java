@@ -371,7 +371,8 @@ public class RobotContainer {
     trenchAlignmentPositionChooser.addOption("Outer", DriveCommands.TrenchAlignmentPosition.OUTER);
 
     autoChooser.addDefaultOption("Choreo Test", testAuto());
-    autoChooser.addDefaultOption("Shoot", autoShoot(10.0));
+    autoChooser.addDefaultOption(
+        "Shoot", Commands.sequence(Commands.runOnce(() -> hoodSubsystem.zero()), autoShoot(10.0)));
     autoChooser.addDefaultOption("Left Trench Double Take", leftTrenchDoubleTake());
     autoChooser.addDefaultOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
     autoChooser.addDefaultOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
@@ -936,6 +937,7 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
+                Commands.runOnce(() -> hoodSubsystem.zero()),
                 // trench.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.sequence(
@@ -982,6 +984,7 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
+                Commands.runOnce(() -> hoodSubsystem.zero()),
                 // trench.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.sequence(
@@ -1030,6 +1033,7 @@ public class RobotContainer {
             Commands.sequence(
                 // trench.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
+                Commands.runOnce(() -> hoodSubsystem.zero()),
                 Commands.sequence(
                     Commands.runOnce(
                         () -> {
