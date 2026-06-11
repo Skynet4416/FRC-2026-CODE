@@ -20,13 +20,7 @@ import org.littletonrobotics.junction.mechanism.LoggedMechanismLigament2d;
 import org.littletonrobotics.junction.mechanism.LoggedMechanismRoot2d;
 
 public class IntakeSubsystem extends SubsystemBase {
-  public enum IntakeSide {
-    LEFT,
-    RIGHT
-  }
-
   private final IntakeSubsystemIO io;
-  private final IntakeSide side;
   private final SysIdRoutine sysIdRoutine;
   private final LoggedTunableNumber targetRpm;
   protected final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
@@ -43,11 +37,10 @@ public class IntakeSubsystem extends SubsystemBase {
   private final LoggedMechanismRoot2d root;
   private final LoggedMechanismLigament2d arm;
 
-  public IntakeSubsystem(IntakeSubsystemIO io, IntakeSide side) {
+  public IntakeSubsystem(IntakeSubsystemIO io) {
     this.io = io;
-    this.side = side;
 
-    String prefix = side == IntakeSide.LEFT ? "IntakeLeft" : "IntakeRight";
+    String prefix = "IntakeLeft";
     sysIdRoutine =
         new SysIdRoutine(
             new SysIdRoutine.Config(
@@ -57,11 +50,9 @@ public class IntakeSubsystem extends SubsystemBase {
                 (state) -> Logger.recordOutput(prefix + "/SysIdTestState", state.toString())),
             new SysIdRoutine.Mechanism((voltage) -> runVolts(voltage.in(Volts)), null, this));
 
-    this.targetRpm =
-        new LoggedTunableNumber(
-            "Intake/RollerRPM" + (side == IntakeSide.LEFT ? "Left" : "Right"), 10.0);
+    this.targetRpm = new LoggedTunableNumber("Intake/RollerRPMLeft", 10.0);
 
-    String mechName = side == IntakeSide.LEFT ? "IntakeLeft" : "IntakeRight";
+    String mechName = "IntakeLeft";
     this.mech = new LoggedMechanism2d(1.0, 1.0, new Color8Bit(Color.kBlack));
     this.root = mech.getRoot(mechName + "Pivot", 0, 0);
     this.arm =
@@ -166,7 +157,7 @@ public class IntakeSubsystem extends SubsystemBase {
       Logger.recordOutput("Intake Stop Time", currTime - stuckTime);
     }
 
-    String prefix = side == IntakeSide.LEFT ? "IntakeLeft" : "IntakeRight";
+    String prefix = "IntakeLeft";
     Logger.processInputs(prefix, inputs);
 
     // Code for displaying intake mechanism in AdvantageScope
@@ -179,9 +170,9 @@ public class IntakeSubsystem extends SubsystemBase {
 
     // Intake Base Pose
     double intakeX = 0.0;
-    double intakeY = side == IntakeSide.LEFT ? 0.2 : -0.2;
+    double intakeY = 0.2;
     double intakeZ = 0.35;
-    double intakeYaw = side == IntakeSide.LEFT ? 0.0 : 180.0;
+    double intakeYaw = 0.0;
 
     // Pivot pose
     Pose3d pivotPose =

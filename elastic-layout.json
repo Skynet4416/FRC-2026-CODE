@@ -436,23 +436,6 @@
             }
           },
           {
-            "title": "Right Intake Lowered",
-            "x": 768.0,
-            "y": 0.0,
-            "width": 256.0,
-            "height": 128.0,
-            "type": "Boolean Box",
-            "properties": {
-              "topic": "/AdvantageKit/IntakeRight/Lowered",
-              "period": 0.06,
-              "data_type": "boolean",
-              "true_color": 4283215696,
-              "false_color": 4294198070,
-              "true_icon": "None",
-              "false_icon": "None"
-            }
-          },
-          {
             "title": "Left Intake Power",
             "x": 512.0,
             "y": 128.0,
@@ -461,20 +444,6 @@
             "type": "Text Display",
             "properties": {
               "topic": "/AdvantageKit/IntakeLeft/RequestedPercentage",
-              "period": 0.06,
-              "data_type": "double",
-              "show_submit_button": false
-            }
-          },
-          {
-            "title": "Right Intake Power",
-            "x": 768.0,
-            "y": 128.0,
-            "width": 256.0,
-            "height": 128.0,
-            "type": "Text Display",
-            "properties": {
-              "topic": "/AdvantageKit/IntakeRight/RequestedPercentage",
               "period": 0.06,
               "data_type": "double",
               "show_submit_button": false

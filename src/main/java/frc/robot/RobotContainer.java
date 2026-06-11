@@ -182,10 +182,7 @@ public class RobotContainer {
 
         spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOTalonFX());
         shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSparkMax());
-        leftIntake =
-            new IntakeSubsystem(
-                new IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide.LEFT),
-                IntakeSubsystem.IntakeSide.LEFT);
+        leftIntake = new IntakeSubsystem(new IntakeSubsystemIOTalonFX());
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
         compressor.enableAnalog(80, 110);
@@ -227,10 +224,7 @@ public class RobotContainer {
 
         spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
         shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSim());
-        leftIntake =
-            new IntakeSubsystem(
-                new IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide.LEFT),
-                IntakeSubsystem.IntakeSide.LEFT);
+        leftIntake = new IntakeSubsystem(new IntakeSubsystemIOSim());
         compressor = null;
 
         ballSim.enable();
@@ -256,8 +250,7 @@ public class RobotContainer {
         spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIO() {});
         shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIO() {});
 
-        leftIntake =
-            new IntakeSubsystem(new IntakeSubsystemIO() {}, IntakeSubsystem.IntakeSide.LEFT);
+        leftIntake = new IntakeSubsystem(new IntakeSubsystemIO() {});
         compressor = null;
         break;
     }

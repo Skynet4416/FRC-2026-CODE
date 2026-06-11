@@ -28,17 +28,11 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   private double currentSetpoint = 0.0;
   private double requestedPercentage = 0.0;
 
-  public IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide side) {
-    int motorId =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER
-            : Constants.Subsystems.Intake.Id.Motor.RIGHT_ROLLER;
+  public IntakeSubsystemIOTalonFX() {
+    int motorId = Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER;
     // Single-intake robot: the remaining intake's solenoid is wired to the SINGLE channels
     int forwardChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_FORWARDS;
-    int reverseChannel =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Pneumatics.LEFT_REVERSE
-            : Constants.Subsystems.Intake.Id.Pneumatics.RIGHT_REVERSE;
+    int reverseChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_REVERSE;
 
     motor = new TalonFX(motorId);
     solenoid = new DoubleSolenoid(4, PneumaticsModuleType.REVPH, forwardChannel, reverseChannel);
@@ -63,10 +57,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
     config.CurrentLimits.StatorCurrentLimit =
         Constants.Subsystems.Intake.CurrentLimits.STATOR_LIMIT_AMPS;
 
-    config.MotorOutput.Inverted =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? InvertedValue.CounterClockwise_Positive
-            : InvertedValue.Clockwise_Positive; // Default
+    config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
     config.MotorOutput.NeutralMode =
         Constants.Subsystems.Intake.ROLLER_BREAK ? NeutralModeValue.Brake : NeutralModeValue.Coast;
 
