@@ -61,18 +61,11 @@ public class LaunchCalculator {
     shotCalc = new ShotCalculator(config);
 
     // Load your calibration data into the solver
-    // shotCalc.loadLUTEntry(1.436259713, 2200.0, 5.0, 0.6);
-    // shotCalc.loadLUTEntry(2.056853558, 2500.0, 7.0, 0.6);
-    // shotCalc.loadLUTEntry(2.5, 2750.0, 9.0, 6.5);
-    // shotCalc.loadLUTEntry(3.0, 3150.0, 15.0, 0.7);
-    // shotCalc.loadLUTEntry(3.5, 3400.0, 18.0, 0.70);
-    // shotCalc.loadLUTEntry(4.0, 3700.0, 23.0, 0.85);
-    // shotCalc.loadLUTEntry(4.5, 4500.0, 26.0, 1.0);
-    // shotCalc.loadLUTEntry(5.0, 4800.0, 29.0, 1.2);
-
-    shotCalc.loadLUTEntry(1.37, 1800.0, 6.0, 0.83);
-    shotCalc.loadLUTEntry(2.7, 2100.0, 23.0, 0.85);
-    shotCalc.loadLUTEntry(4.45, 2500.0, 32.0, 0.92);
+    shotCalc.loadLUTEntry(1.305, 1300.0, 10.0, 0.9);
+    shotCalc.loadLUTEntry(2.2, 1400.0, 18.0, 0.9);
+    shotCalc.loadLUTEntry(3.3, 1560.0, 30.0, 0.9);
+    shotCalc.loadLUTEntry(4.1, 1678, 37.0, 0.9);
+    shotCalc.loadLUTEntry(4.6, 1800.0, 40.0, 0.9);
   }
 
   public static LaunchCalculator getInstance() {
@@ -138,13 +131,13 @@ public class LaunchCalculator {
 
   static {
     // Passing Map Init
-    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(45.0));
-    passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(45.0));
-    passingHoodAngleMap.put(7.80, Rotation2d.fromDegrees(45.0));
+    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(55.0));
+    passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(55.0));
+    passingHoodAngleMap.put(7.80, Rotation2d.fromDegrees(55.0));
 
-    passingFlywheelSpeedMap.put(5.46, 4000.0);
-    passingFlywheelSpeedMap.put(6.62, 4000.0);
-    passingFlywheelSpeedMap.put(7.80, 4000.0);
+    passingFlywheelSpeedMap.put(5.46, 2000.0);
+    passingFlywheelSpeedMap.put(6.62, 2000.0);
+    passingFlywheelSpeedMap.put(7.80, 2000.0);
 
     passingTimeOfFlightMap.put(passingMinDistance, 1.0);
     passingTimeOfFlightMap.put(passingMaxDistance, 2.5);

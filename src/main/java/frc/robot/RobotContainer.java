@@ -36,7 +36,6 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
-import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.commands.DriveCommands;
 import frc.robot.commands.RunBothIndexersCommand;
 import frc.robot.generated.TunerConstants;
@@ -371,54 +370,20 @@ public class RobotContainer {
     trenchAlignmentPositionChooser.addOption("Inner", DriveCommands.TrenchAlignmentPosition.INNER);
     trenchAlignmentPositionChooser.addOption("Outer", DriveCommands.TrenchAlignmentPosition.OUTER);
 
-    // Set up SysId routines
-    autoChooser.addOption(
-        "Drive Wheel Radius Characterization", DriveCommands.wheelRadiusCharacterization(drive));
-    autoChooser.addOption(
-        "Drive Simple FF Characterization", DriveCommands.feedforwardCharacterization(drive));
-    autoChooser.addOption(
-        "Drive SysId (Quasistatic Forward)",
-        drive.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Drive SysId (Quasistatic Reverse)",
-        drive.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Drive SysId (Dynamic Forward)", drive.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Drive SysId (Dynamic Reverse)", drive.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Hood SysId (Quasistatic Forward)",
-        hoodSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Hood SysId (Quasistatic Reverse)",
-        hoodSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Hood SysId (Dynamic Forward)",
-        hoodSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Hood SysId (Dynamic Reverse)",
-        hoodSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Flywheel SysId (Quasistatic Forward)",
-        flywheelSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Flywheel SysId (Quasistatic Reverse)",
-        flywheelSubsystem.sysIdQuasistatic(SysIdRoutine.Direction.kReverse));
-    autoChooser.addOption(
-        "Flywheel SysId (Dynamic Forward)",
-        flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kForward));
-    autoChooser.addOption(
-        "Flywheel SysId (Dynamic Reverse)",
-        flywheelSubsystem.sysIdDynamic(SysIdRoutine.Direction.kReverse));
     autoChooser.addDefaultOption("Choreo Test", testAuto());
+    autoChooser.addDefaultOption("Shoot", autoShoot(10.0));
+    autoChooser.addDefaultOption("Left Trench Double Take", leftTrenchDoubleTake());
+    autoChooser.addDefaultOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
+    autoChooser.addDefaultOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
+
     // Configure the button bindings
 
     autoChooser.onChange(
         (listener -> {
           // Pose2d[] poses = Choreo.loadTrajectory(listener.getName()).get().getPoses();
-          //     double[] arr = new double[poses.length * 3];
+          //     double[] arr p= new double[poses.length * 3];
           //     int ndx = 0;
-          //     for (Pose2d pose : poses) {
+          //     for (PosPe2d pose : poses) {
           //       Translation2d translation = AllianceFlipUtil.apply(pose.getTranslation());
           //       arr[ndx + 0] = translation.getX();
           //       arr[ndx + 1] = translation.getY();
@@ -553,8 +518,19 @@ public class RobotContainer {
             : () ->
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
 
-    driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    // driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
+    // driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+
+    driveController.L1().whileTrue(Commands.runOnce(() -> leftIntake.setPercentage(-0.5)));
+    driveController.L2().onTrue(Commands.runOnce(() -> leftIntake.setLowered(true)));
+    driveController.L2().onFalse(Commands.runOnce(() -> leftIntake.setLowered(false)));
+
+    driveController
+        .R1()
+        .whileTrue(
+            Commands.deadline(
+                Commands.waitSeconds(1.0),
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.33)));
 
     SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
@@ -611,29 +587,12 @@ public class RobotContainer {
               }
             },
             leftIntake));
-    rightIntake.setDefaultCommand(
-        Commands.run(
-            () -> {
-              if (rightIntake.isLowered()) {
-                rightIntake.setPercentage(1.0);
-              } else {
-                rightIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
-                rightIntake.setPercentage(0.0);
-              }
-            },
-            rightIntake));
 
     // When folding/unfolding
     leftIntakeLowered
         .onTrue(Commands.runOnce(() -> leftIntake.setPercentage(1.0), leftIntake))
         .onFalse(
             Commands.run(() -> leftIntake.setPercentage(0.2), leftIntake)
-                .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
-                .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
-    rightIntakeLowered
-        .onTrue(Commands.runOnce(() -> rightIntake.setPercentage(1.0), rightIntake))
-        .onFalse(
-            Commands.run(() -> rightIntake.setPercentage(0.2), rightIntake)
                 .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
                 .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
 
@@ -961,17 +920,13 @@ public class RobotContainer {
             flywheelSubsystem.runTrackTargetCommand(),
             hoodSubsystem.runTrackTargetCommand(),
             Commands.repeatingSequence(
-                Commands.waitUntil(() -> readyToShoot != null && readyToShoot.getAsBoolean()),
+                // Commands.waitUntil(() -> readyToShoot != null && readyToShoot.getAsBoolean()),
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0)
-                    .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())),
-            Commands.repeatingSequence(
-                Commands.waitSeconds(0.25),
-                Commands.runOnce(this::launchSimulatedProjectile)
-                    .onlyIf(() -> readyToShoot != null && readyToShoot.getAsBoolean())))
+                    .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())))
         .withTimeout(timeoutSeconds);
   }
 
-  public Command testAutoWithIntakeFolding() {
+  public Command leftTrenchDoubleTake() {
     AutoRoutine routine = autoFactory.newRoutine("testAuto");
 
     AutoTrajectory trenchShallowIntake = routine.trajectory("left_trench_Shallow_Intake");
@@ -983,15 +938,12 @@ public class RobotContainer {
             Commands.sequence(
                 // trench.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
-                Commands.parallel(
-                    autoShoot(2.0),
-                    Commands.sequence(
-                        Commands.waitSeconds(1.0),
-                        Commands.runOnce(
-                            () -> {
-                              leftIntake.setLowered(false);
-                              rightIntake.setLowered(false);
-                            }))),
+                Commands.sequence(
+                    Commands.runOnce(
+                        () -> {
+                          leftIntake.setLowered(false);
+                          rightIntake.setLowered(false);
+                        })),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
@@ -1009,6 +961,98 @@ public class RobotContainer {
                 trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
                     autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            })))));
+
+    return routine.cmd();
+  }
+
+  public Command leftTrenchIntakeReturnOverBump() {
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    AutoTrajectory firstIntake = routine.trajectory("Left_Trench_Return_Over_Bump");
+    AutoTrajectory SecnondIntake = routine.trajectory("Left_Trench_Return_Over_Bump_2");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                // trench.resetOdometry(),
+                // For solo game - shoot the first 8 balls, TODO: test this
+                Commands.sequence(
+                    Commands.runOnce(
+                        () -> {
+                          leftIntake.setLowered(false);
+                          rightIntake.setLowered(false);
+                        })),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                firstIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            }))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                SecnondIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            })))));
+
+    return routine.cmd();
+  }
+
+  public Command leftTrenchHubIntakeReturnOverBump() {
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    AutoTrajectory firstIntake = routine.trajectory("Behind_Hub_Intake_1");
+    AutoTrajectory SecnondIntake = routine.trajectory("Behind_Hub_Intake_2");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                // trench.resetOdometry(),
+                // For solo game - shoot the first 8 balls, TODO: test this
+                Commands.sequence(
+                    Commands.runOnce(
+                        () -> {
+                          leftIntake.setLowered(false);
+                          rightIntake.setLowered(false);
+                        })),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                firstIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(3.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                              rightIntake.setLowered(false);
+                            }))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                SecnondIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(7),
                     Commands.sequence(
                         Commands.waitSeconds(1.0),
                         Commands.runOnce(
