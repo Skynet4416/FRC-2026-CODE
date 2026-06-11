@@ -33,10 +33,8 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
         side == IntakeSubsystem.IntakeSide.LEFT
             ? Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER
             : Constants.Subsystems.Intake.Id.Motor.RIGHT_ROLLER;
-    int forwardChannel =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Pneumatics.LEFT_FORWARDS
-            : Constants.Subsystems.Intake.Id.Pneumatics.RIGHT_FORWARDS;
+    // Single-intake robot: the remaining intake's solenoid is wired to the SINGLE channels
+    int forwardChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_FORWARDS;
     int reverseChannel =
         side == IntakeSubsystem.IntakeSide.LEFT
             ? Constants.Subsystems.Intake.Id.Pneumatics.LEFT_REVERSE

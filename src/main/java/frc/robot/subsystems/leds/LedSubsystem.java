@@ -20,21 +20,18 @@ public class LedSubsystem extends SubsystemBase {
   private FlywheelSubsystem flywheelSubsystem;
   private SpindexerSubsystem spindexerSubsystem;
   private IntakeSubsystem intakeLeft;
-  private IntakeSubsystem intakeRight;
 
   public LedSubsystem(
       ledSubsystemIO io,
       ShooterIndexerSubsystem shooterIndexer,
       FlywheelSubsystem flywheelSubsystem,
       SpindexerSubsystem spindexerSubsystem,
-      IntakeSubsystem intakeLeft,
-      IntakeSubsystem intakeRight) {
+      IntakeSubsystem intakeLeft) {
     this.io = io;
     this.shooterIndexerSubsystem = shooterIndexer;
     this.flywheelSubsystem = flywheelSubsystem;
     this.spindexerSubsystem = spindexerSubsystem;
     this.intakeLeft = intakeLeft;
-    this.intakeRight = intakeRight;
     SetIdle();
   }
 
@@ -103,9 +100,8 @@ public class LedSubsystem extends SubsystemBase {
             spindexerSubsystem.getVelocityRPM() > 200);
       else SetAiming();
     } else {
-      if (intakeLeft.isLowered() || intakeRight.isLowered()) {
-        IntakeSubsystem desired = intakeLeft.isLowered() ? intakeLeft : intakeRight;
-        SetIntaking(desired.isReversed(), desired.isStuck());
+      if (intakeLeft.isLowered()) {
+        SetIntaking(intakeLeft.isReversed(), intakeLeft.isStuck());
       } else SetIdle();
     }
   }

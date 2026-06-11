@@ -19,6 +19,11 @@ public final class Constants {
   public static final Mode currentMode = RobotBase.isReal() ? Mode.REAL : simMode;
   public static final RobotType robot = RobotType.COMPBOT;
   public static final boolean tuningMode = true;
+
+  // When true, the flywheel default command runs at the tunable target RPM, turning the shooter
+  // into calibration mode instead of the normal SOTM idle/auto-spinup behavior.
+  public static final boolean flywheelTestingMode = false;
+
   public static final double loopPeriodSecs = 0.02;
 
   // Disables hardware stuff
@@ -223,6 +228,8 @@ public final class Constants {
           public static final int LEFT_FORWARDS = 15;
           public static final int RIGHT_REVERSE = 2; //
           public static final int RIGHT_FORWARDS = 14;
+          public static final int SINGLE_REVERSE = 1; //
+          public static final int SINGLE_FORWARDS = 0;
         }
       }
 
