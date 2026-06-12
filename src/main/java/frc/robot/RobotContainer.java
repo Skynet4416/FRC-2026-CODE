@@ -928,7 +928,13 @@ public class RobotContainer {
             Commands.repeatingSequence(
                 // Commands.waitUntil(() -> readyToShoot != null && readyToShoot.getAsBoolean()),
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0)
-                    .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())))
+                    .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())),
+            // Launches simulated projectiles for the ball sim. This only affects simulation
+            // (no-op on the real robot) - do not remove it.
+            Commands.repeatingSequence(
+                Commands.waitSeconds(0.25),
+                Commands.runOnce(this::launchSimulatedProjectile)
+                    .onlyIf(() -> readyToShoot != null && readyToShoot.getAsBoolean())))
         .withTimeout(timeoutSeconds);
   }
 
