@@ -370,12 +370,12 @@ public class RobotContainer {
     trenchAlignmentPositionChooser.addOption("Inner", DriveCommands.TrenchAlignmentPosition.INNER);
     trenchAlignmentPositionChooser.addOption("Outer", DriveCommands.TrenchAlignmentPosition.OUTER);
 
-    autoChooser.addDefaultOption("Choreo Test", testAuto());
     autoChooser.addDefaultOption(
         "Shoot", Commands.sequence(Commands.runOnce(() -> hoodSubsystem.zero()), autoShoot(10.0)));
-    autoChooser.addDefaultOption("Left Trench Double Take", leftTrenchDoubleTake());
-    autoChooser.addDefaultOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
-    autoChooser.addDefaultOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
+    autoChooser.addOption("Choreo Test", testAuto());
+    autoChooser.addOption("Left Trench Double Take", leftTrenchDoubleTake());
+    autoChooser.addOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
+    autoChooser.addOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
 
     // Configure the button bindings
 
