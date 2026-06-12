@@ -517,7 +517,8 @@ public class RobotContainer {
     //     Constants.currentMode == Constants.Mode.SIM
     //         ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
     //         : () ->
-    //             drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
+    //             drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new
+    // Rotation2d()));
 
     // driveController.L1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
     // driveController.R1().onTrue(smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
@@ -895,7 +896,7 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
-                trench.resetOdometry(),
+                trenchShallowIntake.resetOdometry(),
 
                 // For solo game - shoot the first 8 balls, TODO: test this
                 autoShoot(3.0),
@@ -940,7 +941,7 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
-                trench.resetOdometry(),
+                trenchShallowIntake.resetOdometry(),
 
                 // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.sequence(
@@ -988,7 +989,7 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
-                trench.resetOdometry(),
+                firstIntake.resetOdometry(),
 
                 // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.sequence(
@@ -1035,7 +1036,7 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
-                trench.resetOdometry(),
+                firstIntake.resetOdometry(),
                 // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 Commands.sequence(
