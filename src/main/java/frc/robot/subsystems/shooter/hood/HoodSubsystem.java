@@ -27,6 +27,7 @@ public class HoodSubsystem extends SubsystemBase {
   private final SysIdRoutine sysIdRoutine;
 
   private boolean hoodZeroed = false;
+  private boolean zeroing = false;
 
   private final LoggedTunableNumber targetAngle = new LoggedTunableNumber("Hood/TargetAngle", 1.0);
   private final LoggedTunableNumber zeroWait = new LoggedTunableNumber("Hood/ZeroWait", 0.75);
@@ -117,6 +118,7 @@ public class HoodSubsystem extends SubsystemBase {
     Logger.recordOutput("Hood/Components/HoodPose3d", poses.toArray(new Pose3d[0]));
 
     Logger.recordOutput("Hood/HasZeroed", isZeroed());
+    Logger.recordOutput("Hood/Zeroing", zeroing);
   }
 
   public void setTargetAngle(double degrees) {
@@ -185,13 +187,15 @@ public class HoodSubsystem extends SubsystemBase {
    * physically and and call zero() in IO
    */
   public Command zeroCommand() {
-    return run(() -> io.setVoltage(Constants.Subsystems.Shooter.Hood.HOMING_VOLTS))
+    return runOnce(() -> zeroing = true)
+        .andThen(run(() -> io.setVoltage(Constants.Subsystems.Shooter.Hood.HOMING_VOLTS)))
         .raceWith(
             Commands.waitSeconds(zeroWait.get())
                 .andThen(
                     Commands.waitUntil(
                         () -> Math.abs(inputs.velocityRPM) <= homingVelocityThreshold.get())))
-        .andThen(this::zero);
+        .andThen(this::zero)
+        .finallyDo(() -> zeroing = false);
   }
 
   public void zero() {
