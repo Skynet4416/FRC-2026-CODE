@@ -1,6 +1,7 @@
 package frc.robot.subsystems.intake;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.controls.VelocityVoltage;
 import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
@@ -50,7 +51,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
     config.CurrentLimits.SupplyCurrentLimit =
         Constants.Subsystems.Intake.CurrentLimits.SUPPLY_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerTime = 1.0;
-    config.CurrentLimits.SupplyCurrentLowerLimit = 10.0;
+    config.CurrentLimits.SupplyCurrentLowerLimit = 20.0;
 
     config.CurrentLimits.StatorCurrentLimitEnable =
         Constants.Subsystems.Intake.CurrentLimits.STATOR_ENABLED;
@@ -99,6 +100,12 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   public void setPercentage(double percentage) {
     this.requestedPercentage = percentage;
     motor.set(percentage);
+  }
+
+  @Override
+  public void setFOC(double value) {
+    this.requestedPercentage = value;
+    motor.setControl(new TorqueCurrentFOC(value));
   }
 
   @Override

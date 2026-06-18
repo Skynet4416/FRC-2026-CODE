@@ -120,6 +120,11 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setPercentage(stuck ? 0 : (reversed ? -percentage : percentage));
   }
 
+  public void setFOC(double value) { // FOC is in percentage of 40A
+    targetPercentage = value;
+    io.setFOC((stuck ? 0 : (reversed ? -value : value)) * 120);
+  }
+
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
     return sysIdRoutine.quasistatic(direction);
   }
@@ -134,6 +139,10 @@ public class IntakeSubsystem extends SubsystemBase {
 
   public boolean isReversed() {
     return reversed;
+  }
+
+  public boolean isStruggling() {
+    return reversed || stuck;
   }
 
   @Override

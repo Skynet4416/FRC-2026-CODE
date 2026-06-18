@@ -23,6 +23,8 @@ public interface IntakeSubsystemIO {
 
   default void setPercentage(double percentage) {}
 
+  default void setFOC(double value) {}
+
   default void setLowered(boolean lowered) {}
 
   default void stop() {
