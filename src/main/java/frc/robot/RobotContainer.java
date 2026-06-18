@@ -155,6 +155,7 @@ public class RobotContainer {
   // Triggers
   private final Trigger leftIntakeLowered;
   private Trigger readyToShoot;
+  private Trigger inPassingTolerance;
   private final Trigger autoAlignmentOverride;
 
   private boolean autoAlignmentOverrideState = false;
@@ -493,21 +494,13 @@ public class RobotContainer {
 
     // Loose heading-only gate for passing: don't require flywheel/hood at setpoint (passing isn't
     // accuracy-sensitive), but keep a wide heading cone so a pass can't be launched out of bounds.
-    Trigger inPassingTolerance =
+    this.inPassingTolerance =
         new Trigger(
             () -> {
-              var params = LaunchCalculator.getInstance().getParameters();
-              double headingErrorDeg =
-                  Math.abs(
-                      Drive.getInstance().getRotation().minus(params.driveAngle()).getDegrees());
+              double headingErrorDeg = passingHeadingErrorDeg();
               // When the cone is disabled, fall back to the old fire-immediately passing behavior
-              boolean inTolerance =
-                  !enablePassingConeChooser.get()
-                      || headingErrorDeg <= passingHeadingToleranceDeg.get();
-
-              Logger.recordOutput("LaunchCalculator/Passing/HeadingErrorDeg", headingErrorDeg);
-              Logger.recordOutput("LaunchCalculator/Passing/InPassingTolerance", inTolerance);
-              return inTolerance;
+              return !enablePassingConeChooser.get()
+                  || headingErrorDeg <= passingHeadingToleranceDeg.get();
             });
 
     // Careful with this one, can shoot ball outside of field boundaries when passing
@@ -840,6 +833,21 @@ public class RobotContainer {
   @AutoLogOutput(key = "LaunchCalculator/ReadyToShoot")
   public boolean readyToShoot() {
     return readyToShoot != null && readyToShoot.getAsBoolean();
+  }
+
+  /** Heading error (degrees) between the robot and the passing target. */
+  @AutoLogOutput(key = "LaunchCalculator/Passing/HeadingErrorDeg")
+  public double passingHeadingErrorDeg() {
+    return Math.abs(
+        Drive.getInstance()
+            .getRotation()
+            .minus(LaunchCalculator.getInstance().getParameters().driveAngle())
+            .getDegrees());
+  }
+
+  @AutoLogOutput(key = "LaunchCalculator/Passing/InPassingTolerance")
+  public boolean inPassingTolerance() {
+    return inPassingTolerance != null && inPassingTolerance.getAsBoolean();
   }
 
   public Command testAuto() {
