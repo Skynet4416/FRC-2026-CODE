@@ -222,7 +222,7 @@ public final class Constants {
 
         public static class Pneumatics {
           public static final int SINGLE_REVERSE = 1; //
-          public static final int SINGLE_FORWARDS = 15;
+          public static final int SINGLE_FORWARDS = 0;
         }
       }
 
