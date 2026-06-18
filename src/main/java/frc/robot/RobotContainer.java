@@ -524,14 +524,14 @@ public class RobotContainer {
         .onFalse(Commands.runOnce(() -> leftIntake.forceReverse(false)));
 
     // While intaking and not yet shooting, run the spindexer in reverse (chooser-gated)
-    leftIntakeLowered
-        .and(readyToShoot.negate())
-        .and(reverseIndexWhileIntake)
-        .whileTrue(
-            Commands.runEnd(
-                () -> spindexerSubsystem.setPercentage(-1.0),
-                spindexerSubsystem::stop,
-                spindexerSubsystem));
+    // leftIntakeLowered
+    //     .and(readyToShoot.negate())
+    //     .and(reverseIndexWhileIntake)
+    //     .whileTrue(
+    //         Commands.runEnd(
+    //             () -> spindexerSubsystem.setPercentage(-1.0),
+    //             spindexerSubsystem::stop,
+    //             spindexerSubsystem));
 
     // Test specific button for simulated launch
 
