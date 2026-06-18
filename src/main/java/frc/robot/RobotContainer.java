@@ -219,13 +219,15 @@ public class RobotContainer {
                 new ModuleIOSim(driveSimulation.getModules()[3]),
                 driveSimulation::setSimulationWorldPose);
 
-        vision =
-            new Vision(
-                drive,
-                new VisionIOPhotonVisionSim(
-                    camera0Name, robotToCamera0, driveSimulation::getSimulatedDriveTrainPose),
-                new VisionIOPhotonVisionSim(
-                    camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
+        // vision =
+        //     new Vision(
+        //         drive,
+        //         new VisionIOPhotonVisionSim(
+        //             camera0Name, robotToCamera0, driveSimulation::getSimulatedDriveTrainPose),
+        //         new VisionIOPhotonVisionSim(
+        //             camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
+
+        vision = null;
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOSim());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
