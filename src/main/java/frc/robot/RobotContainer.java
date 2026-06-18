@@ -107,6 +107,11 @@ public class RobotContainer {
   // before the robot is allowed to fire.
   private static final LoggedTunableNumber minShootingConfidence =
       new LoggedTunableNumber("LaunchCalculator/MinShootingConfidence", 80.0);
+
+  // Loose heading tolerance (degrees) for passing shots. Wide enough not to fight the driver while
+  // being guarded, tight enough to keep passes inside the field boundaries.
+  private static final LoggedTunableNumber passingHeadingToleranceDeg =
+      new LoggedTunableNumber("LaunchCalculator/PassingHeadingToleranceDeg", 80.0);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
@@ -135,6 +140,8 @@ public class RobotContainer {
   private final LoggedDashboardChooser<Boolean> reverseIndexWhileIntakeChooser;
   private final LoggedDashboardChooser<Boolean> disableFlywheelAutoSpinupChooser;
   private final LoggedDashboardChooser<Boolean> ignoreHubStateChooser;
+  // Toggles the loose heading cone gate that keeps passing shots inside the field
+  private final LoggedDashboardChooser<Boolean> enablePassingConeChooser;
   private final LoggedDashboardChooser<String> allianceWinOverrideChooser;
   private final LoggedDashboardChooser<DriveCommands.TrenchAlignmentPosition>
       trenchAlignmentPositionChooser;
@@ -296,6 +303,11 @@ public class RobotContainer {
     ignoreHubStateChooser = new LoggedDashboardChooser<>("Ignore Hub State");
     ignoreHubStateChooser.addOption("Yes", true);
     ignoreHubStateChooser.addDefaultOption("No", false);
+
+    // Enable the loose heading cone that keeps passing shots inside the field boundaries
+    enablePassingConeChooser = new LoggedDashboardChooser<>("Enable Passing Cone");
+    enablePassingConeChooser.addDefaultOption("Yes", true);
+    enablePassingConeChooser.addOption("No", false);
 
     allianceWinOverrideChooser = new LoggedDashboardChooser<>("Alliance Win Override");
     allianceWinOverrideChooser.addDefaultOption("None", "None");
@@ -479,12 +491,32 @@ public class RobotContainer {
         .R3()
         .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
 
+    // Loose heading-only gate for passing: don't require flywheel/hood at setpoint (passing isn't
+    // accuracy-sensitive), but keep a wide heading cone so a pass can't be launched out of bounds.
+    Trigger inPassingTolerance =
+        new Trigger(
+            () -> {
+              var params = LaunchCalculator.getInstance().getParameters();
+              double headingErrorDeg =
+                  Math.abs(
+                      Drive.getInstance().getRotation().minus(params.driveAngle()).getDegrees());
+              // When the cone is disabled, fall back to the old fire-immediately passing behavior
+              boolean inTolerance =
+                  !enablePassingConeChooser.get()
+                      || headingErrorDeg <= passingHeadingToleranceDeg.get();
+
+              Logger.recordOutput("LaunchCalculator/Passing/HeadingErrorDeg", headingErrorDeg);
+              Logger.recordOutput("LaunchCalculator/Passing/InPassingTolerance", inTolerance);
+              return inTolerance;
+            });
+
     // Careful with this one, can shoot ball outside of field boundaries when passing
     Trigger inLaunchingTolerance =
         new Trigger(
             () ->
                 LaunchCalculator.getInstance().getParameters().passing()
-                    || (hoodSubsystem.atSetpoint()
+                    ? inPassingTolerance.getAsBoolean()
+                    : (hoodSubsystem.atSetpoint()
                         && flywheelSubsystem.atSetpoint()
                         && DriveCommands.atLaunchGoal()));
 
