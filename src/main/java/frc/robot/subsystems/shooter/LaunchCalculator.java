@@ -141,12 +141,12 @@ public class LaunchCalculator {
     passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(55.0));
     passingHoodAngleMap.put(7.80, Rotation2d.fromDegrees(55.0));
 
-    passingFlywheelSpeedMap.put(5.46, 2000.0);
-    passingFlywheelSpeedMap.put(6.62, 2000.0);
-    passingFlywheelSpeedMap.put(7.80, 2000.0);
+    passingFlywheelSpeedMap.put(5.46, 2500.0);
+    passingFlywheelSpeedMap.put(6.62, 2500.0);
+    passingFlywheelSpeedMap.put(7.80, 2500.0);
 
     passingTimeOfFlightMap.put(passingMinDistance, 1.0);
-    passingTimeOfFlightMap.put(passingMaxDistance, 2.5);
+    passingTimeOfFlightMap.put(passingMaxDistance, 5.5);
   }
 
   public LaunchingParameters getParameters() {

@@ -161,7 +161,7 @@ public class RobotContainer {
   private Trigger inPassingTolerance;
   private final Trigger autoAlignmentOverride;
 
-  private boolean autoAlignmentOverrideState = false;
+  private boolean autoAlignmentOverrideState = true;
 
   /** The container for the robot. Contains subsystems, OI devices, and commands. */
   public RobotContainer() {
@@ -465,9 +465,9 @@ public class RobotContainer {
                     trenchAlignmentPositionChooser::get)
                 .withName("AlignToTrenchCommand"));
 
-    driveController
-        .R3()
-        .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
+    // driveController
+    //     .R3()
+    //     .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
 
     // Loose heading-only gate for passing: don't require flywheel/hood at setpoint (passing isn't
     // accuracy-sensitive), but keep a wide heading cone so a pass can't be launched out of bounds.
@@ -530,12 +530,12 @@ public class RobotContainer {
         .onFalse(Commands.runOnce(() -> leftIntake.forceReverse(false)));
 
     // While intaking and not yet shooting, run the spindexer in reverse (chooser-gated)
-    // leftIntakeLowered
+    leftIntakeLowered
         .and(readyToShoot.negate())
         .and(reverseIndexWhileIntake)
         .whileTrue(
             Commands.runEnd(
-                () -> spindexerSubsystem.setPercentage(-0.5),
+                () -> spindexerSubsystem.setPercentage(-0.75),
                 spindexerSubsystem::stop,
                 spindexerSubsystem));
 
