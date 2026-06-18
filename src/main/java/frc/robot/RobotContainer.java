@@ -331,8 +331,10 @@ public class RobotContainer {
     disableFlywheelAutoSpinup =
         new Trigger(
             () -> !Boolean.FALSE.equals(disableFlywheelAutoSpinupChooser.get())); // default Yes
-    reverseIndexWhileIntake =
-        new Trigger(() -> !Boolean.FALSE.equals(reverseIndexWhileIntakeChooser.get())); // default Yes
+    // TEMP TEST DISABLE: "Reverse Index While Intake" chooser is new on this branch (not on
+    // ma-testing). Hardcoded off to remove it as a variable while diagnosing the auto stop.
+    // Restore to: new Trigger(() -> !Boolean.FALSE.equals(reverseIndexWhileIntakeChooser.get()))
+    reverseIndexWhileIntake = new Trigger(() -> false);
     ignoreHubState =
         new Trigger(() -> Boolean.TRUE.equals(ignoreHubStateChooser.get())); // default No
 
@@ -483,8 +485,16 @@ public class RobotContainer {
         new Trigger(
             () -> {
               double headingErrorDeg = passingHeadingErrorDeg();
-              Boolean enableCone = enablePassingConeChooser.get();
-              boolean coneEnabled = (enableCone == null) || enableCone;
+              // TEMP TEST DISABLE: "Enable Passing Cone" chooser is new on this branch (not on
+              // ma-testing). Cone hardcoded OFF (ma's old fire-immediately passing behavior) to
+              // remove it as a variable while diagnosing the auto stop. This also avoids unboxing a
+              // null Boolean from the chooser, which threw an NPE during scheduler trigger-polling
+              // and killed the running auto command.
+              // Restore to:
+              //   Boolean enableCone = enablePassingConeChooser.get();
+              //   boolean coneEnabled = (enableCone == null) || enableCone;
+              //   return !coneEnabled || headingErrorDeg <= passingHeadingToleranceDeg.get();
+              boolean coneEnabled = false;
               return !coneEnabled || headingErrorDeg <= passingHeadingToleranceDeg.get();
             });
 
