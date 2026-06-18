@@ -32,7 +32,6 @@ import edu.wpi.first.wpilibj.XboxController;
 import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
@@ -292,7 +291,7 @@ public class RobotContainer {
                 drive // The drive subsystem
                 )
             .bind("IntakeOpen", Commands.runOnce(() -> leftIntake.setLowered(true), leftIntake));
-    CommandScheduler.getInstance().schedule(autoFactory.warmupCmd());
+    // CommandScheduler.getInstance().schedule(autoFactory.warmupCmd());
 
     leftIntakeLowered = new Trigger(leftIntake::isLowered);
     autoAlignmentOverride = new Trigger(() -> autoAlignmentOverrideState);
@@ -325,9 +324,19 @@ public class RobotContainer {
     allianceWinOverrideChooser.addOption("Won", "Won");
     allianceWinOverrideChooser.addOption("Lost", "Lost");
 
-    disableFlywheelAutoSpinup = new Trigger(disableFlywheelAutoSpinupChooser::get);
-    reverseIndexWhileIntake = new Trigger(reverseIndexWhileIntakeChooser::get);
-    ignoreHubState = new Trigger(ignoreHubStateChooser::get);
+    // Null-safe: LoggedDashboardChooser.get() can return null before NetworkTables delivers the
+    // default selection (the first loops after enable, when autos run). Unboxing a null Boolean
+    // here throws an NPE during scheduler trigger-polling, which kills the running auto command.
+    // Map null to each chooser's configured default (Yes=true / No=false).
+    disableFlywheelAutoSpinup =
+        new Trigger(
+            () -> !Boolean.FALSE.equals(disableFlywheelAutoSpinupChooser.get())); // default Yes
+    // TEMP TEST DISABLE: "Reverse Index While Intake" chooser is new on this branch (not on
+    // ma-testing). Hardcoded off to remove it as a variable while diagnosing the auto stop.
+    // Restore to: new Trigger(() -> !Boolean.FALSE.equals(reverseIndexWhileIntakeChooser.get()))
+    reverseIndexWhileIntake = new Trigger(() -> false);
+    ignoreHubState =
+        new Trigger(() -> Boolean.TRUE.equals(ignoreHubStateChooser.get())); // default No
 
     HubShiftUtil.setAllianceWinOverride(
         () -> {
@@ -467,7 +476,8 @@ public class RobotContainer {
 
     // driveController
     //     .R3()
-    //     .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState = !autoAlignmentOverrideState));
+    //     .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState =
+    // !autoAlignmentOverrideState));
 
     // Loose heading-only gate for passing: don't require flywheel/hood at setpoint (passing isn't
     // accuracy-sensitive), but keep a wide heading cone so a pass can't be launched out of bounds.
@@ -475,9 +485,17 @@ public class RobotContainer {
         new Trigger(
             () -> {
               double headingErrorDeg = passingHeadingErrorDeg();
-              // When the cone is disabled, fall back to the old fire-immediately passing behavior
-              return !enablePassingConeChooser.get()
-                  || headingErrorDeg <= passingHeadingToleranceDeg.get();
+              // TEMP TEST DISABLE: "Enable Passing Cone" chooser is new on this branch (not on
+              // ma-testing). Cone hardcoded OFF (ma's old fire-immediately passing behavior) to
+              // remove it as a variable while diagnosing the auto stop. This also avoids unboxing a
+              // null Boolean from the chooser, which threw an NPE during scheduler trigger-polling
+              // and killed the running auto command.
+              // Restore to:
+              //   Boolean enableCone = enablePassingConeChooser.get();
+              //   boolean coneEnabled = (enableCone == null) || enableCone;
+              //   return !coneEnabled || headingErrorDeg <= passingHeadingToleranceDeg.get();
+              boolean coneEnabled = false;
+              return !coneEnabled || headingErrorDeg <= passingHeadingToleranceDeg.get();
             });
 
     // Careful with this one, can shoot ball outside of field boundaries when passing
@@ -620,7 +638,8 @@ public class RobotContainer {
         .onFalse(
             Commands.run(() -> leftIntake.setPercentage(0.2), leftIntake)
                 .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
-                .onlyIf(() -> runWheelsWhenFoldingChooser.get()));
+                .onlyIf(
+                    () -> !Boolean.FALSE.equals(runWheelsWhenFoldingChooser.get()))); // default Yes
 
     // ****** RUMBLE ALERTS ******
 
