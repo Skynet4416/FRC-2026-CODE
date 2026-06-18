@@ -122,6 +122,7 @@ public class RobotContainer {
   // Controllers
   private final CommandPS5Controller driveController = new CommandPS5Controller(0);
   private SwerveDriveSimulation driveSimulation = null;
+  private frc.robot.util.RobotBumpSim robotBumpSim = null;
   private final edu.wpi.first.wpilibj.Timer teleopElapsedTimer = new edu.wpi.first.wpilibj.Timer();
   //   private final CommandPS5Controller mechanismController = new CommandPS5Controller(1);
   private final Alert driverControllerDisconnected =
@@ -203,6 +204,10 @@ public class RobotContainer {
 
       case SIM:
         // Sim robot, instantiate physics sim IO implementations
+        // Disable MapleSim's built-in ramp colliders (bumps as solid walls) so
+        // RobotBumpSim can own the bump-crossing physics instead.
+        SimulatedArena.overrideInstance(
+            new org.ironmaple.simulation.seasonspecific.rebuilt2026.Arena2026Rebuilt(false));
         driveSimulation =
             new SwerveDriveSimulation(
                 Drive.getMapleSimConfig(),
@@ -212,6 +217,7 @@ public class RobotContainer {
                     AllianceFlipUtil.apply(Rotation2d.fromDegrees(-90))));
 
         SimulatedArena.getInstance().addDriveTrainSimulation(driveSimulation);
+        robotBumpSim = new frc.robot.util.RobotBumpSim(Drive.getModuleTranslations());
         drive =
             new Drive(
                 new GyroIOSim(driveSimulation.getGyroSimulation()),
@@ -361,12 +367,12 @@ public class RobotContainer {
     trenchAlignmentPositionChooser.addOption("Inner", DriveCommands.TrenchAlignmentPosition.INNER);
     trenchAlignmentPositionChooser.addOption("Outer", DriveCommands.TrenchAlignmentPosition.OUTER);
 
-    autoChooser.addDefaultOption("Choreo Test", testAuto());
     autoChooser.addDefaultOption(
         "Shoot", Commands.sequence(Commands.runOnce(() -> hoodSubsystem.zero()), autoShoot(10.0)));
-    autoChooser.addDefaultOption("Left Trench Double Take", leftTrenchDoubleTake());
-    autoChooser.addDefaultOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
-    autoChooser.addDefaultOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
+    autoChooser.addOption("Choreo Test", testAuto());
+    autoChooser.addOption("Left Trench Double Take", leftTrenchDoubleTake());
+    autoChooser.addOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
+    autoChooser.addOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
 
     // Configure the button bindings
 
@@ -593,7 +599,8 @@ public class RobotContainer {
     }
 
     hoodSubsystem.setDefaultCommand(
-        Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
+        Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand())
+            .withName("HoodDefault"));
 
     // Folded baseline: 0.5 when shooting (trigger held), 0 when idle
     leftIntake.setDefaultCommand(
@@ -730,8 +737,19 @@ public class RobotContainer {
     if (Constants.currentMode != Constants.Mode.SIM) return;
 
     SimulatedArena.getInstance().simulationPeriodic();
-    Logger.recordOutput(
-        "FieldSimulation/RobotPosition", driveSimulation.getSimulatedDriveTrainPose());
+
+    edu.wpi.first.math.geometry.Pose2d simPose = driveSimulation.getSimulatedDriveTrainPose();
+    edu.wpi.first.math.kinematics.ChassisSpeeds fieldSpeeds =
+        edu.wpi.first.math.kinematics.ChassisSpeeds.fromRobotRelativeSpeeds(
+            driveSimulation.getDriveTrainSimulatedChassisSpeedsRobotRelative(),
+            simPose.getRotation());
+    edu.wpi.first.math.geometry.Pose3d simPose3d = robotBumpSim.update(simPose, fieldSpeeds, 5);
+    if (robotBumpSim.isOnRamp()) {
+      driveSimulation.setSimulationWorldPose(robotBumpSim.getSimWorldPose(simPose));
+    }
+    Logger.recordOutput("Drive/Pose3d", simPose3d);
+
+    Logger.recordOutput("FieldSimulation/RobotPosition", simPose);
 
     ballSim.configureRobot(
         0.7,
@@ -879,7 +897,13 @@ public class RobotContainer {
             Commands.repeatingSequence(
                 // Commands.waitUntil(() -> readyToShoot != null && readyToShoot.getAsBoolean()),
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0)
-                    .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())))
+                    .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())),
+            // Launches simulated projectiles for the ball sim. This only affects simulation
+            // (no-op on the real robot) - do not remove it.
+            Commands.repeatingSequence(
+                Commands.waitSeconds(0.25),
+                Commands.runOnce(this::launchSimulatedProjectile)
+                    .onlyIf(() -> readyToShoot != null && readyToShoot.getAsBoolean())))
         .withTimeout(timeoutSeconds);
   }
 
@@ -894,7 +918,7 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
-                // trench.resetOdometry(),
+                trenchShallowIntake.resetOdometry(),
                 Commands.parallel(
                     autoShoot(2.0),
                     Commands.sequence(
@@ -931,7 +955,7 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
-                // trench.resetOdometry(),
+                firstIntake.resetOdometry(),
                 Commands.sequence(
                     Commands.runOnce(
                         () -> {
@@ -973,7 +997,7 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
-                // trench.resetOdometry(),
+                firstIntake.resetOdometry(),
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 Commands.sequence(
                     Commands.runOnce(
