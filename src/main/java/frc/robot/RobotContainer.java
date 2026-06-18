@@ -525,13 +525,13 @@ public class RobotContainer {
 
     // While intaking and not yet shooting, run the spindexer in reverse (chooser-gated)
     // leftIntakeLowered
-    //     .and(readyToShoot.negate())
-    //     .and(reverseIndexWhileIntake)
-    //     .whileTrue(
-    //         Commands.runEnd(
-    //             () -> spindexerSubsystem.setPercentage(-1.0),
-    //             spindexerSubsystem::stop,
-    //             spindexerSubsystem));
+        .and(readyToShoot.negate())
+        .and(reverseIndexWhileIntake)
+        .whileTrue(
+            Commands.runEnd(
+                () -> spindexerSubsystem.setPercentage(-0.5),
+                spindexerSubsystem::stop,
+                spindexerSubsystem));
 
     // Test specific button for simulated launch
 
@@ -655,7 +655,7 @@ public class RobotContainer {
     // }
 
     spindexerSubsystem.setDefaultCommand(
-        Commands.run(() -> spindexerSubsystem.setPercentage(-0.3), spindexerSubsystem));
+        Commands.run(() -> spindexerSubsystem.setPercentage(-0.1), spindexerSubsystem));
 
     // 3. MISSING DATA ALERT
     // Rumbles if data is missing, no override is set, and 1.0 second has passed in Teleop
