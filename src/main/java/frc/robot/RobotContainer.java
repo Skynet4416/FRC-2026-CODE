@@ -581,7 +581,7 @@ public class RobotContainer {
         Commands.run(
             () -> {
               if (leftIntake.isLowered()) {
-                leftIntake.setPercentage(1.0);
+                leftIntake.setPercentage(0.8);
               } else {
                 leftIntake.setPercentage(driveController.R2().getAsBoolean() ? 0.35 : 0.0);
                 leftIntake.setPercentage(0.0);
@@ -1042,6 +1042,7 @@ public class RobotContainer {
                         })),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
+                autoShoot(2.5),
                 firstIntake.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
                     autoShoot(3.5),

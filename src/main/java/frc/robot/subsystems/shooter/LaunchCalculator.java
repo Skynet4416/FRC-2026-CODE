@@ -60,12 +60,18 @@ public class LaunchCalculator {
 
     shotCalc = new ShotCalculator(config);
 
-    // Load your calibration data into the solver
+    // Low shots
     shotCalc.loadLUTEntry(1.305, 1300.0, 10.0, 0.9);
     shotCalc.loadLUTEntry(2.2, 1400.0, 18.0, 0.9);
     shotCalc.loadLUTEntry(3.3, 1560.0, 30.0, 0.9);
     shotCalc.loadLUTEntry(4.1, 1678, 37.0, 0.9);
     shotCalc.loadLUTEntry(4.6, 1800.0, 40.0, 0.9);
+
+    // High shots
+    // shotCalc.loadLUTEntry(1.6, 1400.0, 12.0, 0.9);
+    // shotCalc.loadLUTEntry(2.6, 1500.0, 24.0, 0.9);
+    // shotCalc.loadLUTEntry(4.2, 1700.0, 26.0, 0.9);
+    // shotCalc.loadLUTEntry(5.25, 1800, 35.0, 0.9);
   }
 
   public static LaunchCalculator getInstance() {
