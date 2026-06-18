@@ -595,9 +595,6 @@ public class RobotContainer {
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
 
-    spindexerSubsystem.setDefaultCommand(
-        Commands.runOnce(() -> spindexerSubsystem.setPercentage(-0.3)));
-
     // Folded baseline: 0.5 when shooting (trigger held), 0 when idle
     leftIntake.setDefaultCommand(
         Commands.run(
@@ -656,6 +653,9 @@ public class RobotContainer {
     //               .withTimeout(0.2)
     //               .withName("ShiftEndCountdown" + i));
     // }
+
+    spindexerSubsystem.setDefaultCommand(
+        Commands.run(() -> spindexerSubsystem.setPercentage(-0.3), spindexerSubsystem));
 
     // 3. MISSING DATA ALERT
     // Rumbles if data is missing, no override is set, and 1.0 second has passed in Teleop
