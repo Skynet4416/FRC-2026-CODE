@@ -65,7 +65,11 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
-import frc.robot.subsystems.vision.*;
+import frc.robot.subsystems.vision.Vision;
+import frc.robot.subsystems.vision.VisionConstants;
+import frc.robot.subsystems.vision.VisionIO;
+import frc.robot.subsystems.vision.VisionIOLimelight;
+import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.elasticlib.Elastic;
@@ -514,9 +518,10 @@ public class RobotContainer {
         .onTrue(Commands.runOnce(() -> leftIntake.setLowered(true)))
         .onFalse(Commands.runOnce(() -> leftIntake.setLowered(false)));
 
-    
-    driveController.L1().onTrue(Commands.runOnce(() -> leftIntake.forceReverse(true)))
-    .onFalse(Commands.runOnce(() -> leftIntake.forceReverse(false)));
+    driveController
+        .L1()
+        .onTrue(Commands.runOnce(() -> leftIntake.forceReverse(true)))
+        .onFalse(Commands.runOnce(() -> leftIntake.forceReverse(false)));
 
     // While intaking and not yet shooting, run the spindexer in reverse (chooser-gated)
     leftIntakeLowered
@@ -545,8 +550,8 @@ public class RobotContainer {
                 Commands.waitSeconds(1.0),
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.33)));
 
-    SmartDashboard.putData("leftIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.LEFT));
-    SmartDashboard.putData("rightIntakeSet", smartIntakeCommand(IntakeSubsystem.IntakeSide.RIGHT));
+    SmartDashboard.putData("IntakeOut", Commands.runOnce(() -> leftIntake.setLowered(true)));
+    SmartDashboard.putData("IntakeIn", Commands.runOnce(() -> leftIntake.setLowered(false)));
     SmartDashboard.putData(
         "Run both Indexers",
         new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0));
@@ -590,7 +595,8 @@ public class RobotContainer {
     hoodSubsystem.setDefaultCommand(
         Commands.sequence(hoodSubsystem.zeroCommand(), hoodSubsystem.runTargetAngleCommand()));
 
-    // --- Intake roller logic ---
+    spindexerSubsystem.setDefaultCommand(
+        Commands.runOnce(() -> spindexerSubsystem.setPercentage(-0.3)));
 
     // Folded baseline: 0.5 when shooting (trigger held), 0 when idle
     leftIntake.setDefaultCommand(
@@ -846,7 +852,6 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 trenchShallowIntake.resetOdometry(),
-                // For solo game - shoot the first 8 balls, TODO: test this
                 autoShoot(3.0),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
@@ -890,7 +895,6 @@ public class RobotContainer {
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 // trench.resetOdometry(),
-                // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.parallel(
                     autoShoot(2.0),
                     Commands.sequence(
@@ -928,7 +932,6 @@ public class RobotContainer {
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 // trench.resetOdometry(),
-                // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.sequence(
                     Commands.runOnce(
                         () -> {
@@ -971,7 +974,6 @@ public class RobotContainer {
         .onTrue(
             Commands.sequence(
                 // trench.resetOdometry(),
-                // For solo game - shoot the first 8 balls, TODO: test this
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 Commands.sequence(
                     Commands.runOnce(

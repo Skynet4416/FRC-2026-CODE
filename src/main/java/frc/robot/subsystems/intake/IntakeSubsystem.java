@@ -31,6 +31,7 @@ public class IntakeSubsystem extends SubsystemBase {
       40; // intake motor will shut off if current exceeds this threshold
   private boolean stuck = false;
   private boolean reversed = false;
+  private boolean forceReverse = false;
 
   // Mechanism2d
   private final LoggedMechanism2d mech;
@@ -82,6 +83,10 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setLowered(lowered);
   }
 
+  public void forceReverse(boolean reversed) {
+    this.forceReverse = reversed;
+  }
+
   public double getVelocityRPM() {
     return inputs.velocityRPM;
   }
@@ -112,17 +117,17 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public void runVolts(double volts) {
-    io.setVoltage(stuck ? 0 : (reversed ? -volts : volts));
+    io.setVoltage(stuck ? 0 : (isReversed() ? -volts : volts));
   }
 
   public void setPercentage(double percentage) {
     targetPercentage = percentage;
-    io.setPercentage(stuck ? 0 : (reversed ? -percentage : percentage));
+    io.setPercentage(stuck ? 0 : (isReversed() ? -percentage : percentage));
   }
 
   public void setFOC(double value) { // FOC is in percentage of 40A
     targetPercentage = value;
-    io.setFOC((stuck ? 0 : (reversed ? -value : value)) * 120);
+    io.setFOC((stuck ? 0 : (isReversed() ? -value : value)) * 120);
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
@@ -138,7 +143,7 @@ public class IntakeSubsystem extends SubsystemBase {
   }
 
   public boolean isReversed() {
-    return reversed;
+    return reversed || forceReverse;
   }
 
   public boolean isStruggling() {
