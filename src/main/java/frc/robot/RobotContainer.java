@@ -122,6 +122,7 @@ public class RobotContainer {
   private final CommandPS5Controller driveController = new CommandPS5Controller(0);
   private SwerveDriveSimulation driveSimulation = null;
   private frc.robot.util.RobotBumpSim robotBumpSim = null;
+  private boolean wasOnRamp = false;
   private final edu.wpi.first.wpilibj.Timer teleopElapsedTimer = new edu.wpi.first.wpilibj.Timer();
   //   private final CommandPS5Controller mechanismController = new CommandPS5Controller(1);
   private final Alert driverControllerDisconnected =
@@ -789,9 +790,15 @@ public class RobotContainer {
             driveSimulation.getDriveTrainSimulatedChassisSpeedsRobotRelative(),
             simPose.getRotation());
     edu.wpi.first.math.geometry.Pose3d simPose3d = robotBumpSim.update(simPose, fieldSpeeds, 5);
-    if (robotBumpSim.isOnRamp()) {
-      driveSimulation.setSimulationWorldPose(robotBumpSim.getSimWorldPose(simPose));
+    boolean currentlyOnRamp = robotBumpSim.isOnRamp();
+    if (currentlyOnRamp || wasOnRamp) {
+      Pose2d correctedPose = robotBumpSim.getSimWorldPose(simPose);
+      driveSimulation.setSimulationWorldPose(correctedPose);
+      if (wasOnRamp && !currentlyOnRamp) {
+        drive.resetOdometry(correctedPose);
+      }
     }
+    wasOnRamp = currentlyOnRamp;
     Logger.recordOutput("Drive/Pose3d", simPose3d);
 
     Logger.recordOutput("FieldSimulation/RobotPosition", simPose);
