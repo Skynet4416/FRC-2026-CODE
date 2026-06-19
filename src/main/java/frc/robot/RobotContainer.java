@@ -331,10 +331,9 @@ public class RobotContainer {
     disableFlywheelAutoSpinup =
         new Trigger(
             () -> !Boolean.FALSE.equals(disableFlywheelAutoSpinupChooser.get())); // default Yes
-    // TEMP TEST DISABLE: "Reverse Index While Intake" chooser is new on this branch (not on
-    // ma-testing). Hardcoded off to remove it as a variable while diagnosing the auto stop.
-    // Restore to: new Trigger(() -> !Boolean.FALSE.equals(reverseIndexWhileIntakeChooser.get()))
-    reverseIndexWhileIntake = new Trigger(() -> false);
+    reverseIndexWhileIntake =
+        new Trigger(
+            () -> !Boolean.FALSE.equals(reverseIndexWhileIntakeChooser.get())); // default Yes
     ignoreHubState =
         new Trigger(() -> Boolean.TRUE.equals(ignoreHubStateChooser.get())); // default No
 
@@ -377,7 +376,9 @@ public class RobotContainer {
     trenchAlignmentPositionChooser.addOption("Outer", DriveCommands.TrenchAlignmentPosition.OUTER);
 
     autoChooser.addDefaultOption(
-        "Shoot", Commands.sequence(Commands.runOnce(() -> hoodSubsystem.zero()), autoShoot(10.0)));
+        "Shoot",
+        Commands.sequence(
+            Commands.runOnce(() -> hoodSubsystem.zero(), hoodSubsystem), autoShoot(10.0)));
     autoChooser.addOption("Choreo Test", testAuto());
     autoChooser.addOption("Left Trench Double Take", leftTrenchDoubleTake());
     autoChooser.addOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
@@ -485,16 +486,8 @@ public class RobotContainer {
         new Trigger(
             () -> {
               double headingErrorDeg = passingHeadingErrorDeg();
-              // TEMP TEST DISABLE: "Enable Passing Cone" chooser is new on this branch (not on
-              // ma-testing). Cone hardcoded OFF (ma's old fire-immediately passing behavior) to
-              // remove it as a variable while diagnosing the auto stop. This also avoids unboxing a
-              // null Boolean from the chooser, which threw an NPE during scheduler trigger-polling
-              // and killed the running auto command.
-              // Restore to:
-              //   Boolean enableCone = enablePassingConeChooser.get();
-              //   boolean coneEnabled = (enableCone == null) || enableCone;
-              //   return !coneEnabled || headingErrorDeg <= passingHeadingToleranceDeg.get();
-              boolean coneEnabled = false;
+              Boolean enableCone = enablePassingConeChooser.get();
+              boolean coneEnabled = (enableCone == null) || enableCone;
               return !coneEnabled || headingErrorDeg <= passingHeadingToleranceDeg.get();
             });
 
@@ -551,6 +544,9 @@ public class RobotContainer {
     leftIntakeLowered
         .and(readyToShoot.negate())
         .and(reverseIndexWhileIntake)
+        // Teleop only: in auto the running routine owns the spindexer, so letting this trigger grab
+        // it would evict and cancel the whole auto (this is what stopped auto ~1s in).
+        .and(RobotModeTriggers.teleop())
         .whileTrue(
             Commands.runEnd(
                 () -> spindexerSubsystem.setPercentage(-0.75),
@@ -727,6 +723,36 @@ public class RobotContainer {
 
     // For displaying in Elastic
     field.setRobotPose(drive.getPose());
+
+    // --- All booleans that gate shooting ---
+    // Hub shooting conditions
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/Hub/ParametersValid",
+        LaunchCalculator.getInstance().getParameters().isValid());
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/Hub/HoodAtSetpoint", hoodSubsystem.atSetpoint());
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/Hub/FlywheelAtSetpoint", flywheelSubsystem.atSetpoint());
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/Hub/DriveAtLaunchGoal", DriveCommands.atLaunchGoal());
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/Hub/HubActive", HubShiftUtil.getOfficialShiftInfo().active());
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/Hub/HubIgnored", ignoreHubState.getAsBoolean());
+
+    // Passing conditions
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/Passing/InPassingTolerance",
+        inPassingTolerance != null && inPassingTolerance.getAsBoolean());
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/Passing/HeadingErrorDeg", passingHeadingErrorDeg());
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/Passing/HeadingToleranceDeg",
+        passingHeadingToleranceDeg.get());
+
+    Logger.recordOutput(
+        "LaunchCalculator/Conditions/AllConditionsMet",
+        readyToShoot != null && readyToShoot.getAsBoolean());
   }
 
   /**
