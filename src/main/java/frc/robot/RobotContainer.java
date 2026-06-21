@@ -971,11 +971,7 @@ public class RobotContainer {
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 trenchShallowIntake.resetOdometry(),
-                Commands.parallel(
-                    autoShoot(2.0),
-                    Commands.sequence(
-                        Commands.waitSeconds(1.0),
-                        Commands.runOnce(() -> leftIntake.setLowered(false)))),
+                Commands.sequence(Commands.runOnce(() -> leftIntake.setLowered(false))),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
@@ -1009,6 +1005,7 @@ public class RobotContainer {
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 firstIntake.resetOdometry(),
                 Commands.sequence(
+                    Commands.parallel(autoShoot(2.5), Commands.waitSeconds(1.0)),
                     Commands.runOnce(
                         () -> {
                           leftIntake.setLowered(false);
@@ -1052,6 +1049,7 @@ public class RobotContainer {
                 firstIntake.resetOdometry(),
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 Commands.sequence(
+                    Commands.parallel(autoShoot(2.5), Commands.waitSeconds(1.0)),
                     Commands.runOnce(
                         () -> {
                           leftIntake.setLowered(false);
