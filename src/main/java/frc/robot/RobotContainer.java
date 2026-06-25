@@ -639,7 +639,7 @@ public class RobotContainer {
         Commands.run(
             () -> {
               if (leftIntake.isLowered()) {
-                leftIntake.setPercentage(0.75);
+                leftIntake.setPercentage(1.00);
               } else {
                 leftIntake.setPercentage(spindexerSubsystem.getAppliedVolts() > 0.1 ? 0.25 : 0.0);
               }
