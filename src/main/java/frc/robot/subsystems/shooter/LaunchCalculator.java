@@ -33,9 +33,14 @@ public class LaunchCalculator {
   private static LaunchCalculator instance;
 
   private double hoodAngleOffsetDeg = 0.0;
+  private double flywheelRpmOffset = 0.0;
 
   public double getHoodAngleOffsetDeg() {
     return hoodAngleOffsetDeg;
+  }
+
+  public double getFlywheelRpmOffset() {
+    return flywheelRpmOffset;
   }
 
   private final LinearFilter hoodAngleFilter =
@@ -259,6 +264,9 @@ public class LaunchCalculator {
       isValidShot = result.isValid() && outsideOfBadBoxes;
     }
 
+    // Apply manual flywheel RPM calibration offset (tuned live via SmartDashboard)
+    flywheelVelocity += flywheelRpmOffset;
+
     // --- APPLY FILTERS & CONSTRUCT RETURN RECORD ---
     if (Double.isNaN(lastHoodAngle)) lastHoodAngle = hoodAngle;
 
@@ -341,6 +349,10 @@ public class LaunchCalculator {
 
   public void incrementHoodAngleOffset(double incrementDegrees) {
     hoodAngleOffsetDeg += incrementDegrees;
+  }
+
+  public void incrementFlywheelRpmOffset(double incrementRpm) {
+    flywheelRpmOffset += incrementRpm;
   }
 
   /** Returns the raw, uncompensated time of flight for a static shot at this distance. */

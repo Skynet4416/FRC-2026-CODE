@@ -586,6 +586,16 @@ public class RobotContainer {
             new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -1.0)));
     SmartDashboard.putData("Zero Hood", hoodSubsystem.zeroCommand());
 
+    // Live flywheel RPM calibration: nudge the launch calculation output up/down by 25 RPM.
+    SmartDashboard.putData(
+        "Flywheel RPM +25",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementFlywheelRpmOffset(25.0))
+            .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Flywheel RPM -25",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementFlywheelRpmOffset(-25.0))
+            .ignoringDisable(true));
+
     SmartDashboard.putData(
         "Lower left intake", Commands.runOnce(() -> leftIntake.setLowered(true)));
     SmartDashboard.putData(
@@ -663,6 +673,10 @@ public class RobotContainer {
     Logger.recordOutput("AutoAlignment/OverrideToggle", autoAlignmentOverrideState);
     // Publish match time
     SmartDashboard.putNumber("Match Time", HubShiftUtil.getMatchTime());
+
+    // Current flywheel RPM calibration offset applied to the launch calculation output
+    SmartDashboard.putNumber(
+        "Flywheel RPM Offset", LaunchCalculator.getInstance().getFlywheelRpmOffset());
 
     // Controller disconnected alerts
     driverControllerDisconnected.set(
