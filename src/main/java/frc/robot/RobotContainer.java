@@ -595,6 +595,10 @@ public class RobotContainer {
         "Flywheel RPM -25",
         Commands.runOnce(() -> LaunchCalculator.getInstance().incrementFlywheelRpmOffset(-25.0))
             .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Flywheel RPM Reset",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().resetFlywheelRpmOffset())
+            .ignoringDisable(true));
 
     SmartDashboard.putData(
         "Lower left intake", Commands.runOnce(() -> leftIntake.setLowered(true)));
