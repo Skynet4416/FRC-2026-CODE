@@ -355,6 +355,10 @@ public class LaunchCalculator {
     flywheelRpmOffset += incrementRpm;
   }
 
+  public void resetFlywheelRpmOffset() {
+    flywheelRpmOffset = 0.0;
+  }
+
   /** Returns the raw, uncompensated time of flight for a static shot at this distance. */
   public double getNaiveTOF(double distance) {
     // Queries the ShotCalculator's base LUT without SOTM compensation
