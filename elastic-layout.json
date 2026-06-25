@@ -158,6 +158,61 @@
               "trajectory_color": 4294967295,
               "show_robot_outside_widget": true
             }
+          },
+          {
+            "title": "Flywheel RPM Offset",
+            "x": 384.0,
+            "y": 640.0,
+            "width": 128.0,
+            "height": 128.0,
+            "type": "Large Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Flywheel RPM Offset",
+              "period": 0.06,
+              "data_type": "double"
+            }
+          },
+          {
+            "title": "Flywheel RPM +25",
+            "x": 512.0,
+            "y": 640.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Flywheel RPM +25",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": false
+            }
+          },
+          {
+            "title": "Flywheel RPM -25",
+            "x": 128.0,
+            "y": 640.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Flywheel RPM -25",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": false
+            }
+          },
+          {
+            "title": "Flywheel RPM Reset",
+            "x": 384.0,
+            "y": 512.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Flywheel RPM Reset",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": false
+            }
           }
         ]
       }
@@ -518,26 +573,10 @@
             "x": 1024.0,
             "y": 0.0,
             "width": 384.0,
-            "height": 256.0,
+            "height": 384.0,
             "type": "Graph",
             "properties": {
               "topic": "/AdvantageKit/Spindexer/RequestedPercentage",
-              "period": 0.033,
-              "data_type": "double",
-              "time_displayed": 5.0,
-              "color": 4278238420,
-              "line_width": 2.0
-            }
-          },
-          {
-            "title": "ShooterIndexer Percentage",
-            "x": 1024.0,
-            "y": 256.0,
-            "width": 384.0,
-            "height": 256.0,
-            "type": "Graph",
-            "properties": {
-              "topic": "/AdvantageKit/ShooterIndexer/RequestedPercentage",
               "period": 0.033,
               "data_type": "double",
               "time_displayed": 5.0,
