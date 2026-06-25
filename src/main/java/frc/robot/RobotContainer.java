@@ -159,6 +159,7 @@ public class RobotContainer {
   private final Trigger leftIntakeLowered;
   private Trigger readyToShoot;
   private Trigger inPassingTolerance;
+  private Trigger intakeStruggling;
   private final Trigger autoAlignmentOverride;
 
   private boolean autoAlignmentOverrideState = true;
@@ -197,7 +198,7 @@ public class RobotContainer {
         leftIntake = new IntakeSubsystem(new IntakeSubsystemIOTalonFX());
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
-        compressor.enableAnalog(80, 110);
+        compressor.enableAnalog(80, 105);
 
         SmartDashboard.putData("Field", field);
         break;
@@ -369,6 +370,8 @@ public class RobotContainer {
                 inLaunchingTolerance
                     .debounce(0.25, DebounceType.kFalling)
                     .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean()));
+
+    this.intakeStruggling = new Trigger(leftIntake.isStrugglingSupplier());
 
     trenchAlignmentPositionChooser = new LoggedDashboardChooser<>("Trench Alignment Position");
     trenchAlignmentPositionChooser.addDefaultOption(
@@ -550,7 +553,7 @@ public class RobotContainer {
         .and(RobotModeTriggers.teleop())
         .whileTrue(
             Commands.runEnd(
-                () -> spindexerSubsystem.setPercentage(-0.75),
+                () -> spindexerSubsystem.setPercentage(-0.35),
                 spindexerSubsystem::stop,
                 spindexerSubsystem));
 
@@ -622,7 +625,7 @@ public class RobotContainer {
         Commands.run(
             () -> {
               if (leftIntake.isLowered()) {
-                leftIntake.setPercentage(0.8);
+                leftIntake.setPercentage(0.75);
               } else {
                 leftIntake.setPercentage(spindexerSubsystem.getAppliedVolts() > 0.1 ? 0.25 : 0.0);
               }
@@ -630,73 +633,29 @@ public class RobotContainer {
             leftIntake));
 
     // When folding/unfolding
-    leftIntakeLowered
-        .onTrue(Commands.runOnce(() -> leftIntake.setPercentage(1.0), leftIntake))
-        .onFalse(
-            Commands.run(() -> leftIntake.setPercentage(0.2), leftIntake)
-                .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
-                .onlyIf(
-                    () -> !Boolean.FALSE.equals(runWheelsWhenFoldingChooser.get()))); // default Yes
+    leftIntakeLowered.onFalse(
+        Commands.run(() -> leftIntake.setPercentage(0.2), leftIntake)
+            .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
+            .onlyIf(() -> !Boolean.FALSE.equals(runWheelsWhenFoldingChooser.get()))); // default Yes
 
     // ****** RUMBLE ALERTS ******
+    intakeStruggling
+        .whileTrue(
+            Commands.runOnce(
+                () ->
+                    driveController.setRumble(
+                        edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)))
+        .whileFalse(
+            Commands.runOnce(
+                () ->
+                    driveController.setRumble(
+                        edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)));
 
     // Reset the timer as soon as Teleop starts
     RobotModeTriggers.teleop().onTrue(Commands.runOnce(teleopElapsedTimer::restart));
 
-    // // 1. SHIFT START PULSE
-    // // Pulses both sides for 0.4s when a scoring window opens
-    // new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().active())
-    //     .and(RobotModeTriggers.teleop())
-    //     .onTrue(
-    //         Commands.runEnd(
-    //                 () ->
-    //                     driveController.setRumble(
-    //                         edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
-    //                 () ->
-    //                     driveController.setRumble(
-    //                         edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
-    //             .withTimeout(0.4)
-    //             .withName("ShiftStartPulse"));
-
-    // // 2. SHIFT END COUNTDOWN (5 Seconds)
-    // // Pulses the right side at 5, 4, 3, 2, and 1 seconds remaining
-    // for (int i = 1; i <= 5; i++) {
-    //   double countdownTime = i;
-    //   new Trigger(() -> HubShiftUtil.getShiftedShiftInfo().remainingTime() < countdownTime)
-    //       .and(RobotModeTriggers.teleop())
-    //       .and(() -> HubShiftUtil.getShiftedShiftInfo().active())
-    //       .onTrue(
-    //           Commands.runEnd(
-    //                   () ->
-    //                       driveController.setRumble(
-    //                           edu.wpi.first.wpilibj.GenericHID.RumbleType.kRightRumble, 1.0),
-    //                   () ->
-    //                       driveController.setRumble(
-    //                           edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
-    //               .withTimeout(0.2)
-    //               .withName("ShiftEndCountdown" + i));
-    // }
-
     spindexerSubsystem.setDefaultCommand(
         Commands.run(() -> spindexerSubsystem.setPercentage(-0.1), spindexerSubsystem));
-
-    // 3. MISSING DATA ALERT
-    // Rumbles if data is missing, no override is set, and 1.0 second has passed in Teleop
-    RobotModeTriggers.teleop()
-        .and(() -> !(DriverStation.getGameSpecificMessage().length() > 0))
-        .and(() -> HubShiftUtil.getAllianceWinOverride().isEmpty())
-        .and(() -> teleopElapsedTimer.hasElapsed(1.0))
-        .whileTrue(
-            Commands.runEnd(
-                    () ->
-                        driveController.setRumble(
-                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0),
-                    () ->
-                        driveController.setRumble(
-                            edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 0.0))
-                .withName("MissingDataRumble"))
-        .whileTrue(
-            Commands.startEnd(() -> autoWinnerNotSet.set(true), () -> autoWinnerNotSet.set(false)));
   }
 
   /** Update dashboard outputs. */
@@ -1049,7 +1008,7 @@ public class RobotContainer {
                 firstIntake.resetOdometry(),
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 Commands.sequence(
-                    Commands.parallel(autoShoot(2.5), Commands.waitSeconds(1.0)),
+                    Commands.parallel(autoShoot(1.5), Commands.waitSeconds(1.0)),
                     Commands.runOnce(
                         () -> {
                           leftIntake.setLowered(false);

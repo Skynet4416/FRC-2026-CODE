@@ -2,8 +2,6 @@ package frc.robot.subsystems.intake;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
 import com.ctre.phoenix6.controls.TorqueCurrentFOC;
-import com.ctre.phoenix6.controls.VelocityVoltage;
-import com.ctre.phoenix6.controls.VoltageOut;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -18,9 +16,6 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
 
   private final TalonFX motor;
   private final DoubleSolenoid solenoid;
-
-  private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
-  private final VoltageOut voltageRequest = new VoltageOut(0);
 
   private final Debouncer motorConnectedDebouncer =
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);

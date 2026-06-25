@@ -14,6 +14,7 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.util.LoggedTunableNumber;
+import java.util.function.BooleanSupplier;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.mechanism.LoggedMechanism2d;
 import org.littletonrobotics.junction.mechanism.LoggedMechanismLigament2d;
@@ -148,6 +149,12 @@ public class IntakeSubsystem extends SubsystemBase {
 
   public boolean isStruggling() {
     return reversed || stuck;
+  }
+
+  public BooleanSupplier isStrugglingSupplier() {
+    return () -> {
+      return isStruggling();
+    };
   }
 
   @Override
