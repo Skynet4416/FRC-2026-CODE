@@ -146,6 +146,10 @@ public class RobotContainer {
   // Toggles the loose heading cone gate that keeps passing shots inside the field
   private final LoggedDashboardChooser<Boolean> enablePassingConeChooser;
   private final LoggedDashboardChooser<String> allianceWinOverrideChooser;
+  // Mirrors every auto trajectory left-to-right (driver's perspective) when set to "Right".
+  // Trajectories are drawn for the left side; selecting "Right" reflects them across the
+  // field's long centerline for both alliances via Choreo's getMirrorY() flipper.
+  private final LoggedDashboardChooser<String> autoMirrorSideChooser;
   private final LoggedDashboardChooser<DriveCommands.TrenchAlignmentPosition>
       trenchAlignmentPositionChooser;
 
@@ -326,6 +330,12 @@ public class RobotContainer {
     allianceWinOverrideChooser.addOption("Won", "Won");
     allianceWinOverrideChooser.addOption("Lost", "Lost");
 
+    // Trajectories are authored for the left side. Selecting "Right" mirrors every auto
+    // left-to-right (driver's perspective) for both alliances. Defaults to "Left".
+    autoMirrorSideChooser = new LoggedDashboardChooser<>("Auto Starting Side");
+    autoMirrorSideChooser.addDefaultOption("Left", "Left");
+    autoMirrorSideChooser.addOption("Right", "Right");
+
     // Null-safe: LoggedDashboardChooser.get() can return null before NetworkTables delivers the
     // default selection (the first loops after enable, when autos run). Unboxing a null Boolean
     // here throws an NPE during scheduler trigger-polling, which kills the running auto command.
@@ -383,10 +393,16 @@ public class RobotContainer {
         "Shoot",
         Commands.sequence(
             Commands.runOnce(() -> hoodSubsystem.zero(), hoodSubsystem), autoShoot(10.0)));
-    autoChooser.addOption("Choreo Test", testAuto());
-    autoChooser.addOption("Left Trench Double Take", leftTrenchDoubleTake());
-    autoChooser.addOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
-    autoChooser.addOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
+    // Deferred so each routine is built when scheduled (on enable), letting the "Auto Starting
+    // Side" chooser take effect at match time instead of being latched at robot construction.
+    autoChooser.addOption("Choreo Test", Commands.deferredProxy(this::testAuto));
+    autoChooser.addOption(
+        "Left Trench Double Take", Commands.deferredProxy(this::leftTrenchDoubleTake));
+    autoChooser.addOption(
+        "Left Trench Return Over Bump",
+        Commands.deferredProxy(this::leftTrenchIntakeReturnOverBump));
+    autoChooser.addOption(
+        "Behind Hub Intake", Commands.deferredProxy(this::leftTrenchHubIntakeReturnOverBump));
 
     // Configure the button bindings
 
@@ -745,11 +761,22 @@ public class RobotContainer {
   public void resetSimulation() {
     if (Constants.currentMode != Constants.Mode.SIM) return;
 
+    // Starting pose is authored for the left side. When the "Auto Starting Side" chooser is set to
+    // "Right", mirror it left-to-right across the field's long centerline (y -> fieldWidth - y,
+    // heading -> -heading) to match the mirrored trajectories. The alliance flip is then layered on
+    // top via AllianceFlipUtil.
+    double startY = 7.430;
+    Rotation2d startHeading = Rotation2d.fromDegrees(-90);
+    if (shouldMirrorAutosToRight()) {
+      startY = FieldConstants.fieldWidth - startY;
+      startHeading = startHeading.unaryMinus();
+    }
+
     drive.resetOdometry(
         new Pose2d(
             AllianceFlipUtil.applyX(3.591),
-            AllianceFlipUtil.applyY(7.430),
-            AllianceFlipUtil.apply(Rotation2d.fromDegrees(-90))));
+            AllianceFlipUtil.applyY(startY),
+            AllianceFlipUtil.apply(startHeading)));
     SimulatedArena.getInstance().resetFieldForAuto();
     ballSim.clearBalls();
     // ballSim.placeFieldBalls();
@@ -888,11 +915,33 @@ public class RobotContainer {
     return inPassingTolerance != null && inPassingTolerance.getAsBoolean();
   }
 
+  /**
+   * Whether auto trajectories should be mirrored left-to-right (driver's perspective). Returns true
+   * only when the dashboard "Auto Starting Side" chooser is explicitly set to "Right". Null-safe:
+   * before NetworkTables delivers the default selection the chooser may return null, which is
+   * treated as the default "Left" (no mirror).
+   */
+  private boolean shouldMirrorAutosToRight() {
+    return "Right".equals(autoMirrorSideChooser.get());
+  }
+
+  /**
+   * Loads a trajectory from the given routine, mirroring it left-to-right (driver's perspective)
+   * via Choreo's {@code mirrorY()} when the dashboard "Auto Starting Side" chooser is set to
+   * "Right". Trajectories are authored for the left side; the mirror produces the right-side
+   * variant for both alliances. Build auto routines through this helper (not {@code
+   * routine.trajectory(name)} directly) so the side selection is honored.
+   */
+  private AutoTrajectory traj(AutoRoutine routine, String name) {
+    AutoTrajectory trajectory = routine.trajectory(name);
+    return shouldMirrorAutosToRight() ? trajectory.mirrorY() : trajectory;
+  }
+
   public Command testAuto() {
     AutoRoutine routine = autoFactory.newRoutine("testAuto");
 
-    AutoTrajectory trenchShallowIntake = routine.trajectory("left_trench_Shallow_Intake");
-    AutoTrajectory trenchDeepIntake = routine.trajectory("left_trench_Deep_Intake");
+    AutoTrajectory trenchShallowIntake = traj(routine, "left_trench_Shallow_Intake");
+    AutoTrajectory trenchDeepIntake = traj(routine, "left_trench_Deep_Intake");
 
     routine
         .active()
@@ -939,8 +988,8 @@ public class RobotContainer {
   public Command leftTrenchDoubleTake() {
     AutoRoutine routine = autoFactory.newRoutine("testAuto");
 
-    AutoTrajectory trenchShallowIntake = routine.trajectory("left_trench_Shallow_Intake");
-    AutoTrajectory trenchDeepIntake = routine.trajectory("left_trench_Deep_Intake");
+    AutoTrajectory trenchShallowIntake = traj(routine, "left_trench_Shallow_Intake");
+    AutoTrajectory trenchDeepIntake = traj(routine, "left_trench_Deep_Intake");
 
     routine
         .active()
@@ -972,8 +1021,8 @@ public class RobotContainer {
   public Command leftTrenchIntakeReturnOverBump() {
     AutoRoutine routine = autoFactory.newRoutine("testAuto");
 
-    AutoTrajectory firstIntake = routine.trajectory("Left_Trench_Return_Over_Bump");
-    AutoTrajectory SecnondIntake = routine.trajectory("Left_Trench_Return_Over_Bump_2");
+    AutoTrajectory firstIntake = traj(routine, "Left_Trench_Return_Over_Bump");
+    AutoTrajectory SecnondIntake = traj(routine, "Left_Trench_Return_Over_Bump_2");
 
     routine
         .active()
@@ -1016,8 +1065,8 @@ public class RobotContainer {
   public Command leftTrenchHubIntakeReturnOverBump() {
     AutoRoutine routine = autoFactory.newRoutine("testAuto");
 
-    AutoTrajectory firstIntake = routine.trajectory("Behind_Hub_Intake_1");
-    AutoTrajectory SecnondIntake = routine.trajectory("Behind_Hub_Intake_2");
+    AutoTrajectory firstIntake = traj(routine, "Behind_Hub_Intake_1");
+    AutoTrajectory SecnondIntake = traj(routine, "Behind_Hub_Intake_2");
 
     routine
         .active()
