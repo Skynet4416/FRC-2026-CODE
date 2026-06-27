@@ -1,8 +1,7 @@
 package frc.robot.subsystems.intake;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
-import com.ctre.phoenix6.controls.VelocityVoltage;
-import com.ctre.phoenix6.controls.VoltageOut;
+import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
@@ -18,9 +17,6 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   private final TalonFX motor;
   private final DoubleSolenoid solenoid;
 
-  private final VelocityVoltage velocityRequest = new VelocityVoltage(0);
-  private final VoltageOut voltageRequest = new VoltageOut(0);
-
   private final Debouncer motorConnectedDebouncer =
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);
   private final Alert motorDisconnectedAlert =
@@ -28,19 +24,11 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   private double currentSetpoint = 0.0;
   private double requestedPercentage = 0.0;
 
-  public IntakeSubsystemIOTalonFX(IntakeSubsystem.IntakeSide side) {
-    int motorId =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER
-            : Constants.Subsystems.Intake.Id.Motor.RIGHT_ROLLER;
-    int forwardChannel =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Pneumatics.LEFT_FORWARDS
-            : Constants.Subsystems.Intake.Id.Pneumatics.RIGHT_FORWARDS;
-    int reverseChannel =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Pneumatics.LEFT_REVERSE
-            : Constants.Subsystems.Intake.Id.Pneumatics.RIGHT_REVERSE;
+  public IntakeSubsystemIOTalonFX() {
+    int motorId = Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER;
+    // Single-intake robot: the remaining intake's solenoid is wired to the SINGLE channels
+    int forwardChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_FORWARDS;
+    int reverseChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_REVERSE;
 
     motor = new TalonFX(motorId);
     solenoid = new DoubleSolenoid(4, PneumaticsModuleType.REVPH, forwardChannel, reverseChannel);
@@ -58,17 +46,14 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
     config.CurrentLimits.SupplyCurrentLimit =
         Constants.Subsystems.Intake.CurrentLimits.SUPPLY_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerTime = 1.0;
-    config.CurrentLimits.SupplyCurrentLowerLimit = 10.0;
+    config.CurrentLimits.SupplyCurrentLowerLimit = 20.0;
 
     config.CurrentLimits.StatorCurrentLimitEnable =
         Constants.Subsystems.Intake.CurrentLimits.STATOR_ENABLED;
     config.CurrentLimits.StatorCurrentLimit =
         Constants.Subsystems.Intake.CurrentLimits.STATOR_LIMIT_AMPS;
 
-    config.MotorOutput.Inverted =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? InvertedValue.CounterClockwise_Positive
-            : InvertedValue.Clockwise_Positive; // Default
+    config.MotorOutput.Inverted = InvertedValue.CounterClockwise_Positive;
     config.MotorOutput.NeutralMode =
         Constants.Subsystems.Intake.ROLLER_BREAK ? NeutralModeValue.Brake : NeutralModeValue.Coast;
 
@@ -110,6 +95,12 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
   public void setPercentage(double percentage) {
     this.requestedPercentage = percentage;
     motor.set(percentage);
+  }
+
+  @Override
+  public void setFOC(double value) {
+    this.requestedPercentage = value;
+    motor.setControl(new TorqueCurrentFOC(value));
   }
 
   @Override
