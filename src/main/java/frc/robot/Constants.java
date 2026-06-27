@@ -19,6 +19,11 @@ public final class Constants {
   public static final Mode currentMode = RobotBase.isReal() ? Mode.REAL : simMode;
   public static final RobotType robot = RobotType.COMPBOT;
   public static final boolean tuningMode = true;
+
+  // When true, the flywheel default command runs at the tunable target RPM, turning the shooter
+  // into calibration mode instead of the normal SOTM idle/auto-spinup behavior.
+  public static final boolean flywheelTestingMode = false;
+
   public static final double loopPeriodSecs = 0.02;
 
   // Disables hardware stuff
@@ -109,7 +114,6 @@ public final class Constants {
           // Highly recommended for Shooters.
           public static final boolean SUPPLY_ENABLED = true;
 
-          // TODO tune this value
           public static final double SUPPLY_LIMIT_AMPS = 60.0; // Holding limit
 
           // Stator Limit: Protects the Motor (Prevents Burnout)
@@ -181,7 +185,6 @@ public final class Constants {
         // Highly recommended for Shooters.
         public static final boolean SUPPLY_ENABLED = true;
 
-        // TODO tune this value
         public static final double SUPPLY_LIMIT_AMPS = 120; // Holding limit
 
         // Stator Limit: Protects the Motor (Prevents Burnout)
@@ -214,15 +217,12 @@ public final class Constants {
 
       public static class Id {
         public static class Motor {
-          public static final int RIGHT_ROLLER = 30;
           public static final int LEFT_ROLLER = 31;
         }
 
         public static class Pneumatics {
-          public static final int LEFT_REVERSE = 1; //
-          public static final int LEFT_FORWARDS = 15;
-          public static final int RIGHT_REVERSE = 2; //
-          public static final int RIGHT_FORWARDS = 14;
+          public static final int SINGLE_REVERSE = 1; //
+          public static final int SINGLE_FORWARDS = 0;
         }
       }
 
@@ -240,8 +240,7 @@ public final class Constants {
         // Highly recommended for Shooters.
         public static final boolean SUPPLY_ENABLED = true;
 
-        // TODO tune this value
-        public static final double SUPPLY_LIMIT_AMPS = 120; // Holding limit
+        public static final double SUPPLY_LIMIT_AMPS = 60; // Holding limit
 
         // Stator Limit: Protects the Motor (Prevents Burnout)
         // Keep this HIGH for Shooters to allow fast spin-up.

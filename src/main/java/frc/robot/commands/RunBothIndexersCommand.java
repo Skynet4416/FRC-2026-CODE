@@ -19,7 +19,7 @@ public class RunBothIndexersCommand extends Command {
   private final double targetPercentage;
 
   private final double FLIP_INTERVAL = 6.0;
-  private final double FLIP_DURATION = 0.2;
+  private final double FLIP_DURATION = 0;
 
   public RunBothIndexersCommand(
       SpindexerSubsystem spindexerSubsystem,

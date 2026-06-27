@@ -31,19 +31,10 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   private double currentSetpoint = 0.0;
   private double requestedPercentage = 0.0;
 
-  public IntakeSubsystemIOSim(IntakeSubsystem.IntakeSide side) {
-    int motorId =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER
-            : Constants.Subsystems.Intake.Id.Motor.RIGHT_ROLLER;
-    int forwardChannel =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Pneumatics.LEFT_FORWARDS
-            : Constants.Subsystems.Intake.Id.Pneumatics.RIGHT_FORWARDS;
-    int reverseChannel =
-        side == IntakeSubsystem.IntakeSide.LEFT
-            ? Constants.Subsystems.Intake.Id.Pneumatics.LEFT_REVERSE
-            : Constants.Subsystems.Intake.Id.Pneumatics.RIGHT_REVERSE;
+  public IntakeSubsystemIOSim() {
+    int motorId = Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER;
+    int forwardChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_FORWARDS;
+    int reverseChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_REVERSE;
 
     this.motor = new SparkMax(motorId, MotorType.kBrushless);
     this.solenoidSim =
