@@ -103,7 +103,7 @@ public class LaunchCalculator {
   private static final double minDistance = 0.25;
   private static final double maxDistance = 10;
   private static final double passingMinDistance = 0.0;
-  private static final double passingMaxDistance = 12.0;
+  private static final double passingMaxDistance = 20.0;
   private static final double phaseDelay = 0.03;
 
   // Passing Maps
@@ -141,13 +141,11 @@ public class LaunchCalculator {
 
   static {
     // Passing Map Init
-    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(55.0));
-    passingHoodAngleMap.put(6.62, Rotation2d.fromDegrees(55.0));
-    passingHoodAngleMap.put(7.80, Rotation2d.fromDegrees(55.0));
+    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(45.0));
+    passingHoodAngleMap.put(14.80, Rotation2d.fromDegrees(45.0));
 
-    passingFlywheelSpeedMap.put(5.46, 2500.0);
-    passingFlywheelSpeedMap.put(6.62, 2500.0);
-    passingFlywheelSpeedMap.put(7.80, 2500.0);
+    passingFlywheelSpeedMap.put(5.46, 1800.0);
+    passingFlywheelSpeedMap.put(17.00, 3000.0);
 
     passingTimeOfFlightMap.put(passingMinDistance, 1.0);
     passingTimeOfFlightMap.put(passingMaxDistance, 5.5);
