@@ -74,6 +74,7 @@ import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.elasticlib.Elastic;
 import frc.robot.util.geometry.AllianceFlipUtil;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
@@ -152,6 +153,9 @@ public class RobotContainer {
   // How much time in seconds to run the wheels when folding
   private static final LoggedTunableNumber intakeRunWheelsWhileFoldingDelay =
       new LoggedTunableNumber("IntakeRunWheelsWhileFoldingDelay", 1.0);
+  // Seconds to wait, with rollers off, before re-enabling them after a current-limit stall in auto
+  private static final LoggedTunableNumber intakeUnstickDelay =
+      new LoggedTunableNumber("Intake/AutoUnstickDelaySec", 2.0);
   private static final LoggedTunableNumber trenchExtension =
       new LoggedTunableNumber("TrenchExtension", 0.5);
 
@@ -545,6 +549,31 @@ public class RobotContainer {
         .L1()
         .onTrue(Commands.runOnce(() -> leftIntake.forceReverse(true)))
         .onFalse(Commands.runOnce(() -> leftIntake.forceReverse(false)));
+
+    // Auto-only: if the rollers were cut by the current limit while the intake is lowered, wait,
+    // then re-enable them. Repeats automatically if it stalls again.
+    // - No subsystem requirement (runOnce takes no subsystem arg) -> cannot evict or cancel the
+    //   running auto routine or the intake default command.
+    // - Commands.defer(..., Set.of()) re-reads the tunable each fire and still declares zero
+    //   requirements.
+    // - The isAutonomous() guard makes a straggler that crosses the auto->teleop boundary a no-op,
+    //   so teleop is never affected.
+    new Trigger(leftIntake::isStuck)
+        .and(leftIntake::isLowered)
+        .and(RobotModeTriggers.autonomous())
+        .onTrue(
+            Commands.defer(
+                    () ->
+                        Commands.waitSeconds(intakeUnstickDelay.get())
+                            .andThen(
+                                Commands.runOnce(
+                                    () -> {
+                                      if (DriverStation.isAutonomous()) {
+                                        leftIntake.clearStuck();
+                                      }
+                                    })),
+                    Set.of())
+                .withName("AutoIntakeUnstick"));
 
     // While intaking and not yet shooting, run the spindexer in reverse (chooser-gated)
     leftIntakeLowered
