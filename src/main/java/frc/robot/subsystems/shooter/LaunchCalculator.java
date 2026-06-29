@@ -72,10 +72,10 @@ public class LaunchCalculator {
     // shotCalc.loadLUTEntry(4.6, 1800.0, 40.0, 0.9);
 
     // High shots
-    shotCalc.loadLUTEntry(1.6, 1400.0, 12.0, 0.9);
-    shotCalc.loadLUTEntry(2.6, 1500.0, 24.0, 0.9);
-    shotCalc.loadLUTEntry(4.2, 1700.0, 26.0, 0.9);
-    shotCalc.loadLUTEntry(5.25, 1800, 35.0, 0.9);
+    shotCalc.loadLUTEntry(1.6, 1450.0, 12.0, 0.9);
+    shotCalc.loadLUTEntry(2.6, 1550.0, 24.0, 0.9);
+    shotCalc.loadLUTEntry(4.2, 1750.0, 26.0, 0.9);
+    shotCalc.loadLUTEntry(5.25, 1850, 35.0, 0.9);
   }
 
   public static LaunchCalculator getInstance() {

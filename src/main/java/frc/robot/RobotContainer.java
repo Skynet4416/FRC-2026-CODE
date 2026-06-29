@@ -199,7 +199,6 @@ public class RobotContainer {
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
         compressor.enableAnalog(80, 105);
-
         SmartDashboard.putData("Field", field);
         break;
 
@@ -680,11 +679,13 @@ public class RobotContainer {
     Logger.recordOutput("AutoAlignment/OverrideToggle", autoAlignmentOverrideState);
     // Publish match time
     SmartDashboard.putNumber("Match Time", HubShiftUtil.getMatchTime());
+    SmartDashboard.putNumber("PSI", compressor.getPressure());
 
     // Current flywheel RPM calibration offset applied to the launch calculation output
     SmartDashboard.putNumber(
         "Flywheel RPM Offset", LaunchCalculator.getInstance().getFlywheelRpmOffset());
 
+        
     // Controller disconnected alerts
     driverControllerDisconnected.set(
         !DriverStation.isJoystickConnected(driveController.getHID().getPort()));
