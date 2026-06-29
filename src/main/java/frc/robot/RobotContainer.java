@@ -164,6 +164,8 @@ public class RobotContainer {
   private Trigger readyToShoot;
   private Trigger inPassingTolerance;
   private Trigger intakeStruggling;
+  // True while a current-limit stall needs auto-recovery: stuck + lowered + autonomous
+  private Trigger intakeStuckInAuto;
   private final Trigger autoAlignmentOverride;
 
   private boolean autoAlignmentOverrideState = true;
@@ -375,6 +377,10 @@ public class RobotContainer {
                     .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean()));
 
     this.intakeStruggling = new Trigger(leftIntake.isStrugglingSupplier());
+    this.intakeStuckInAuto =
+        new Trigger(leftIntake::isStuck)
+            .and(leftIntake::isLowered)
+            .and(RobotModeTriggers.autonomous());
 
     trenchAlignmentPositionChooser = new LoggedDashboardChooser<>("Trench Alignment Position");
     trenchAlignmentPositionChooser.addDefaultOption(
@@ -558,22 +564,19 @@ public class RobotContainer {
     //   requirements.
     // - The isAutonomous() guard makes a straggler that crosses the auto->teleop boundary a no-op,
     //   so teleop is never affected.
-    new Trigger(leftIntake::isStuck)
-        .and(leftIntake::isLowered)
-        .and(RobotModeTriggers.autonomous())
-        .onTrue(
-            Commands.defer(
-                    () ->
-                        Commands.waitSeconds(intakeUnstickDelay.get())
-                            .andThen(
-                                Commands.runOnce(
-                                    () -> {
-                                      if (DriverStation.isAutonomous()) {
-                                        leftIntake.clearStuck();
-                                      }
-                                    })),
-                    Set.of())
-                .withName("AutoIntakeUnstick"));
+    intakeStuckInAuto.onTrue(
+        Commands.defer(
+                () ->
+                    Commands.waitSeconds(intakeUnstickDelay.get())
+                        .andThen(
+                            Commands.runOnce(
+                                () -> {
+                                  if (DriverStation.isAutonomous()) {
+                                    leftIntake.clearStuck();
+                                  }
+                                })),
+                Set.of())
+            .withName("AutoIntakeUnstick"));
 
     // While intaking and not yet shooting, run the spindexer in reverse (chooser-gated)
     leftIntakeLowered
