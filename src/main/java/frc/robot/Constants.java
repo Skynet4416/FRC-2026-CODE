@@ -240,7 +240,7 @@ public final class Constants {
         // Highly recommended for Shooters.
         public static final boolean SUPPLY_ENABLED = true;
 
-        public static final double SUPPLY_LIMIT_AMPS = 80; // Holding limit
+        public static final double SUPPLY_LIMIT_AMPS = 100; // Holding limit
 
         // Stator Limit: Protects the Motor (Prevents Burnout)
         // Keep this HIGH for Shooters to allow fast spin-up.
