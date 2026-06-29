@@ -143,17 +143,6 @@ public class IntakeSubsystem extends SubsystemBase {
     return stuck;
   }
 
-  /**
-   * Re-enables the rollers after a current-limit stall without moving the arm. Mirrors the reset
-   * done inside {@link #setLowered(boolean)} when lowering, but leaves the solenoid untouched so it
-   * can be used while the intake is already deployed.
-   */
-  public void clearStuck() {
-    this.stuck = false;
-    this.reversed = false;
-    this.stuckTime = 0;
-  }
-
   public boolean isReversed() {
     return reversed || forceReverse;
   }
