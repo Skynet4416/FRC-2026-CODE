@@ -1,7 +1,5 @@
 package frc.robot.subsystems.intake;
 
-import static edu.wpi.first.units.Units.Meters;
-
 import com.revrobotics.PersistMode;
 import com.revrobotics.ResetMode;
 import com.revrobotics.sim.SparkMaxSim;
@@ -20,8 +18,6 @@ import edu.wpi.first.wpilibj.PneumaticsModuleType;
 import edu.wpi.first.wpilibj.simulation.DCMotorSim;
 import edu.wpi.first.wpilibj.simulation.DoubleSolenoidSim;
 import frc.robot.Constants;
-import org.ironmaple.simulation.IntakeSimulation;
-import org.ironmaple.simulation.drivesims.AbstractDriveTrainSimulation;
 
 public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   // ponytail: hopper capacity is a guess, tune to the real spindexer
@@ -38,11 +34,15 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   private final ClosedLoopConfig closedLoopConfig;
   private final SparkMaxSim motorSim;
   private final DCMotorSim dcMotorSim;
-  private final IntakeSimulation intakeSimulation;
   private double currentSetpoint = 0.0;
   private double requestedPercentage = 0.0;
 
-  public IntakeSubsystemIOSim(AbstractDriveTrainSimulation driveTrain) {
+  // maple-sim OverTheBumperIntake logic cloned onto FuelPhysicsSim: "running" = the OTB
+  // rectangle is extended past the bumper (touch it, get it); heldFuel = pieces in the robot
+  private boolean running = false;
+  private int heldFuel = 0;
+
+  public IntakeSubsystemIOSim() {
     int motorId = Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER;
     int forwardChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_FORWARDS;
     int reverseChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_REVERSE;
@@ -77,47 +77,39 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     this.motorSim = new SparkMaxSim(motor, maxGearbox);
     this.dcMotorSim =
         new DCMotorSim(LinearSystemId.createDCMotorSystem(maxGearbox, 0.005, 1.0), maxGearbox);
-
-    // From CAD: mouth spans 708mm (full frame width), rollers reach ~260mm past the LEFT
-    // bumper when lowered. Registers itself with the SimulatedArena as a collision fixture.
-    this.intakeSimulation =
-        IntakeSimulation.OverTheBumperIntake(
-            "Fuel",
-            driveTrain,
-            Meters.of(0.708),
-            Meters.of(0.26),
-            IntakeSimulation.IntakeSide.LEFT,
-            FUEL_CAPACITY);
-    // FuelPhysicsSim owns the visible field balls and feeds pickups in via
-    // addGamePieceToIntake(); never collect maple-sim's invisible arena fuel (double counting).
-    this.intakeSimulation.setCustomIntakeCondition(gamePiece -> false);
   }
 
-  /** True when the maple-sim intake is extended and collecting (lowered + rollers on). */
+  /** True when the OTB intake is extended and collecting (lowered + rollers on). */
   public boolean isIntakeRunning() {
-    return intakeSimulation.isRunning();
+    return running;
   }
 
   public boolean canHoldMore() {
-    return intakeSimulation.getGamePiecesAmount() < FUEL_CAPACITY;
+    return heldFuel < FUEL_CAPACITY;
   }
 
-  /** Called by FuelPhysicsSim when a field ball is swallowed. */
+  /** Called by FuelPhysicsSim when a field ball touches the extended intake. */
   public void addGamePieceToIntake() {
-    intakeSimulation.addGamePieceToIntake();
+    if (heldFuel < FUEL_CAPACITY) {
+      heldFuel++;
+    }
   }
 
   /** Pull one fuel out for shooting; false when empty. */
   public boolean obtainGamePiece() {
-    return intakeSimulation.obtainGamePieceFromIntake();
+    if (heldFuel > 0) {
+      heldFuel--;
+      return true;
+    }
+    return false;
   }
 
   public int getHeldCount() {
-    return intakeSimulation.getGamePiecesAmount();
+    return heldFuel;
   }
 
   public void setHeldCount(int count) {
-    intakeSimulation.setGamePiecesCount(count);
+    heldFuel = Math.max(0, Math.min(count, FUEL_CAPACITY));
   }
 
   @Override
@@ -133,17 +125,13 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     inputs.appliedVolts = this.motorSim.getAppliedOutput() * this.motor.getBusVoltage();
     inputs.supplyCurrentAmps = this.motorSim.getMotorCurrent();
     inputs.lowered = (this.solenoidSim.get() == DoubleSolenoid.Value.kForward);
-    // Extend/retract the maple-sim intake with the mechanism state. Gate on commanded output
-    // as well as measured RPM - the SparkMax sim can report 0 RPM when bus voltage sim is off.
+    // Extend/retract the OTB intake with the mechanism state. Gate on commanded output as
+    // well as measured RPM - the SparkMax sim can report 0 RPM when bus voltage sim is off.
     boolean rollersOn =
         this.requestedPercentage > 0.05
             || this.currentSetpoint > 0
             || inputs.velocityRPM > INTAKING_MIN_RPM;
-    if (inputs.lowered && rollersOn) {
-      this.intakeSimulation.startIntake();
-    } else {
-      this.intakeSimulation.stopIntake();
-    }
+    this.running = inputs.lowered && rollersOn;
     inputs.connected = true;
     inputs.setpointRPM = this.currentSetpoint;
     inputs.atSetpoint =

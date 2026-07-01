@@ -247,7 +247,7 @@ public class RobotContainer {
 
         spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
         shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSim());
-        intakeSimIO = new IntakeSubsystemIOSim(driveSimulation);
+        intakeSimIO = new IntakeSubsystemIOSim();
         leftIntake = new IntakeSubsystem(intakeSimIO);
         compressor = null;
 
