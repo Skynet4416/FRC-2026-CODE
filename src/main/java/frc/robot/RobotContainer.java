@@ -505,9 +505,9 @@ public class RobotContainer {
                         && flywheelSubsystem.atSetpoint()
                         && DriveCommands.atLaunchGoal()));
 
-    this.readyToShoot =
-        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
+    // this.readyToShoot =
+    //     new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
+    //         .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
         .R2()
