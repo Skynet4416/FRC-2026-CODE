@@ -81,7 +81,7 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     this.dcMotorSim =
         new DCMotorSim(LinearSystemId.createDCMotorSystem(maxGearbox, 0.005, 1.0), maxGearbox);
 
-    // From CAD: mouth spans 708mm (full frame width), rollers reach ~260mm past the front
+    // From CAD: mouth spans 708mm (full frame width), rollers reach ~260mm past the LEFT
     // bumper when lowered. Registers itself with the SimulatedArena as a collision fixture.
     this.intakeSimulation =
         IntakeSimulation.OverTheBumperIntake(
@@ -89,7 +89,7 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
             driveTrain,
             Meters.of(0.708),
             Meters.of(0.26),
-            IntakeSimulation.IntakeSide.FRONT,
+            IntakeSimulation.IntakeSide.LEFT,
             FUEL_CAPACITY);
     // FuelPhysicsSim owns the visible field balls and feeds pickups in via
     // addGamePieceToIntake(); never collect maple-sim's invisible arena fuel (double counting).

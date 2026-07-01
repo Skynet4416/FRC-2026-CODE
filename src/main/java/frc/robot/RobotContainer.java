@@ -253,13 +253,13 @@ public class RobotContainer {
 
         ballSim.enable();
         ballSim.placeFieldBalls();
-        // Roller intake mouth from CAD (robot frame, m): bumper face to 0.61 out front,
-        // full 0.708m width, grab zone up to 0.23m off the carpet
+        // Roller intake mouth from CAD (robot frame, m): on the LEFT (+Y) side, bumper face
+        // to 0.61 out, full 0.708m span, grab zone up to 0.23m off the carpet
         ballSim.configureIntake(
-            0.35,
-            0.61,
             -0.354,
             0.354,
+            0.35,
+            0.61,
             0.23,
             leftIntake::isLowered,
             intakeSimIO::getRollerSurfaceSpeedMps,
@@ -800,16 +800,20 @@ public class RobotContainer {
 
     Logger.recordOutput("FieldSimulation/RobotPosition", simPose);
 
+    // Use the ground-truth sim pose (what's rendered), not odometry - if they diverge the
+    // ball world would collide/intake at the wrong place
     ballSim.configureRobot(
         0.7,
         0.7,
         0.15, // width, length, bumperH (approximate values)
-        drive::getPose,
-        drive::getChassisSpeeds);
+        () -> simPose,
+        () -> fieldSpeeds);
     ballSim.tick();
 
     if (intakeSimIO != null) {
       Logger.recordOutput("Sim/Fuel/HeldBalls", intakeSimIO.getHeldCount());
+      Logger.recordOutput("Sim/Fuel/IntakeDeployed", leftIntake.isLowered());
+      Logger.recordOutput("Sim/Fuel/RollerSurfaceSpeed", intakeSimIO.getRollerSurfaceSpeedMps());
     }
   }
 

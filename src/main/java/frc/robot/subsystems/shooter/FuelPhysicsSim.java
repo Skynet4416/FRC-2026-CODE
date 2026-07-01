@@ -758,9 +758,11 @@ public class FuelPhysicsSim {
   private static final double INTAKE_ROLLER_MIN_SPEED = 0.1; // m/s, below this rollers are "off"
 
   /**
-   * Over-the-bumper roller intake. Box is in robot-relative coordinates (+X forward). Spinning
-   * rollers pull balls in at surface speed; stopped/full intake acts as a solid extension of the
-   * robot frame; reversed rollers eject.
+   * Over-the-bumper roller intake. Box is in robot-relative coordinates (+X forward, +Y left) and
+   * can sit on any side of the robot. Spinning rollers pull balls in at surface speed; stopped/full
+   * intake acts as a solid extension of the robot frame; reversed rollers eject. pullX/pullY is the
+   * robot-frame unit direction from the mouth toward the robot and nearEdge is the mouth entrance
+   * coordinate along the outward axis (both derived from the box in configureIntake).
    */
   private record IntakeMechanism(
       double xMin,
@@ -768,6 +770,9 @@ public class FuelPhysicsSim {
       double yMin,
       double yMax,
       double height,
+      double pullX,
+      double pullY,
+      double nearEdge,
       BooleanSupplier deployed,
       DoubleSupplier rollerSurfaceSpeed,
       BooleanSupplier hasCapacity,
@@ -938,9 +943,28 @@ public class FuelPhysicsSim {
       DoubleSupplier rollerSurfaceSpeed,
       BooleanSupplier hasCapacity,
       Runnable onPickup) {
+    // Which side of the robot is the mouth on? Pull points back toward the robot center.
+    double cx = (xMin + xMax) / 2.0;
+    double cy = (yMin + yMax) / 2.0;
+    boolean onXSide = Math.abs(cx) >= Math.abs(cy);
+    double pullX = onXSide ? -Math.signum(cx) : 0;
+    double pullY = onXSide ? 0 : -Math.signum(cy);
+    // Mouth entrance coordinate measured outward from the robot center
+    double nearEdge = onXSide ? (cx > 0 ? xMin : -xMax) : (cy > 0 ? yMin : -yMax);
     this.intakeMech =
         new IntakeMechanism(
-            xMin, xMax, yMin, yMax, height, deployed, rollerSurfaceSpeed, hasCapacity, onPickup);
+            xMin,
+            xMax,
+            yMin,
+            yMax,
+            height,
+            pullX,
+            pullY,
+            nearEdge,
+            deployed,
+            rollerSurfaceSpeed,
+            hasCapacity,
+            onPickup);
   }
 
   /**
@@ -2096,21 +2120,27 @@ public class FuelPhysicsSim {
             .relativeTo(robotPose)
             .getTranslation();
 
+    // Expand the box by ball radius along the pull axis (mouth entrance/exit), keep the
+    // transverse extent strict (the side plates bound it)
+    double exX = intakeMech.pullX() != 0 ? BALL_RADIUS : 0;
+    double exY = intakeMech.pullY() != 0 ? BALL_RADIUS : 0;
     boolean inFootprint =
-        relPos.getX() >= intakeMech.xMin() - BALL_RADIUS
-            && relPos.getX() <= intakeMech.xMax() + BALL_RADIUS
-            && relPos.getY() >= intakeMech.yMin()
-            && relPos.getY() <= intakeMech.yMax();
+        relPos.getX() >= intakeMech.xMin() - exX
+            && relPos.getX() <= intakeMech.xMax() + exX
+            && relPos.getY() >= intakeMech.yMin() - exY
+            && relPos.getY() <= intakeMech.yMax() + exY;
     if (!inFootprint) return false;
 
     double surfaceSpeed = intakeMech.rollerSurfaceSpeed().getAsDouble();
+    // Ball position along the outward axis (distance from robot center toward the mouth)
+    double outward = -(relPos.getX() * intakeMech.pullX() + relPos.getY() * intakeMech.pullY());
 
     // Rollers pulling and there's room: compliant wheels grip the ball
     if (surfaceSpeed > INTAKE_ROLLER_MIN_SPEED && intakeMech.hasCapacity().getAsBoolean()) {
       wakeBall(ball);
 
       // Deep enough into the rollers: swallowed
-      if (relPos.getX() < intakeMech.xMin() + INTAKE_PICKUP_DEPTH) {
+      if (outward < intakeMech.nearEdge() + INTAKE_PICKUP_DEPTH) {
         ball.intaked = true;
         totalIntaked++;
         intakeMech.onPickup().run();
@@ -2122,7 +2152,9 @@ public class FuelPhysicsSim {
       // Drag the ball toward the bumper at roller surface speed (in the robot's moving frame).
       // Grip accel is finite, so a gripped ball plows into neighbors and shoves them via the
       // ball-ball solver instead of teleporting.
-      Translation2d pullDir = new Translation2d(-1, 0).rotateBy(robotPose.getRotation());
+      Translation2d pullDir =
+          new Translation2d(intakeMech.pullX(), intakeMech.pullY())
+              .rotateBy(robotPose.getRotation());
       Translation2d targetVel = robotVel.plus(pullDir.times(surfaceSpeed));
       double dvx = targetVel.getX() - ball.vel.getX();
       double dvy = targetVel.getY() - ball.vel.getY();
@@ -2141,7 +2173,9 @@ public class FuelPhysicsSim {
     // Rollers reversed: eject balls in the mouth away from the robot
     if (surfaceSpeed < -INTAKE_ROLLER_MIN_SPEED) {
       wakeBall(ball);
-      Translation2d pushDir = new Translation2d(1, 0).rotateBy(robotPose.getRotation());
+      Translation2d pushDir =
+          new Translation2d(-intakeMech.pullX(), -intakeMech.pullY())
+              .rotateBy(robotPose.getRotation());
       Translation2d targetVel = robotVel.plus(pushDir.times(-surfaceSpeed));
       double dvx = targetVel.getX() - ball.vel.getX();
       double dvy = targetVel.getY() - ball.vel.getY();
