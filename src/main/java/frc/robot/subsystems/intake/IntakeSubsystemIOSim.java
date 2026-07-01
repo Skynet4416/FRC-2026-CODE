@@ -21,7 +21,7 @@ import frc.robot.Constants;
 
 public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   // ponytail: hopper capacity is a guess, tune to the real spindexer
-  public static final int FUEL_CAPACITY = 30;
+  public static final int FUEL_CAPACITY = 150;
 
   // Wheel RPM above which the rollers count as actually intaking
   private static final double INTAKING_MIN_RPM = 50.0;
