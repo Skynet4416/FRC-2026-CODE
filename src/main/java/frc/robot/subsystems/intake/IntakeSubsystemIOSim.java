@@ -27,8 +27,6 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   // ponytail: hopper capacity is a guess, tune to the real spindexer
   public static final int FUEL_CAPACITY = 30;
 
-  // am-3462 2in compliant wheel (black 60A)
-  private static final double WHEEL_RADIUS_METERS = 0.0254;
   // Wheel RPM above which the rollers count as actually intaking
   private static final double INTAKING_MIN_RPM = 50.0;
 
@@ -43,7 +41,6 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   private final IntakeSimulation intakeSimulation;
   private double currentSetpoint = 0.0;
   private double requestedPercentage = 0.0;
-  private double wheelRpm = 0.0;
 
   public IntakeSubsystemIOSim(AbstractDriveTrainSimulation driveTrain) {
     int motorId = Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER;
@@ -96,9 +93,9 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     this.intakeSimulation.setCustomIntakeCondition(gamePiece -> false);
   }
 
-  /** Wheel surface speed in m/s. Positive = pulling fuel in. */
-  public double getRollerSurfaceSpeedMps() {
-    return wheelRpm * 2.0 * Math.PI * WHEEL_RADIUS_METERS / 60.0;
+  /** True when the maple-sim intake is extended and collecting (lowered + rollers on). */
+  public boolean isIntakeRunning() {
+    return intakeSimulation.isRunning();
   }
 
   public boolean canHoldMore() {
@@ -136,10 +133,13 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     inputs.appliedVolts = this.motorSim.getAppliedOutput() * this.motor.getBusVoltage();
     inputs.supplyCurrentAmps = this.motorSim.getMotorCurrent();
     inputs.lowered = (this.solenoidSim.get() == DoubleSolenoid.Value.kForward);
-    this.wheelRpm = inputs.velocityRPM;
-
-    // Extend/retract the maple-sim collision fixture with the real mechanism state
-    if (inputs.lowered && this.wheelRpm > INTAKING_MIN_RPM) {
+    // Extend/retract the maple-sim intake with the mechanism state. Gate on commanded output
+    // as well as measured RPM - the SparkMax sim can report 0 RPM when bus voltage sim is off.
+    boolean rollersOn =
+        this.requestedPercentage > 0.05
+            || this.currentSetpoint > 0
+            || inputs.velocityRPM > INTAKING_MIN_RPM;
+    if (inputs.lowered && rollersOn) {
       this.intakeSimulation.startIntake();
     } else {
       this.intakeSimulation.stopIntake();

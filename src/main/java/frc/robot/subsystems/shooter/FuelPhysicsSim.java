@@ -29,7 +29,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.function.BooleanSupplier;
-import java.util.function.DoubleSupplier;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
 
@@ -751,35 +750,6 @@ public class FuelPhysicsSim {
   // Intakes
   private final List<IntakeZone> intakes = new ArrayList<>();
 
-  // Roller intake mechanism (see configureIntake)
-  // ponytail: grip accel is the tuning knob for how hard compliant wheels bite; tune vs IRL footage
-  private static final double INTAKE_GRIP_ACCEL = 50.0; // m/s^2
-  private static final double INTAKE_PICKUP_DEPTH = 0.06; // m past mouth entrance = swallowed
-  private static final double INTAKE_ROLLER_MIN_SPEED = 0.1; // m/s, below this rollers are "off"
-
-  /**
-   * Over-the-bumper roller intake. Box is in robot-relative coordinates (+X forward, +Y left) and
-   * can sit on any side of the robot. Spinning rollers pull balls in at surface speed; stopped/full
-   * intake acts as a solid extension of the robot frame; reversed rollers eject. pullX/pullY is the
-   * robot-frame unit direction from the mouth toward the robot and nearEdge is the mouth entrance
-   * coordinate along the outward axis (both derived from the box in configureIntake).
-   */
-  private record IntakeMechanism(
-      double xMin,
-      double xMax,
-      double yMin,
-      double yMax,
-      double height,
-      double pullX,
-      double pullY,
-      double nearEdge,
-      BooleanSupplier deployed,
-      DoubleSupplier rollerSurfaceSpeed,
-      BooleanSupplier hasCapacity,
-      Runnable onPickup) {}
-
-  private IntakeMechanism intakeMech;
-
   // Counters
   private int totalLaunched;
   private int totalScored;
@@ -914,57 +884,6 @@ public class FuelPhysicsSim {
   public void addIntakeZone(
       double xMin, double xMax, double yMin, double yMax, BooleanSupplier active) {
     addIntakeZone(xMin, xMax, yMin, yMax, active, () -> {});
-  }
-
-  /**
-   * Configure a physical roller intake (over-the-bumper). Unlike {@link #addIntakeZone}, this
-   * models the mechanism: spinning rollers grip balls in the mouth box and drag them in at roller
-   * surface speed (neighbors get shoved through the ball-ball solver); a deployed but stopped or
-   * full intake is a solid wall that transfers robot velocity to balls; reversed rollers spit balls
-   * out.
-   *
-   * @param xMin mouth entrance, robot frame (m, +X forward; usually the bumper face)
-   * @param xMax outer edge of the rollers, robot frame (m)
-   * @param yMin right edge of the mouth, robot frame (m)
-   * @param yMax left edge of the mouth, robot frame (m)
-   * @param height top of the grab zone above the carpet (m)
-   * @param deployed true when the intake is lowered/extended
-   * @param rollerSurfaceSpeed roller surface speed in m/s (+ = intaking, - = ejecting)
-   * @param hasCapacity false when the robot can't hold more fuel (intake becomes a wall)
-   * @param onPickup fires for every ball swallowed
-   */
-  public void configureIntake(
-      double xMin,
-      double xMax,
-      double yMin,
-      double yMax,
-      double height,
-      BooleanSupplier deployed,
-      DoubleSupplier rollerSurfaceSpeed,
-      BooleanSupplier hasCapacity,
-      Runnable onPickup) {
-    // Which side of the robot is the mouth on? Pull points back toward the robot center.
-    double cx = (xMin + xMax) / 2.0;
-    double cy = (yMin + yMax) / 2.0;
-    boolean onXSide = Math.abs(cx) >= Math.abs(cy);
-    double pullX = onXSide ? -Math.signum(cx) : 0;
-    double pullY = onXSide ? 0 : -Math.signum(cy);
-    // Mouth entrance coordinate measured outward from the robot center
-    double nearEdge = onXSide ? (cx > 0 ? xMin : -xMax) : (cy > 0 ? yMin : -yMax);
-    this.intakeMech =
-        new IntakeMechanism(
-            xMin,
-            xMax,
-            yMin,
-            yMax,
-            height,
-            pullX,
-            pullY,
-            nearEdge,
-            deployed,
-            rollerSurfaceSpeed,
-            hasCapacity,
-            onPickup);
   }
 
   /**
@@ -1192,7 +1111,6 @@ public class FuelPhysicsSim {
           }
         }
         // Intake first so balls are consumed before bumper pushes them away
-        if (handleIntakeMechanism(ball, robotPose, robotVel, subDt)) continue;
         handleIntakePickup(ball, robotPose);
         if (ball.intaked) continue;
         handleRobotCollision(ball, robotPose, robotVel);
@@ -2032,47 +1950,27 @@ public class FuelPhysicsSim {
 
   private void handleRobotCollision(SimBall ball, Pose2d robotPose, Translation2d robotVel) {
     if (ball.pos.getZ() > bumperHeight) return;
-    resolveRectCollision(
-        ball,
-        robotPose,
-        robotVel,
-        -robotLength / 2.0,
-        robotLength / 2.0,
-        -robotWidth / 2.0,
-        robotWidth / 2.0);
-  }
 
-  /**
-   * Push a ball out of a robot-frame rectangle (expanded by ball radius) and reflect its closing
-   * velocity against the robot's, near-inelastically (bumper-like). Returns true on contact.
-   */
-  private boolean resolveRectCollision(
-      SimBall ball,
-      Pose2d robotPose,
-      Translation2d robotVel,
-      double xMin,
-      double xMax,
-      double yMin,
-      double yMax) {
     Translation2d relPos =
         new Pose2d(ball.pos.toTranslation2d(), Rotation2d.kZero)
             .relativeTo(robotPose)
             .getTranslation();
 
-    double loX = xMin - BALL_RADIUS;
-    double hiX = xMax + BALL_RADIUS;
-    double loY = yMin - BALL_RADIUS;
-    double hiY = yMax + BALL_RADIUS;
+    double halfL = robotLength / 2.0 + BALL_RADIUS;
+    double halfW = robotWidth / 2.0 + BALL_RADIUS;
 
-    if (relPos.getX() < loX || relPos.getX() > hiX || relPos.getY() < loY || relPos.getY() > hiY) {
-      return false;
+    if (relPos.getX() < -halfL
+        || relPos.getX() > halfL
+        || relPos.getY() < -halfW
+        || relPos.getY() > halfW) {
+      return;
     }
 
     // Find nearest face and push out
-    double dxMin = relPos.getX() - loX;
-    double dxMax = hiX - relPos.getX();
-    double dyMin = relPos.getY() - loY;
-    double dyMax = hiY - relPos.getY();
+    double dxMin = relPos.getX() + halfL;
+    double dxMax = halfL - relPos.getX();
+    double dyMin = relPos.getY() + halfW;
+    double dyMax = halfW - relPos.getY();
 
     double minDist = dxMin;
     Translation2d pushDir = new Translation2d(-1, 0);
@@ -2103,102 +2001,6 @@ public class FuelPhysicsSim {
     if (closingVel < 0) {
       ball.vel = ball.vel.minus(normal3d.times((1 + COR_BUMPER) * closingVel));
     }
-    return true;
-  }
-
-  /**
-   * Roller intake physics. Returns true when the ball is inside the intake footprint and was
-   * handled here (swallowed, gripped, or bounced off the frame), so body collision is skipped.
-   */
-  private boolean handleIntakeMechanism(
-      SimBall ball, Pose2d robotPose, Translation2d robotVel, double subDt) {
-    if (intakeMech == null || !intakeMech.deployed().getAsBoolean()) return false;
-    if (ball.pos.getZ() > intakeMech.height()) return false;
-
-    Translation2d relPos =
-        new Pose2d(ball.pos.toTranslation2d(), Rotation2d.kZero)
-            .relativeTo(robotPose)
-            .getTranslation();
-
-    // Expand the box by ball radius along the pull axis (mouth entrance/exit), keep the
-    // transverse extent strict (the side plates bound it)
-    double exX = intakeMech.pullX() != 0 ? BALL_RADIUS : 0;
-    double exY = intakeMech.pullY() != 0 ? BALL_RADIUS : 0;
-    boolean inFootprint =
-        relPos.getX() >= intakeMech.xMin() - exX
-            && relPos.getX() <= intakeMech.xMax() + exX
-            && relPos.getY() >= intakeMech.yMin() - exY
-            && relPos.getY() <= intakeMech.yMax() + exY;
-    if (!inFootprint) return false;
-
-    double surfaceSpeed = intakeMech.rollerSurfaceSpeed().getAsDouble();
-    // Ball position along the outward axis (distance from robot center toward the mouth)
-    double outward = -(relPos.getX() * intakeMech.pullX() + relPos.getY() * intakeMech.pullY());
-
-    // Rollers pulling and there's room: compliant wheels grip the ball
-    if (surfaceSpeed > INTAKE_ROLLER_MIN_SPEED && intakeMech.hasCapacity().getAsBoolean()) {
-      wakeBall(ball);
-
-      // Deep enough into the rollers: swallowed
-      if (outward < intakeMech.nearEdge() + INTAKE_PICKUP_DEPTH) {
-        ball.intaked = true;
-        totalIntaked++;
-        intakeMech.onPickup().run();
-        // Cluster reacts to the ball disappearing into the robot
-        wakeNearbyBalls(ball.pos, 0.5);
-        return true;
-      }
-
-      // Drag the ball toward the bumper at roller surface speed (in the robot's moving frame).
-      // Grip accel is finite, so a gripped ball plows into neighbors and shoves them via the
-      // ball-ball solver instead of teleporting.
-      Translation2d pullDir =
-          new Translation2d(intakeMech.pullX(), intakeMech.pullY())
-              .rotateBy(robotPose.getRotation());
-      Translation2d targetVel = robotVel.plus(pullDir.times(surfaceSpeed));
-      double dvx = targetVel.getX() - ball.vel.getX();
-      double dvy = targetVel.getY() - ball.vel.getY();
-      double dvNorm = Math.hypot(dvx, dvy);
-      double maxDv = INTAKE_GRIP_ACCEL * subDt;
-      if (dvNorm > maxDv && dvNorm > 1e-9) {
-        dvx *= maxDv / dvNorm;
-        dvy *= maxDv / dvNorm;
-      }
-      ball.vel =
-          new Translation3d(
-              ball.vel.getX() + dvx, ball.vel.getY() + dvy, Math.min(ball.vel.getZ(), 0));
-      return true;
-    }
-
-    // Rollers reversed: eject balls in the mouth away from the robot
-    if (surfaceSpeed < -INTAKE_ROLLER_MIN_SPEED) {
-      wakeBall(ball);
-      Translation2d pushDir =
-          new Translation2d(-intakeMech.pullX(), -intakeMech.pullY())
-              .rotateBy(robotPose.getRotation());
-      Translation2d targetVel = robotVel.plus(pushDir.times(-surfaceSpeed));
-      double dvx = targetVel.getX() - ball.vel.getX();
-      double dvy = targetVel.getY() - ball.vel.getY();
-      double dvNorm = Math.hypot(dvx, dvy);
-      double maxDv = INTAKE_GRIP_ACCEL * subDt;
-      if (dvNorm > maxDv && dvNorm > 1e-9) {
-        dvx *= maxDv / dvNorm;
-        dvy *= maxDv / dvNorm;
-      }
-      ball.vel = new Translation3d(ball.vel.getX() + dvx, ball.vel.getY() + dvy, ball.vel.getZ());
-      return true;
-    }
-
-    // Rollers stopped or robot full: the deployed intake is a solid frame extension, so ramming
-    // a cluster transfers robot velocity to the balls (near-inelastic, like bumpers)
-    return resolveRectCollision(
-        ball,
-        robotPose,
-        robotVel,
-        intakeMech.xMin(),
-        intakeMech.xMax(),
-        intakeMech.yMin(),
-        intakeMech.yMax());
   }
 
   private void handleIntakePickup(SimBall ball, Pose2d robotPose) {

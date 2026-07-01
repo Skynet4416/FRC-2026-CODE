@@ -253,17 +253,15 @@ public class RobotContainer {
 
         ballSim.enable();
         ballSim.placeFieldBalls();
-        // Roller intake mouth from CAD (robot frame, m): on the LEFT (+Y) side, bumper face
-        // to 0.61 out, full 0.708m span, grab zone up to 0.23m off the carpet
-        ballSim.configureIntake(
+        // Intake pickup box from CAD (robot frame, m): LEFT (+Y) side, bumper face to 0.61
+        // out, full 0.708m span. Maple-sim style "touch it, get it": active whenever the
+        // maple-sim intake is extended (lowered + rollers on) and the hopper has room.
+        ballSim.addIntakeZone(
             -0.354,
             0.354,
             0.35,
             0.61,
-            0.23,
-            leftIntake::isLowered,
-            intakeSimIO::getRollerSurfaceSpeedMps,
-            intakeSimIO::canHoldMore,
+            () -> intakeSimIO.isIntakeRunning() && intakeSimIO.canHoldMore(),
             intakeSimIO::addGamePieceToIntake);
         intakeSimIO.setHeldCount(SIM_FUEL_PRELOAD);
         SmartDashboard.putData("Field", field);
@@ -800,20 +798,17 @@ public class RobotContainer {
 
     Logger.recordOutput("FieldSimulation/RobotPosition", simPose);
 
-    // Use the ground-truth sim pose (what's rendered), not odometry - if they diverge the
-    // ball world would collide/intake at the wrong place
     ballSim.configureRobot(
         0.7,
         0.7,
         0.15, // width, length, bumperH (approximate values)
-        () -> simPose,
-        () -> fieldSpeeds);
+        drive::getPose,
+        drive::getChassisSpeeds);
     ballSim.tick();
 
     if (intakeSimIO != null) {
       Logger.recordOutput("Sim/Fuel/HeldBalls", intakeSimIO.getHeldCount());
-      Logger.recordOutput("Sim/Fuel/IntakeDeployed", leftIntake.isLowered());
-      Logger.recordOutput("Sim/Fuel/RollerSurfaceSpeed", intakeSimIO.getRollerSurfaceSpeedMps());
+      Logger.recordOutput("Sim/Fuel/IntakeRunning", intakeSimIO.isIntakeRunning());
     }
   }
 
