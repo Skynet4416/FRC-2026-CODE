@@ -121,6 +121,9 @@ public class RobotContainer {
   // Controllers
   private final CommandPS5Controller driveController = new CommandPS5Controller(0);
   private SwerveDriveSimulation driveSimulation = null;
+  private IntakeSubsystemIOSim intakeSimIO = null;
+  // Fuel loaded at match start in sim. ponytail: guess, set to the real preload count
+  private static final int SIM_FUEL_PRELOAD = 8;
   private frc.robot.util.RobotBumpSim robotBumpSim = null;
   private boolean wasOnRamp = false;
   private final edu.wpi.first.wpilibj.Timer teleopElapsedTimer = new edu.wpi.first.wpilibj.Timer();
@@ -244,11 +247,25 @@ public class RobotContainer {
 
         spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
         shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSim());
-        leftIntake = new IntakeSubsystem(new IntakeSubsystemIOSim());
+        intakeSimIO = new IntakeSubsystemIOSim(driveSimulation);
+        leftIntake = new IntakeSubsystem(intakeSimIO);
         compressor = null;
 
         ballSim.enable();
-        // ballSim.placeFieldBalls();
+        ballSim.placeFieldBalls();
+        // Roller intake mouth from CAD (robot frame, m): bumper face to 0.61 out front,
+        // full 0.708m width, grab zone up to 0.23m off the carpet
+        ballSim.configureIntake(
+            0.35,
+            0.61,
+            -0.354,
+            0.354,
+            0.23,
+            leftIntake::isLowered,
+            intakeSimIO::getRollerSurfaceSpeedMps,
+            intakeSimIO::canHoldMore,
+            intakeSimIO::addGamePieceToIntake);
+        intakeSimIO.setHeldCount(SIM_FUEL_PRELOAD);
         SmartDashboard.putData("Field", field);
         break;
 
@@ -752,8 +769,11 @@ public class RobotContainer {
             AllianceFlipUtil.apply(Rotation2d.fromDegrees(-90))));
     SimulatedArena.getInstance().resetFieldForAuto();
     ballSim.clearBalls();
-    // ballSim.placeFieldBalls();
+    ballSim.placeFieldBalls();
     ballSim.resetCounters();
+    if (intakeSimIO != null) {
+      intakeSimIO.setHeldCount(SIM_FUEL_PRELOAD);
+    }
   }
 
   public void updateSimulation() {
@@ -787,10 +807,16 @@ public class RobotContainer {
         drive::getPose,
         drive::getChassisSpeeds);
     ballSim.tick();
+
+    if (intakeSimIO != null) {
+      Logger.recordOutput("Sim/Fuel/HeldBalls", intakeSimIO.getHeldCount());
+    }
   }
 
   private void launchSimulatedProjectile() {
     if (Constants.currentMode != Constants.Mode.SIM) return;
+    // Can only shoot fuel the robot actually holds (preload + intaked)
+    if (intakeSimIO != null && !intakeSimIO.obtainGamePiece()) return;
 
     var params = LaunchCalculator.getInstance().getParameters();
     if (params == null || !params.isValid()) return;
