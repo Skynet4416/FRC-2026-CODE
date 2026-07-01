@@ -199,6 +199,7 @@ public class RobotContainer {
 
         compressor = new Compressor(4, PneumaticsModuleType.REVPH);
         compressor.enableAnalog(80, 105);
+
         SmartDashboard.putData("Field", field);
         break;
 
@@ -386,7 +387,6 @@ public class RobotContainer {
     autoChooser.addOption("Left Trench Double Take", leftTrenchDoubleTake());
     autoChooser.addOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
     autoChooser.addOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
-    autoChooser.addOption("left Trench Single Take", leftTrenchSingleTake());
 
     // Configure the button bindings
 
@@ -500,9 +500,7 @@ public class RobotContainer {
         new Trigger(
             () ->
                 LaunchCalculator.getInstance().getParameters().passing()
-                    ? (inPassingTolerance.getAsBoolean()
-                        && flywheelSubsystem.atSetpoint()
-                        && hoodSubsystem.atSetpoint())
+                    ? inPassingTolerance.getAsBoolean()
                     : (hoodSubsystem.atSetpoint()
                         && flywheelSubsystem.atSetpoint()
                         && DriveCommands.atLaunchGoal()));
@@ -679,7 +677,6 @@ public class RobotContainer {
     Logger.recordOutput("AutoAlignment/OverrideToggle", autoAlignmentOverrideState);
     // Publish match time
     SmartDashboard.putNumber("Match Time", HubShiftUtil.getMatchTime());
-    SmartDashboard.putNumber("PSI", compressor.getPressure());
 
     // Current flywheel RPM calibration offset applied to the launch calculation output
     SmartDashboard.putNumber(
@@ -972,39 +969,6 @@ public class RobotContainer {
     return routine.cmd();
   }
 
-  public Command leftTrenchSingleTake() {
-    AutoRoutine routine = autoFactory.newRoutine("testAuto");
-
-    AutoTrajectory trenchShallowIntake = routine.trajectory("left_trench_Shallow_Intake");
-    AutoTrajectory trenchDeepIntake = routine.trajectory("left_trench_Deep_Intake");
-
-    routine
-        .active()
-        .onTrue(
-            Commands.sequence(
-                Commands.runOnce(() -> hoodSubsystem.zero()),
-                trenchShallowIntake.resetOdometry(),
-                Commands.sequence(Commands.runOnce(() -> leftIntake.setLowered(false))),
-                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
-                    .withTimeout(0.2),
-                trenchShallowIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                    autoShoot(15),
-                    Commands.sequence(
-                        Commands.waitSeconds(1.0),
-                        Commands.runOnce(() -> leftIntake.setLowered(false)))),
-                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
-                    .withTimeout(0.2),
-                trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
-                Commands.parallel(
-                    autoShoot(2.5),
-                    Commands.sequence(
-                        Commands.waitSeconds(1.0),
-                        Commands.runOnce(() -> leftIntake.setLowered(false))))));
-
-    return routine.cmd();
-  }
-
   public Command leftTrenchIntakeReturnOverBump() {
     AutoRoutine routine = autoFactory.newRoutine("testAuto");
 
@@ -1068,7 +1032,8 @@ public class RobotContainer {
                           leftIntake.setLowered(false);
                         })),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
-                    .withTimeout(0.5),
+                    .withTimeout(0.2),
+                autoShoot(2.5),
                 firstIntake.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
                     autoShoot(3.5),
@@ -1079,7 +1044,7 @@ public class RobotContainer {
                               leftIntake.setLowered(false);
                             }))),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
-                    .withTimeout(0.5),
+                    .withTimeout(0.2),
                 SecnondIntake.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
                     autoShoot(7),

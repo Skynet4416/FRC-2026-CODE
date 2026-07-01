@@ -29,7 +29,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
   private double stuckTime = 0.0;
   private double CURRENT_CUTOFF_THRSHOLD =
-      50; // intake motor will shut off if current exceeds this threshold
+      40; // intake motor will shut off if current exceeds this threshold
   private boolean stuck = false;
   private boolean reversed = false;
   private boolean forceReverse = false;
@@ -126,7 +126,7 @@ public class IntakeSubsystem extends SubsystemBase {
     io.setPercentage(stuck ? 0 : (isReversed() ? -percentage : percentage));
   }
 
-  public void setFOC(double value) { // FOC is in percentage of 50A
+  public void setFOC(double value) { // FOC is in percentage of 40A
     targetPercentage = value;
     io.setFOC((stuck ? 0 : (isReversed() ? -value : value)) * 120);
   }
@@ -168,7 +168,7 @@ public class IntakeSubsystem extends SubsystemBase {
         }
       }
 
-      reversed = currTime - stuckTime > 0.35;
+      reversed = currTime - stuckTime > 0.25;
 
       if (currTime - stuckTime > 0.5) {
         stop();
