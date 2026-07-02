@@ -77,7 +77,6 @@ import java.util.Optional;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
-import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -103,16 +102,10 @@ public class RobotContainer {
   private static final LoggedTunableNumber maxOmegaScalar =
       new LoggedTunableNumber("Drive/MaxOmegaScalar", 0.8);
 
-  // Value between 0 - 100 that determines how reliable the SOTM solution must be
-  // (based on solver convergence, velocity stability, vision, heading, and distance)
-  // before the robot is allowed to fire.
-  private static final LoggedTunableNumber minShootingConfidence =
-      new LoggedTunableNumber("LaunchCalculator/MinShootingConfidence", 80.0);
-
   // Loose heading tolerance (degrees) for passing shots. Wide enough not to fight the driver while
   // being guarded, tight enough to keep passes inside the field boundaries.
   private static final LoggedTunableNumber passingHeadingToleranceDeg =
-      new LoggedTunableNumber("LaunchCalculator/PassingHeadingToleranceDeg", 80.0);
+      new LoggedTunableNumber("LaunchCalculator/PassingHeadingToleranceDeg", 35.0);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
@@ -157,10 +150,14 @@ public class RobotContainer {
 
   // Triggers
   private final Trigger leftIntakeLowered;
-  private Trigger readyToShoot;
-  private Trigger inPassingTolerance;
   private Trigger intakeStruggling;
   private final Trigger autoAlignmentOverride;
+
+  // Shooting triggers, built in configureShootingTriggers()
+  private Trigger hubActiveOrPassing;
+  private Trigger inPassingTolerance;
+  private Trigger inLaunchingTolerance;
+  private Trigger readyToShoot;
 
   private boolean autoAlignmentOverrideState = true;
 
@@ -349,27 +346,7 @@ public class RobotContainer {
           return Optional.empty();
         });
 
-    Trigger hubActiveOrPassing =
-        new Trigger(
-            () ->
-                HubShiftUtil.getOfficialShiftInfo().active()
-                    || LaunchCalculator.getInstance().getParameters().passing());
-
-    Trigger inLaunchingTolerance =
-        new Trigger(
-            () ->
-                (hoodSubsystem.atSetpoint()
-                        && flywheelSubsystem.atSetpoint()
-                        && DriveCommands.atLaunchGoal())
-                    || LaunchCalculator.getInstance().getParameters().passing());
-
-    // Last and state makes it only shoot if hub is active / passing / override is set (in elastic)
-    this.readyToShoot =
-        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(
-                inLaunchingTolerance
-                    .debounce(0.25, DebounceType.kFalling)
-                    .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean()));
+    configureShootingTriggers();
 
     this.intakeStruggling = new Trigger(leftIntake.isStrugglingSupplier());
 
@@ -405,6 +382,51 @@ public class RobotContainer {
           //     Logger.recordOutput("Choreo/Trajectory", arr);
         }));
     configureButtonBindings();
+  }
+
+  /**
+   * Builds the trigger chain that gates shooting. The final gate is {@code readyToShoot}:
+   *
+   * <pre>
+   * readyToShoot = launch parameters valid
+   *              AND inLaunchingTolerance (debounced 0.25s on release)
+   *              AND (hub active OR passing OR "Ignore Hub State" override in Elastic)
+   * </pre>
+   */
+  private void configureShootingTriggers() {
+    // Hub shots are only allowed while our hub is active; passes are exempt from the shift state.
+    hubActiveOrPassing =
+        new Trigger(
+            () ->
+                HubShiftUtil.getOfficialShiftInfo().active()
+                    || LaunchCalculator.getInstance().getParameters().passing());
+
+    // Heading cone for passing: wide enough not to fight the driver, tight enough to keep passes
+    // inside the field. Can be disabled from Elastic ("Enable Passing Cone", null-safe default
+    // Yes).
+    inPassingTolerance =
+        new Trigger(
+            () -> {
+              Boolean enableCone = enablePassingConeChooser.get();
+              boolean coneEnabled = (enableCone == null) || enableCone;
+              return !coneEnabled || passingHeadingErrorDeg() <= passingHeadingToleranceDeg.get();
+            });
+
+    // Hood + flywheel must always be at setpoint; the heading gate depends on the shot type:
+    // hub shots use the drive launch goal, passes use the looser passing cone.
+    inLaunchingTolerance =
+        new Trigger(
+            () ->
+                hoodSubsystem.atSetpoint()
+                    && flywheelSubsystem.atSetpoint()
+                    && (LaunchCalculator.getInstance().getParameters().passing()
+                        ? inPassingTolerance.getAsBoolean()
+                        : DriveCommands.atLaunchGoal()));
+
+    readyToShoot =
+        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
+            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
+            .and(ignoreHubState.or(hubActiveOrPassing));
   }
 
   /**
@@ -483,31 +505,6 @@ public class RobotContainer {
     //     .R3()
     //     .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState =
     // !autoAlignmentOverrideState));
-
-    // Loose heading-only gate for passing: don't require flywheel/hood at setpoint (passing isn't
-    // accuracy-sensitive), but keep a wide heading cone so a pass can't be launched out of bounds.
-    this.inPassingTolerance =
-        new Trigger(
-            () -> {
-              double headingErrorDeg = passingHeadingErrorDeg();
-              Boolean enableCone = enablePassingConeChooser.get();
-              boolean coneEnabled = (enableCone == null) || enableCone;
-              return !coneEnabled || headingErrorDeg <= passingHeadingToleranceDeg.get();
-            });
-
-    // Careful with this one, can shoot ball outside of field boundaries when passing
-    Trigger inLaunchingTolerance =
-        new Trigger(
-            () ->
-                LaunchCalculator.getInstance().getParameters().passing()
-                    ? inPassingTolerance.getAsBoolean()
-                    : (hoodSubsystem.atSetpoint()
-                        && flywheelSubsystem.atSetpoint()
-                        && DriveCommands.atLaunchGoal()));
-
-    // this.readyToShoot =
-    //     new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-    //         .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
 
     driveController
         .R2()
@@ -702,15 +699,16 @@ public class RobotContainer {
     // For displaying in Elastic
     field.setRobotPose(drive.getPose());
 
-    // --- All booleans that gate shooting ---
-    // Hub shooting conditions
+    // --- Leaf conditions that gate shooting (see configureShootingTriggers) ---
+    // Shared (both hub shots and passes)
     Logger.recordOutput(
-        "LaunchCalculator/Conditions/Hub/ParametersValid",
+        "LaunchCalculator/Conditions/ParametersValid",
         LaunchCalculator.getInstance().getParameters().isValid());
+    Logger.recordOutput("LaunchCalculator/Conditions/HoodAtSetpoint", hoodSubsystem.atSetpoint());
     Logger.recordOutput(
-        "LaunchCalculator/Conditions/Hub/HoodAtSetpoint", hoodSubsystem.atSetpoint());
-    Logger.recordOutput(
-        "LaunchCalculator/Conditions/Hub/FlywheelAtSetpoint", flywheelSubsystem.atSetpoint());
+        "LaunchCalculator/Conditions/FlywheelAtSetpoint", flywheelSubsystem.atSetpoint());
+
+    // Hub shots only
     Logger.recordOutput(
         "LaunchCalculator/Conditions/Hub/DriveAtLaunchGoal", DriveCommands.atLaunchGoal());
     Logger.recordOutput(
@@ -718,7 +716,7 @@ public class RobotContainer {
     Logger.recordOutput(
         "LaunchCalculator/Conditions/Hub/HubIgnored", ignoreHubState.getAsBoolean());
 
-    // Passing conditions
+    // Passes only
     Logger.recordOutput(
         "LaunchCalculator/Conditions/Passing/InPassingTolerance",
         inPassingTolerance != null && inPassingTolerance.getAsBoolean());
@@ -728,9 +726,9 @@ public class RobotContainer {
         "LaunchCalculator/Conditions/Passing/HeadingToleranceDeg",
         passingHeadingToleranceDeg.get());
 
+    // Final ANDed gate
     Logger.recordOutput(
-        "LaunchCalculator/Conditions/AllConditionsMet",
-        readyToShoot != null && readyToShoot.getAsBoolean());
+        "LaunchCalculator/ReadyToShoot", readyToShoot != null && readyToShoot.getAsBoolean());
   }
 
   /**
@@ -868,24 +866,13 @@ public class RobotContainer {
     ballSim.launchBall(launcherPos, launchVelocity, rpm);
   }
 
-  @AutoLogOutput(key = "LaunchCalculator/ReadyToShoot")
-  public boolean readyToShoot() {
-    return readyToShoot != null && readyToShoot.getAsBoolean();
-  }
-
   /** Heading error (degrees) between the robot and the passing target. */
-  @AutoLogOutput(key = "LaunchCalculator/Passing/HeadingErrorDeg")
-  public double passingHeadingErrorDeg() {
+  private double passingHeadingErrorDeg() {
     return Math.abs(
         Drive.getInstance()
             .getRotation()
             .minus(LaunchCalculator.getInstance().getParameters().driveAngle())
             .getDegrees());
-  }
-
-  @AutoLogOutput(key = "LaunchCalculator/Passing/InPassingTolerance")
-  public boolean inPassingTolerance() {
-    return inPassingTolerance != null && inPassingTolerance.getAsBoolean();
   }
 
   public Command testAuto() {
@@ -924,7 +911,6 @@ public class RobotContainer {
             flywheelSubsystem.runTrackTargetCommand(),
             hoodSubsystem.runTrackTargetCommand(),
             Commands.repeatingSequence(
-                // Commands.waitUntil(() -> readyToShoot != null && readyToShoot.getAsBoolean()),
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0)
                     .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())),
             // Launches simulated projectiles for the ball sim. This only affects simulation
