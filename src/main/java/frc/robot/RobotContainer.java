@@ -33,7 +33,6 @@ import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.commands.DriveCommands;
@@ -71,6 +70,7 @@ import frc.robot.subsystems.vision.VisionIOLimelight;
 import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
+import frc.robot.util.controllers.DriverController;
 import frc.robot.util.elasticlib.Elastic;
 import frc.robot.util.geometry.AllianceFlipUtil;
 import java.util.Optional;
@@ -112,7 +112,17 @@ public class RobotContainer {
   private final FuelPhysicsSim ballSim = new FuelPhysicsSim("Sim/Fuel");
 
   // Controllers
-  private final CommandPS5Controller driveController = new CommandPS5Controller(0);
+  // Lets the driver use either an Xbox or a PS5 controller, selected live from a dashboard chooser.
+  private final LoggedDashboardChooser<DriverController.Type> driverControllerTypeChooser =
+      new LoggedDashboardChooser<>("Driver Controller Type");
+  private final DriverController driveController =
+      new DriverController(
+          0,
+          () -> {
+            // Null-safe: chooser can return null before NetworkTables delivers the default.
+            DriverController.Type type = driverControllerTypeChooser.get();
+            return type == null ? DriverController.Type.XBOX : type;
+          });
   private SwerveDriveSimulation driveSimulation = null;
   private frc.robot.util.RobotBumpSim robotBumpSim = null;
   private boolean wasOnRamp = false;
@@ -293,6 +303,10 @@ public class RobotContainer {
 
     leftIntakeLowered = new Trigger(leftIntake::isLowered);
     autoAlignmentOverride = new Trigger(() -> autoAlignmentOverrideState);
+
+    // Driver controller type (Xbox or PS5). Default Xbox; switchable live from the dashboard.
+    driverControllerTypeChooser.addDefaultOption("Xbox Controller", DriverController.Type.XBOX);
+    driverControllerTypeChooser.addOption("PS5 Controller", DriverController.Type.PS5);
 
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
@@ -479,7 +493,7 @@ public class RobotContainer {
 
     // Lock to 0 when A button is held
     driveController
-        .cross()
+        .a()
         .whileTrue(
             DriveCommands.joystickDriveAtAngle(
                 drive,
@@ -488,7 +502,7 @@ public class RobotContainer {
                 () -> Rotation2d.kZero));
     nearTrench
         .and(RobotModeTriggers.teleop())
-        .and(driveController.R2().negate())
+        .and(driveController.rightTrigger().negate())
         .and(autoAlignmentOverride.negate())
         .whileTrue(
             DriveCommands.autoTrenchAssist(
@@ -502,12 +516,12 @@ public class RobotContainer {
                 .withName("AlignToTrenchCommand"));
 
     // driveController
-    //     .R3()
+    //     .rightStick()
     //     .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState =
     // !autoAlignmentOverrideState));
 
     driveController
-        .R2()
+        .rightTrigger()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand());
@@ -517,11 +531,11 @@ public class RobotContainer {
     //         new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.5)));
 
     // driveController
-    //     .cross()
+    //     .a()
     //     .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
 
     driveController
-        .R2()
+        .rightTrigger()
         .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
@@ -530,14 +544,14 @@ public class RobotContainer {
                     Commands.waitSeconds(0.25),
                     Commands.runOnce(this::launchSimulatedProjectile))));
 
-    // Lower the intake while R2 is held, raise it when released
+    // Lower the intake while the left trigger is held, raise it when released
     driveController
-        .L2()
+        .leftTrigger()
         .onTrue(Commands.runOnce(() -> leftIntake.setLowered(true)))
         .onFalse(Commands.runOnce(() -> leftIntake.setLowered(false)));
 
     driveController
-        .L1()
+        .leftBumper()
         .onTrue(Commands.runOnce(() -> leftIntake.forceReverse(true)))
         .onFalse(Commands.runOnce(() -> leftIntake.forceReverse(false)));
 
@@ -557,7 +571,7 @@ public class RobotContainer {
     // Test specific button for simulated launch
 
     // Switch to X pattern when X button is pressed
-    // driveController.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
+    // driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
     final Runnable resetOdometry =
         Constants.currentMode == Constants.Mode.SIM
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
@@ -565,7 +579,7 @@ public class RobotContainer {
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
 
     driveController
-        .R1()
+        .rightBumper()
         .whileTrue(
             Commands.deadline(
                 Commands.waitSeconds(1.0),
@@ -604,7 +618,7 @@ public class RobotContainer {
 
     // Reset gyro to 0° when B button is pressed
     driveController
-        .circle()
+        .b()
         .onTrue(
             Commands.runOnce(
                     () ->
@@ -681,8 +695,7 @@ public class RobotContainer {
         "Flywheel RPM Offset", LaunchCalculator.getInstance().getFlywheelRpmOffset());
 
     // Controller disconnected alerts
-    driverControllerDisconnected.set(
-        !DriverStation.isJoystickConnected(driveController.getHID().getPort()));
+    driverControllerDisconnected.set(!driveController.isConnected());
     // mechanismControllerDisconnected.set(
     //     !DriverStation.isJoystickConnected(mechanismController.getHID().getPort()));
 
