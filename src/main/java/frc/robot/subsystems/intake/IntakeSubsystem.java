@@ -13,6 +13,7 @@ import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
+import frc.robot.util.LoggedTracer;
 import frc.robot.util.LoggedTunableNumber;
 import java.util.function.BooleanSupplier;
 import org.littletonrobotics.junction.Logger;
@@ -159,6 +160,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
+    LoggedTracer.reset();
     io.updateInputs(inputs);
     double currTime = Timer.getFPGATimestamp();
     if (Math.abs(getVelocityRPM()) > 0) {
@@ -211,5 +213,7 @@ public class IntakeSubsystem extends SubsystemBase {
     // Apply the transform to the pivot pose
     Pose3d correctLocation = pivotPose.plus(armRotation);
     Logger.recordOutput(prefix + "/Pose", correctLocation);
+
+    LoggedTracer.record("Subsystems/Intake");
   }
 }

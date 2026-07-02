@@ -10,6 +10,7 @@ import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystem;
+import frc.robot.util.LoggedTracer;
 
 public class LedSubsystem extends SubsystemBase {
   private final ledSubsystemIO io;
@@ -89,6 +90,7 @@ public class LedSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
+    LoggedTracer.reset();
     io.updateInputs(inputs);
 
     if (flywheelSubsystem.getSetpoint() > 200) {
@@ -104,5 +106,7 @@ public class LedSubsystem extends SubsystemBase {
         SetIntaking(intakeLeft.isReversed(), intakeLeft.isStuck());
       } else SetIdle();
     }
+
+    LoggedTracer.record("Subsystems/Leds");
   }
 }

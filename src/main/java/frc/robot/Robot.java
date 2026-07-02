@@ -167,7 +167,17 @@ public class Robot extends LoggedRobot {
     // finished or interrupted commands, and running subsystem periodic() methods.
     // This must be called from the robot's periodic block in order for anything in
     // the Command-based framework to work.
+    //
+    // Individual subsystems report their own periodic() durations under
+    // "LoggedTracer/Subsystems/*MS" (see LoggedTracer usage in each subsystem).
+    // The totals below give the whole-scheduler and whole-loop times so those
+    // per-subsystem numbers can be compared against the loop budget when
+    // diagnosing command loop overruns. These are measured directly rather than
+    // through LoggedTracer, whose shared clock is used by the subsystems above.
+    double robotPeriodicStart = Timer.getFPGATimestamp();
     CommandScheduler.getInstance().run();
+    Logger.recordOutput(
+        "LoggedTracer/SchedulerTotalMS", (Timer.getFPGATimestamp() - robotPeriodicStart) * 1000.0);
 
     // Return to non-RT thread priority (do not modify the first argument)
     // Threads.setCurrentThreadPriority(false, 10);
@@ -211,6 +221,11 @@ public class Robot extends LoggedRobot {
     Logger.recordOutput("LaunchCalculator/Parameters", launchCalculator.getParameters());
 
     launchCalculator.clearLaunchingParameters();
+
+    // Total time spent in robotPeriodic (scheduler + dashboard + logging above).
+    Logger.recordOutput(
+        "LoggedTracer/RobotPeriodicTotalMS",
+        (Timer.getFPGATimestamp() - robotPeriodicStart) * 1000.0);
   }
 
   /** This function is called once when the robot is disabled. */

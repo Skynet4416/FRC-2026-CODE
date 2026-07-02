@@ -7,6 +7,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
 import frc.robot.subsystems.shooter.LaunchCalculator;
+import frc.robot.util.LoggedTracer;
 import frc.robot.util.LoggedTunableNumber;
 import java.util.function.DoubleSupplier;
 import org.littletonrobotics.junction.Logger;
@@ -117,6 +118,7 @@ public class FlywheelSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
+    LoggedTracer.reset();
     io.updateInputs(inputs);
     Logger.processInputs("Flywheel", inputs);
     if (Constants.tuningMode) {
@@ -130,5 +132,7 @@ public class FlywheelSubsystem extends SubsystemBase {
           kV,
           kA);
     }
+
+    LoggedTracer.record("Subsystems/Flywheel");
   }
 }

@@ -3,6 +3,7 @@ package frc.robot.subsystems.shooter.shooterIndexer;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import frc.robot.util.LoggedTracer;
 import org.littletonrobotics.junction.Logger;
 
 public class ShooterIndexerSubsystem extends SubsystemBase {
@@ -43,7 +44,10 @@ public class ShooterIndexerSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
+    LoggedTracer.reset();
     io.updateInputs(inputs);
     Logger.processInputs("ShooterIndexer", inputs);
+
+    LoggedTracer.record("Subsystems/ShooterIndexer");
   }
 }

@@ -15,6 +15,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
 import frc.robot.subsystems.shooter.LaunchCalculator;
+import frc.robot.util.LoggedTracer;
 import frc.robot.util.LoggedTunableNumber;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.mechanism.LoggedMechanism2d;
@@ -85,6 +86,7 @@ public class HoodSubsystem extends SubsystemBase {
 
   @Override
   public void periodic() {
+    LoggedTracer.reset();
     io.updateInputs(inputs);
     Logger.processInputs("Hood", inputs);
 
@@ -119,6 +121,8 @@ public class HoodSubsystem extends SubsystemBase {
 
     Logger.recordOutput("Hood/HasZeroed", isZeroed());
     Logger.recordOutput("Hood/Zeroing", zeroing);
+
+    LoggedTracer.record("Subsystems/Hood");
   }
 
   public void setTargetAngle(double degrees) {
