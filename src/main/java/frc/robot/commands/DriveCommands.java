@@ -225,7 +225,10 @@ public class DriveCommands {
           // Calculate speeds
           Translation2d fieldRelativeLinearVelocity =
               getLinearVelocityFromJoysticks(xSupplier.getAsDouble(), ySupplier.getAsDouble())
-                  .times(Drive.getInstance().getMaxLinearSpeedMetersPerSec());
+                  .times(
+                      Drive.getInstance().getMaxLinearSpeedMetersPerSec()
+                          / 1.4); // Decreased here to adjust for default driving speed increase (so
+          // it still shoots the same)
           if (AllianceFlipUtil.shouldFlip()) {
             fieldRelativeLinearVelocity = fieldRelativeLinearVelocity.times(-1.0);
           }
