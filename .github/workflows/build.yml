@@ -14,5 +14,16 @@ jobs:
         uses: actions/checkout@v4
       - name: Grant execute permission
         run: chmod +x gradlew
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
       - name: Build robot code
-        run: ./gradlew build
+        run: |
+          for attempt in 1 2 3; do
+            echo "Build attempt $attempt/3"
+            if ./gradlew build; then
+              exit 0
+            fi
+            echo "Build failed (attempt $attempt/3)"
+            [ "$attempt" -lt 3 ] && sleep 15
+          done
+          exit 1
