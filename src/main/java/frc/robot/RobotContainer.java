@@ -323,8 +323,8 @@ public class RobotContainer {
     disableFlywheelAutoSpinupChooser.addOption("No", false);
 
     ignoreHubStateChooser = new LoggedDashboardChooser<>("Ignore Hub State");
-    ignoreHubStateChooser.addOption("Yes", true);
-    ignoreHubStateChooser.addDefaultOption("No", false);
+    ignoreHubStateChooser.addDefaultOption("Yes", true);
+    ignoreHubStateChooser.addOption("No", false);
 
     // Enable the loose heading cone that keeps passing shots inside the field boundaries
     enablePassingConeChooser = new LoggedDashboardChooser<>("Enable Passing Cone");
