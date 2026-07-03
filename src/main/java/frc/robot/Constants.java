@@ -270,7 +270,7 @@ public final class Constants {
 
     public static class Trench {
       // For trench alignment
-      public static final boolean ENABLE = true;
+      public static final boolean ENABLE = false;
       public static final double MAX_STRENGTH = 0.5;
       public static final double EXP = 2.0;
       public static final double THRESHOLD_METERS = 1.5;
