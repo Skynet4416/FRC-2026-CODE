@@ -83,7 +83,12 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
 
   private final PIDController m_pathXController = new PIDController(DriveKP, 0, 0);
   private final PIDController m_pathYController = new PIDController(DriveKP, 0, 0);
-  private final PIDController m_pathThetaController = new PIDController(RotationKP, 0, 0);
+  private final PIDController m_pathThetaController =
+      new PIDController(
+          RotationKP * 2,
+          0,
+          0); // ROTATION KP DOUBLED HERE FOR AUTONOMUS PATH-FOLLOWING PUPOSUS. DO NOT DELET THE *
+  // 2!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   // PathPlanner config constants
   private static final double ROBOT_MASS_KG = 65.0;

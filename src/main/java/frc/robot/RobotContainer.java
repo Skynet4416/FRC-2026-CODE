@@ -319,12 +319,12 @@ public class RobotContainer {
     reverseIndexWhileIntakeChooser.addOption("No", false);
 
     disableFlywheelAutoSpinupChooser = new LoggedDashboardChooser<>("Disable Flywheel Auto Spinup");
-    disableFlywheelAutoSpinupChooser.addDefaultOption("Yes", true);
-    disableFlywheelAutoSpinupChooser.addOption("No", false);
+    disableFlywheelAutoSpinupChooser.addOption("Yes", true);
+    disableFlywheelAutoSpinupChooser.addDefaultOption("No", false);
 
     ignoreHubStateChooser = new LoggedDashboardChooser<>("Ignore Hub State");
-    ignoreHubStateChooser.addOption("Yes", true);
-    ignoreHubStateChooser.addDefaultOption("No", false);
+    ignoreHubStateChooser.addDefaultOption("Yes", true);
+    ignoreHubStateChooser.addOption("No", false);
 
     // Enable the loose heading cone that keeps passing shots inside the field boundaries
     enablePassingConeChooser = new LoggedDashboardChooser<>("Enable Passing Cone");
@@ -564,7 +564,10 @@ public class RobotContainer {
         .and(RobotModeTriggers.teleop())
         .whileTrue(
             Commands.runEnd(
-                () -> spindexerSubsystem.setPercentage(-0.35),
+                () -> {
+                  spindexerSubsystem.setPercentage(-0.35);
+                  spindexerSubsystem.setSub(0.5);
+                },
                 spindexerSubsystem::stop,
                 spindexerSubsystem));
 
@@ -594,7 +597,7 @@ public class RobotContainer {
         "Invert both Indexers",
         Commands.deadline(
             Commands.waitSeconds(1.0),
-            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -1.0)));
+            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.5)));
     SmartDashboard.putData("Zero Hood", hoodSubsystem.zeroCommand());
 
     // Live flywheel RPM calibration: nudge the launch calculation output up/down by 25 RPM.
@@ -659,7 +662,7 @@ public class RobotContainer {
 
     // When folding/unfolding
     leftIntakeLowered.onFalse(
-        Commands.run(() -> leftIntake.setPercentage(0.2), leftIntake)
+        Commands.run(() -> leftIntake.setPercentage(0.4), leftIntake)
             .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
             .onlyIf(() -> !Boolean.FALSE.equals(runWheelsWhenFoldingChooser.get()))); // default Yes
 
@@ -1014,17 +1017,15 @@ public class RobotContainer {
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 firstIntake.resetOdometry(),
-                Commands.sequence(
-                    Commands.parallel(autoShoot(2.5), Commands.waitSeconds(1.0)),
-                    Commands.runOnce(
-                        () -> {
-                          leftIntake.setLowered(false);
-                        })),
+                Commands.runOnce(
+                    () -> {
+                      leftIntake.setLowered(false);
+                    }),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 firstIntake.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
-                    autoShoot(2.5),
+                    autoShoot(4),
                     Commands.sequence(
                         Commands.waitSeconds(1.0),
                         Commands.runOnce(
@@ -1059,7 +1060,7 @@ public class RobotContainer {
                 firstIntake.resetOdometry(),
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 Commands.sequence(
-                    Commands.parallel(autoShoot(1.5), Commands.waitSeconds(1.0)),
+                    Commands.parallel(autoShoot(3.5), Commands.waitSeconds(1.0)),
                     Commands.runOnce(
                         () -> {
                           leftIntake.setLowered(false);

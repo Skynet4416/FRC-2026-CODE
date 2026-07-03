@@ -29,7 +29,7 @@ public class IntakeSubsystem extends SubsystemBase {
 
   private double stuckTime = 0.0;
   private double CURRENT_CUTOFF_THRSHOLD =
-      50; // intake motor will shut off if current exceeds this threshold
+      60; // intake motor will shut off if current exceeds this threshold
   private boolean stuck = false;
   private boolean reversed = false;
   private boolean forceReverse = false;
@@ -168,9 +168,9 @@ public class IntakeSubsystem extends SubsystemBase {
         }
       }
 
-      reversed = currTime - stuckTime > 0.35;
+      reversed = currTime - stuckTime > 0.5;
 
-      if (currTime - stuckTime > 0.5) {
+      if (currTime - stuckTime > 1.0) {
         stop();
         stuck = true;
       }

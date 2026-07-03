@@ -65,6 +65,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
         Constants.Subsystems.Intake.ROLLER_BREAK ? NeutralModeValue.Brake : NeutralModeValue.Coast;
 
     motor.getConfigurator().apply(config);
+    followerMotor.getConfigurator().apply(config);
 
     followerMotor.setControl(new Follower(motorId, MotorAlignmentValue.Opposed));
 

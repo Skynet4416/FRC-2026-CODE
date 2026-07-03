@@ -37,6 +37,7 @@ public class RunBothIndexersCommand extends Command {
   @Override
   public void initialize() {
     spindexerSubsystem.setPercentage(targetPercentage);
+    spindexerSubsystem.setSub(targetPercentage);
     shooterIndexerSubsystem.setShooterIndexer(targetPercentage);
     runTime = Timer.getFPGATimestamp();
   }
@@ -45,6 +46,7 @@ public class RunBothIndexersCommand extends Command {
   @Override
   public void execute() {
     spindexerSubsystem.setPercentage(true ? targetPercentage : -targetPercentage);
+    spindexerSubsystem.setSub(targetPercentage);
     shooterIndexerSubsystem.setShooterIndexer(targetPercentage);
 
     Logger.recordOutput("Indexer direction?", direction);
