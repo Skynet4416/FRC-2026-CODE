@@ -27,9 +27,12 @@ public class IntakeSubsystem extends SubsystemBase {
   protected final IntakeIOInputsAutoLogged inputs = new IntakeIOInputsAutoLogged();
   private double targetPercentage;
 
-  private double stuckTime = 0.0;
-  private double CURRENT_CUTOFF_THRSHOLD =
-      60; // intake motor will shut off if current exceeds this threshold
+  // Jam detection: sustained overcurrent -> reverse briefly, then stop.
+  private static final double JAM_CURRENT_AMPS = 50.0; // current above this counts as a jam
+  private static final double REVERSE_AFTER_SEC = 0.35; // jammed this long -> run roller in reverse
+  private static final double STOP_AFTER_SEC = 0.5; // jammed this long -> stop roller entirely
+
+  private final Timer jamTimer = new Timer(); // counts how long the roller has been jammed
   private boolean stuck = false;
   private boolean reversed = false;
   private boolean forceReverse = false;
@@ -79,7 +82,7 @@ public class IntakeSubsystem extends SubsystemBase {
     if (lowered) {
       this.stuck = false;
       this.reversed = false;
-      this.stuckTime = 0;
+      jamTimer.reset();
     }
     io.setLowered(lowered);
   }
@@ -117,18 +120,28 @@ public class IntakeSubsystem extends SubsystemBase {
     return Commands.runOnce(() -> setLowered(!inputs.lowered), this);
   }
 
+  /**
+   * Gate output through stuck (force 0) and reverse (flip sign). Single source of direction logic.
+   */
+  private double directedOutput(double output) {
+    if (stuck) {
+      return 0;
+    }
+    return isReversed() ? -output : output;
+  }
+
   public void runVolts(double volts) {
-    io.setVoltage(stuck ? 0 : (isReversed() ? -volts : volts));
+    io.setVoltage(directedOutput(volts));
   }
 
   public void setPercentage(double percentage) {
     targetPercentage = percentage;
-    io.setPercentage(stuck ? 0 : (isReversed() ? -percentage : percentage));
+    io.setPercentage(directedOutput(percentage));
   }
 
   public void setFOC(double value) { // FOC is in percentage of 50A
     targetPercentage = value;
-    io.setFOC((stuck ? 0 : (isReversed() ? -value : value)) * 120);
+    io.setFOC(directedOutput(value) * 120);
   }
 
   public Command sysIdQuasistatic(SysIdRoutine.Direction direction) {
@@ -157,26 +170,38 @@ public class IntakeSubsystem extends SubsystemBase {
     };
   }
 
+  /**
+   * Detects a jam from sustained overcurrent while the roller is spinning: after {@link
+   * #REVERSE_AFTER_SEC} the roller runs in reverse, after {@link #STOP_AFTER_SEC} it stops. Flags
+   * stay latched until {@link #setLowered(boolean)} clears them. Only runs while the roller moves.
+   */
+  private void updateJamDetection() {
+    if (Math.abs(getVelocityRPM()) < 1.0) { // treat <1 RPM as stopped, ignore sensor jitter
+      return;
+    }
+
+    // Healthy current keeps resetting the clock to zero; once current stays above the
+    // threshold, the clock is left to run and counts how long we've been jammed.
+    boolean drawingJamCurrent = inputs.supplyCurrentAmps >= JAM_CURRENT_AMPS;
+    if (!stuck && !drawingJamCurrent) {
+      jamTimer.restart();
+    }
+
+    reversed = jamTimer.hasElapsed(REVERSE_AFTER_SEC);
+    if (jamTimer.hasElapsed(STOP_AFTER_SEC)) {
+      stop();
+      stuck = true;
+    }
+
+    Logger.recordOutput("Intake/StopTime", jamTimer.get());
+  }
+
   @Override
   public void periodic() {
     io.updateInputs(inputs);
-    double currTime = Timer.getFPGATimestamp();
-    if (Math.abs(getVelocityRPM()) > 0) {
-      if (!stuck) {
-        if (inputs.supplyCurrentAmps < CURRENT_CUTOFF_THRSHOLD) {
-          stuckTime = currTime;
-        }
-      }
-
-      reversed = currTime - stuckTime > 0.5;
-
-      if (currTime - stuckTime > 1.0) {
-        stop();
-        stuck = true;
-      }
-      Logger.recordOutput("Intake Stopped", stuck);
-      Logger.recordOutput("Intake Stop Time", currTime - stuckTime);
-    }
+    updateJamDetection();
+    Logger.recordOutput("Intake/Stuck", stuck);
+    Logger.recordOutput("Intake/Reversing", isReversed());
 
     String prefix = "IntakeLeft";
     Logger.processInputs(prefix, inputs);
