@@ -120,7 +120,9 @@ public class IntakeSubsystem extends SubsystemBase {
     return Commands.runOnce(() -> setLowered(!inputs.lowered), this);
   }
 
-  /** Gate output through stuck (force 0) and reverse (flip sign). Single source of direction logic. */
+  /**
+   * Gate output through stuck (force 0) and reverse (flip sign). Single source of direction logic.
+   */
   private double directedOutput(double output) {
     if (stuck) {
       return 0;
