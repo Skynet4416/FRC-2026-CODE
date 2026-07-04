@@ -376,6 +376,7 @@ public class RobotContainer {
     autoChooser.addOption("Choreo Test", testAuto());
     autoChooser.addOption("Left Trench Double Take", leftTrenchDoubleTake());
     autoChooser.addOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
+    autoChooser.addOption("Right Trench Return Over Bump", rightTrenchIntakeReturnOverBump());
     autoChooser.addOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
     autoChooser.addOption("left Trench Single Take", leftTrenchSingleTake());
 
@@ -1012,6 +1013,48 @@ public class RobotContainer {
 
     AutoTrajectory firstIntake = routine.trajectory("Left_Trench_Return_Over_Bump");
     AutoTrajectory SecnondIntake = routine.trajectory("Left_Trench_Return_Over_Bump_2");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                Commands.runOnce(() -> hoodSubsystem.zero()),
+                firstIntake.resetOdometry(),
+                Commands.runOnce(
+                    () -> {
+                      leftIntake.setLowered(false);
+                    }),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                firstIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                            }))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                SecnondIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                            })))));
+
+    return routine.cmd();
+  }
+
+  public Command rightTrenchIntakeReturnOverBump() {
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    AutoTrajectory firstIntake = routine.trajectory("Right_Trench_Return_Over_Bump");
+    AutoTrajectory SecnondIntake = routine.trajectory("Right_Trench_Return_Over_Bump_2");
 
     routine
         .active()
