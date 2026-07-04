@@ -691,7 +691,9 @@ public class RobotContainer {
     Logger.recordOutput("AutoAlignment/OverrideToggle", autoAlignmentOverrideState);
     // Publish match time
     SmartDashboard.putNumber("Match Time", HubShiftUtil.getMatchTime());
-    SmartDashboard.putNumber("PSI", compressor.getPressure());
+    if (compressor != null) {
+      SmartDashboard.putNumber("PSI", compressor.getPressure());
+    }
 
     // Current flywheel RPM calibration offset applied to the launch calculation output
     SmartDashboard.putNumber(
