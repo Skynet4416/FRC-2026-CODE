@@ -21,7 +21,12 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
   private final Debouncer motorConnectedDebouncer =
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);
   private final Alert motorDisconnectedAlert =
-      new Alert("Spindexer motor disconnected!", AlertType.kWarning);
+      new Alert("Spindexer main motor disconnected!", AlertType.kWarning);
+
+  private final Debouncer motorSubConnectedDebouncer =
+      new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+  private final Alert motorSubDisconnectedAlert =
+      new Alert("Spindexer sub motor disconnected!", AlertType.kWarning);
   private double currentSetpoint = 0.0;
   private double requestedPercentage = 0.0;
 
@@ -67,6 +72,7 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
 
     inputs.connected = motorConnectedDebouncer.calculate(motorMain.isConnected());
     motorDisconnectedAlert.set(!inputs.connected);
+    motorSubDisconnectedAlert.set(!motorSubConnectedDebouncer.calculate(motorSub.isConnected()));
     inputs.setpointRPM = this.currentSetpoint;
     inputs.requestedPercentage = this.requestedPercentage;
     inputs.atSetpoint =
