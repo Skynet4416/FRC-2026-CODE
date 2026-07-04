@@ -655,7 +655,7 @@ public class RobotContainer {
               if (leftIntake.isLowered()) {
                 leftIntake.setPercentage(1.00);
               } else {
-                leftIntake.setPercentage(spindexerSubsystem.getAppliedVolts() > 0.1 ? 0.25 : 0.0);
+                leftIntake.setPercentage(spindexerSubsystem.getAppliedVolts() > 0.1 ? -0.35 : 0.0);
               }
             },
             leftIntake));
@@ -1027,7 +1027,7 @@ public class RobotContainer {
                     .withTimeout(0.2),
                 firstIntake.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
-                    autoShoot(4),
+                    autoShoot(5),
                     Commands.sequence(
                         Commands.waitSeconds(1.0),
                         Commands.runOnce(
