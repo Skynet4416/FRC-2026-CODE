@@ -7,6 +7,7 @@ import com.ctre.phoenix6.signals.RGBWColor;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.subsystems.intake.IntakeSubsystem;
+import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystem;
@@ -91,7 +92,8 @@ public class LedSubsystem extends SubsystemBase {
   public void periodic() {
     io.updateInputs(inputs);
 
-    if (flywheelSubsystem.getSetpoint() > 200) {
+    if (flywheelSubsystem.getSetpoint()
+        > LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed() * 1.5) {
       if (Math.abs(spindexerSubsystem.getVelocityRPM())
               + Math.abs(shooterIndexerSubsystem.getVelocityRPM())
           > 200)

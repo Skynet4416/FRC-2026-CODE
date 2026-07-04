@@ -65,17 +65,17 @@ public class LaunchCalculator {
 
     shotCalc = new ShotCalculator(config);
     // Load your calibration data into the solver
-    shotCalc.loadLUTEntry(1.305, 1300.0, 10.0, 0.9);
-    shotCalc.loadLUTEntry(2.2, 1400.0, 18.0, 0.9);
-    shotCalc.loadLUTEntry(3.3, 1560.0, 30.0, 0.9);
-    shotCalc.loadLUTEntry(4.1, 1678, 37.0, 0.9);
-    shotCalc.loadLUTEntry(4.6, 1800.0, 40.0, 0.9);
+    // shotCalc.loadLUTEntry(1.305, 1300.0, 10.0, 0.9);
+    // shotCalc.loadLUTEntry(2.2, 1400.0, 18.0, 0.9);
+    // shotCalc.loadLUTEntry(3.3, 1560.0, 30.0, 0.9);
+    // shotCalc.loadLUTEntry(4.1, 1678, 37.0, 0.9);
+    // shotCalc.loadLUTEntry(4.6, 1800.0, 40.0, 0.9);
 
     // High shots
-    // shotCalc.loadLUTEntry(1.6, 1450.0, 12.0, 0.9);
-    // shotCalc.loadLUTEntry(2.6, 1550.0, 24.0, 0.9);
-    // shotCalc.loadLUTEntry(4.2, 1750.0, 26.0, 0.9);
-    // shotCalc.loadLUTEntry(5.25, 1850, 35.0, 0.9);
+    shotCalc.loadLUTEntry(1.6, 1450.0, 12.0, 0.9);
+    shotCalc.loadLUTEntry(2.6, 1550.0, 24.0, 0.9);
+    shotCalc.loadLUTEntry(4.2, 1750.0, 26.0, 0.9);
+    shotCalc.loadLUTEntry(5.25, 1850, 35.0, 0.9);
   }
 
   public static LaunchCalculator getInstance() {
@@ -118,7 +118,7 @@ public class LaunchCalculator {
       LoggedTunableNumber hoodAngleDeg, LoggedTunableNumber flywheelSpeed) {}
 
   private static final LoggedTunableNumber maxIdleSpeed =
-      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 1000);
+      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 2000);
 
   private static final double xPassTarget = Units.inchesToMeters(12);
   private static final double yPassTarget = Units.inchesToMeters(65);
@@ -144,11 +144,11 @@ public class LaunchCalculator {
     passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(45.0));
     passingHoodAngleMap.put(14.80, Rotation2d.fromDegrees(45.0));
 
-    passingFlywheelSpeedMap.put(5.46, 1800.0);
-    passingFlywheelSpeedMap.put(17.00, 3000.0);
+    passingFlywheelSpeedMap.put(5.46, 1400.0);
+    passingFlywheelSpeedMap.put(17.00, 2600.0);
 
-    passingTimeOfFlightMap.put(passingMinDistance, 1.0);
-    passingTimeOfFlightMap.put(passingMaxDistance, 5.5);
+    passingTimeOfFlightMap.put(5.46, 0.5);
+    passingTimeOfFlightMap.put(17.0, 1.0);
   }
 
   public LaunchingParameters getParameters() {
