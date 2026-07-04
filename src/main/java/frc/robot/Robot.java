@@ -158,6 +158,15 @@ public class Robot extends LoggedRobot {
   /** This function is called periodically during all modes. */
   @Override
   public void robotPeriodic() {
+    // Test mode = "everything off, compressor on". Bypass the whole command
+    // framework: skip the scheduler so no subsystem periodic and no default
+    // command (including the drive default) ever runs. The compressor keeps
+    // going because it's closed-loop on the pneumatics hub hardware, not code.
+    // testInit() already cancelled all running commands to stop their motors.
+    if (DriverStation.isTest()) {
+      return; // ponytail: simple bypass instead of disabling each subsystem
+    }
+
     // Optionally switch the thread to high priority to improve loop
     // timing (see the template project documentation for details)
     // Threads.setCurrentThreadPriority(true, 99);
