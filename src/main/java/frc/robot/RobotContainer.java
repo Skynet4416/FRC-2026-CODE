@@ -296,9 +296,12 @@ public class RobotContainer {
                 // provided Pose2d
                 drive::followTrajectory, // The drive subsystem trajectory follower
                 true, // If alliance flipping should be enabled
-                drive // The drive subsystem
+                drive // The d  rive subsystem
                 )
             .bind("IntakeOpen", Commands.runOnce(() -> leftIntake.setLowered(true), leftIntake));
+    // .bind("StartSOTM", Commands.runOnce(() -> drive.setAutoSOTM(true), drive))
+    // .bind("StopSOTM", Commands.runOnce(() -> drive.setAutoSOTM(false), drive));
+
     // CommandScheduler.getInstance().schedule(autoFactory.warmupCmd());
 
     leftIntakeLowered = new Trigger(leftIntake::isLowered);
@@ -378,6 +381,7 @@ public class RobotContainer {
     autoChooser.addOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
     autoChooser.addOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
     autoChooser.addOption("left Trench Single Take", leftTrenchSingleTake());
+    autoChooser.addOption("Auto SOTM Test", autoSOTM());
 
     // Configure the button bindings
 
@@ -1002,6 +1006,24 @@ public class RobotContainer {
                         Commands.waitSeconds(1.0),
                         Commands.runOnce(() -> leftIntake.setLowered(false))))));
 
+    return routine.cmd();
+  }
+
+  public Command autoSOTM() {
+    AutoRoutine routine = autoFactory.newRoutine("NewPath");
+
+    AutoTrajectory testPath = routine.trajectory("NewPath");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                Commands.runOnce(() -> hoodSubsystem.zero()),
+                testPath.resetOdometry(),
+                Commands.sequence(Commands.runOnce(() -> leftIntake.setLowered(false))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                testPath.cmd().finallyDo(() -> drive.stopWithX())));
     return routine.cmd();
   }
 

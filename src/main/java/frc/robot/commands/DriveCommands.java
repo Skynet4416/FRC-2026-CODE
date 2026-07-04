@@ -207,6 +207,106 @@ public class DriveCommands {
             <= Units.degreesToRadians(driveLaunchToleranceDeg.get());
   }
 
+  public static ChassisSpeeds GetSotmSpeeds(Double xSupplier, Double ySupplier) {
+
+    // Run PID controller
+    final var parameters = LaunchCalculator.getInstance().getParameters();
+    double omegaOutput =
+        parameters.driveVelocity()
+            + (parameters.driveAngle().minus(Drive.getInstance().getRotation()).getRadians()
+                * driveLaunchKp.get())
+            + ((parameters.driveVelocity()
+                    - Drive.getInstance().getChassisSpeeds().omegaRadiansPerSecond)
+                * driveLaunchKd.get());
+
+    // Calculate speeds
+    Translation2d fieldRelativeLinearVelocity = new Translation2d(xSupplier, ySupplier);
+
+    // it still shoots the same)
+    if (AllianceFlipUtil.shouldFlip()) {
+      fieldRelativeLinearVelocity = fieldRelativeLinearVelocity.times(-1.0);
+    }
+
+    // Only limit if launching, not passing
+    if (!parameters.passing()) {
+      // Calculate max linear velocity magnitude based on the max polar velocity
+      double maxLinearVelocityMagnitude = Double.POSITIVE_INFINITY;
+      double robotAngle =
+          Math.abs(
+              AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d())
+                  .minus(Drive.getInstance().getPose().getTranslation())
+                  .getAngle()
+                  .minus(fieldRelativeLinearVelocity.getAngle())
+                  .getRadians());
+      double robotHubDistance = parameters.distanceNoLookahead();
+      double timeOfFlight = parameters.timeOfFlight();
+      if (timeOfFlight <= 0.0) {
+        timeOfFlight = LaunchCalculator.getInstance().getNaiveTOF(robotHubDistance);
+      }
+      double hubAngle = driveLaunchMaxPolarVelocityRadPerSec.get() * timeOfFlight;
+      double lookaheadAngle = Math.PI - robotAngle - hubAngle;
+
+      // Calculate limit if triangle is valid (otherwise no limit)
+      if (lookaheadAngle > 0) {
+        double robotLookaheadDistance =
+            robotHubDistance * Math.sin(hubAngle) / Math.sin(lookaheadAngle);
+        maxLinearVelocityMagnitude = robotLookaheadDistance / timeOfFlight;
+      }
+
+      // Apply limit to velocity
+      if (fieldRelativeLinearVelocity.getNorm() > maxLinearVelocityMagnitude) {
+        fieldRelativeLinearVelocity =
+            fieldRelativeLinearVelocity.times(
+                maxLinearVelocityMagnitude / fieldRelativeLinearVelocity.getNorm());
+      }
+    }
+
+    // Apply chassis speeds
+    double corScalar =
+        MathUtil.clamp(
+            (Math.abs(parameters.driveAngle().minus(Drive.getInstance().getRotation()).getDegrees())
+                    - driveLauncherCORMinErrorDeg.get())
+                / (driveLauncherCORMaxErrorDeg.get() - driveLauncherCORMinErrorDeg.get()),
+            0.0,
+            1.0);
+    Translation2d launcherToRobot =
+        LauncherConstants.robotToLauncher.getTranslation().toTranslation2d().unaryMinus();
+    ChassisSpeeds fieldRelativeSpeedsWithOffset =
+        GeomUtil.transformVelocity(
+            new ChassisSpeeds(
+                fieldRelativeLinearVelocity.getX(),
+                fieldRelativeLinearVelocity.getY(),
+                omegaOutput),
+            launcherToRobot.times(1.0 - corScalar),
+            Drive.getInstance().getRotation());
+    Logger.recordOutput(
+        "Shaki drive velocity",
+        ChassisSpeeds.fromFieldRelativeSpeeds(
+            fieldRelativeSpeedsWithOffset, Drive.getInstance().getRotation()));
+
+    // Override robot setpoint speeds published by drive. We run our calculations using the
+    // speeds that will ultimately be applied once we are using the full robot-to-launcher
+    // transform. This prevents the setpoint from changing due to the shifting COR of the
+    // robot.
+    ChassisSpeeds fieldRelativeSpeedsWithFullOffset =
+        GeomUtil.transformVelocity(
+            new ChassisSpeeds(
+                fieldRelativeLinearVelocity.getX(),
+                fieldRelativeLinearVelocity.getY(),
+                omegaOutput),
+            launcherToRobot,
+            Drive.getInstance().getRotation());
+    Drive.getInstance()
+        .setRobotSetpointVelocity(
+            ChassisSpeeds.discretize(
+                ChassisSpeeds.fromFieldRelativeSpeeds(
+                    fieldRelativeSpeedsWithFullOffset, Drive.getInstance().getRotation()),
+                Constants.loopPeriodSecs));
+
+    return ChassisSpeeds.fromFieldRelativeSpeeds(
+        fieldRelativeSpeedsWithOffset, Drive.getInstance().getRotation());
+  }
+
   public static Command joystickDriveWhileLaunching(
       Drive drive, DoubleSupplier xSupplier, DoubleSupplier ySupplier) {
     // Create command

@@ -44,6 +44,7 @@ import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.Constants;
 import frc.robot.Constants.Mode;
+import frc.robot.commands.DriveCommands;
 import frc.robot.generated.TunerConstants;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.util.LocalADStarAK;
@@ -89,6 +90,8 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
           0,
           0); // ROTATION KP DOUBLED HERE FOR AUTONOMUS PATH-FOLLOWING PUPOSUS. DO NOT DELET THE *
   // 2!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+  private boolean followTrajectorySOTM = true;
 
   // PathPlanner config constants
   private static final double ROBOT_MASS_KG = 65.0;
@@ -461,26 +464,39 @@ public class Drive extends SubsystemBase implements Vision.VisionConsumer {
     // poseEstimator.resetPose(pose);
   }
 
+  public void setAutoSOTM(boolean value) {
+    this.followTrajectorySOTM = value;
+  }
+
   public void followTrajectory(SwerveSample target) {
     // Get the current pose of the robot
     Pose2d pose = getPose();
     Pose2d targetPose = target.getPose();
 
-    // Generate the next speeds for the robot
-    ChassisSpeeds speeds =
-        ChassisSpeeds.fromFieldRelativeSpeeds(
-            target.vx + m_pathXController.calculate(pose.getX(), targetPose.getX()),
-            target.vy + m_pathYController.calculate(pose.getY(), targetPose.getY()),
-            target.omega
-                + m_pathThetaController.calculate(pose.getRotation().getRadians(), target.heading),
-            getRotation());
+    System.out.println("SOTM: " + followTrajectorySOTM);
+    if (followTrajectorySOTM) {
+      runVelocity(
+          DriveCommands.GetSotmSpeeds(
+              (target.vx + m_pathXController.calculate(pose.getX(), targetPose.getX())),
+              (target.vy + m_pathYController.calculate(pose.getY(), targetPose.getY()))));
+    } else {
+      // Generate the next speeds for the robot
+      ChassisSpeeds speeds =
+          ChassisSpeeds.fromFieldRelativeSpeeds(
+              target.vx + m_pathXController.calculate(pose.getX(), targetPose.getX()),
+              target.vy + m_pathYController.calculate(pose.getY(), targetPose.getY()),
+              target.omega
+                  + m_pathThetaController.calculate(
+                      pose.getRotation().getRadians(), target.heading),
+              getRotation());
 
-    Logger.recordOutput("Choreo/RobotAngle", getRotation());
-    Logger.recordOutput("Choreo/TargetPose", targetPose);
-    Logger.recordOutput("Choreo/CurrentPose", pose);
+      Logger.recordOutput("Choreo/RobotAngle", getRotation());
+      Logger.recordOutput("Choreo/TargetPose", targetPose);
+      Logger.recordOutput("Choreo/CurrentPose", pose);
 
-    // Apply the generated speeds
-    runVelocity(speeds);
+      // Apply the generated speeds
+      runVelocity(speeds);
+    }
   }
 
   /** Adds a new timestamped vision measurement. */
