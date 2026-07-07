@@ -545,7 +545,7 @@ public class RobotContainer {
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0),
                 Commands.repeatingSequence(
-                    Commands.waitSeconds(0.25),
+                    Commands.waitSeconds(0.4),
                     Commands.runOnce(this::launchSimulatedProjectile))));
 
     // Lower the intake while the left trigger is held, raise it when released
@@ -864,7 +864,7 @@ public class RobotContainer {
     // The ball's speed relative to the robot depends strictly on RPM and slip factor.
     double rpm = params.flywheelSpeed();
     double wheelDiameterMeters = 0.1524; // 6 inches
-    double slipFactor = 0.58; // The true slip factor we derived
+    double slipFactor = 0.54; // The true slip factor we derived
     double exitSpeed = slipFactor * (rpm * Math.PI * wheelDiameterMeters) / 60.0;
 
     // 3. Convert scalar speed to a 3D vector relative to the robot
