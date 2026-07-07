@@ -618,6 +618,29 @@ public class RobotContainer {
         Commands.runOnce(() -> LaunchCalculator.getInstance().resetFlywheelRpmOffset())
             .ignoringDisable(true));
 
+    // Live target calibration: nudge the aimed hub target left/right from the driver's point of
+    // view (positive Y = driver's left, per the field coordinate convention).
+    SmartDashboard.putData(
+        "Target Left 5cm",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementTargetYOffsetCm(5))
+            .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Target Right 5cm",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementTargetYOffsetCm(-5))
+            .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Target Left 10cm",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementTargetYOffsetCm(10))
+            .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Target Right 10cm",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementTargetYOffsetCm(-10))
+            .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Target Reset",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().resetTargetYOffset())
+            .ignoringDisable(true));
+
     SmartDashboard.putData(
         "Lower left intake", Commands.runOnce(() -> leftIntake.setLowered(true)));
     SmartDashboard.putData(
@@ -702,6 +725,9 @@ public class RobotContainer {
     // Current flywheel RPM calibration offset applied to the launch calculation output
     SmartDashboard.putNumber(
         "Flywheel RPM Offset", LaunchCalculator.getInstance().getFlywheelRpmOffset());
+    // Current target Y calibration offset applied to the aimed hub target
+    SmartDashboard.putNumber(
+        "Target Y Offset", LaunchCalculator.getInstance().getTargetYOffsetMeters());
 
     // Controller disconnected alerts
     driverControllerDisconnected.set(!driveController.isConnected());
