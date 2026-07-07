@@ -92,7 +92,7 @@ public class FieldConstants {
     public static final Translation3d topCenterPoint =
         new Translation3d(
             AprilTagLayoutType.OFFICIAL.getLayout().getTagPose(26).get().getX() + width / 2.0,
-            fieldWidth / 2.0,
+            fieldWidth / 2.0 - 0.25,
             height);
     public static final Translation3d innerCenterPoint =
         new Translation3d(
