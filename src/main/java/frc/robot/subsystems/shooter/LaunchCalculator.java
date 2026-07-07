@@ -141,8 +141,8 @@ public class LaunchCalculator {
 
   static {
     // Passing Map Init
-    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(45.0));
-    passingHoodAngleMap.put(14.80, Rotation2d.fromDegrees(45.0));
+    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(50.0));
+    passingHoodAngleMap.put(14.80, Rotation2d.fromDegrees(50.0));
 
     passingFlywheelSpeedMap.put(5.46, 1400.0);
     passingFlywheelSpeedMap.put(17.00, 2800.0);

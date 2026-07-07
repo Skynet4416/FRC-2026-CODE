@@ -987,7 +987,6 @@ public class RobotContainer {
         .active()
         .onTrue(
             Commands.sequence(
-                autoShoot(3.5),
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 Depot.resetOdometry(),
                 Commands.sequence(Commands.runOnce(() -> leftIntake.setLowered(false))),

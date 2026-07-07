@@ -101,7 +101,7 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
 
   @Override
   public void setSub(double percentage) {
-    motorSub.set(Math.abs(percentage) / 2.f);
+    motorSub.set((Math.abs(percentage) / 2.f) * 0.8);
   }
 
   @Override
