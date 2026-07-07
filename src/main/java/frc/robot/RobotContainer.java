@@ -178,6 +178,7 @@ public class RobotContainer {
         // Real robot, instantiate hardware IO implementations
         // ModuleIOTalonFX is intended for modules with TalonFX drive, TalonFX turn, and
         // a CANcoder
+
         drive =
             new Drive(
                 new GyroIOPigeon2(),
@@ -186,6 +187,7 @@ public class RobotContainer {
                 new ModuleIOTalonFX(TunerConstants.BackLeft),
                 new ModuleIOTalonFX(TunerConstants.BackRight),
                 (robotPose) -> {});
+
         vision =
             new Vision(
                 drive,
@@ -379,6 +381,7 @@ public class RobotContainer {
     autoChooser.addOption("Right Trench Return Over Bump", rightTrenchIntakeReturnOverBump());
     autoChooser.addOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
     autoChooser.addOption("left Trench Single Take", leftTrenchSingleTake());
+    autoChooser.addOption("Depot", Deot());
 
     // Configure the button bindings
 
@@ -668,17 +671,17 @@ public class RobotContainer {
             .onlyIf(() -> !Boolean.FALSE.equals(runWheelsWhenFoldingChooser.get()))); // default Yes
 
     // ****** RUMBLE ALERTS ******
-    intakeStruggling
-        .whileTrue(
-            Commands.runOnce(
-                () ->
-                    driveController.setRumble(
-                        edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)))
-        .whileFalse(
-            Commands.runOnce(
-                () ->
-                    driveController.setRumble(
-                        edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)));
+    // intakeStruggling
+    //     .whileTrue(
+    //         Commands.runOnce(
+    //             () ->
+    //                 driveController.setRumble(
+    //                     edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)))
+    //     .whileFalse(
+    //         Commands.runOnce(
+    //             () ->
+    //                 driveController.setRumble(
+    //                     edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)));
 
     // Reset the timer as soon as Teleop starts
     RobotModeTriggers.teleop().onTrue(Commands.runOnce(teleopElapsedTimer::restart));
@@ -968,6 +971,31 @@ public class RobotContainer {
                 trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
                     autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(() -> leftIntake.setLowered(false))))));
+
+    return routine.cmd();
+  }
+
+  public Command Deot() {
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    AutoTrajectory Depot = routine.trajectory("Depot");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                autoShoot(3.5),
+                Commands.runOnce(() -> hoodSubsystem.zero()),
+                Depot.resetOdometry(),
+                Commands.sequence(Commands.runOnce(() -> leftIntake.setLowered(false))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                Depot.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(10),
                     Commands.sequence(
                         Commands.waitSeconds(1.0),
                         Commands.runOnce(() -> leftIntake.setLowered(false))))));

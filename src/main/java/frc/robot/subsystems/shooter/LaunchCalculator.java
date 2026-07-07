@@ -75,7 +75,7 @@ public class LaunchCalculator {
     shotCalc.loadLUTEntry(1.6, 1450.0, 12.0, 0.9);
     shotCalc.loadLUTEntry(2.6, 1550.0, 24.0, 0.9);
     shotCalc.loadLUTEntry(4.2, 1750.0, 26.0, 0.9);
-    shotCalc.loadLUTEntry(5.25, 1850, 35.0, 0.9);
+    shotCalc.loadLUTEntry(5.25, 1900, 35.0, 0.9);
   }
 
   public static LaunchCalculator getInstance() {
@@ -145,7 +145,7 @@ public class LaunchCalculator {
     passingHoodAngleMap.put(14.80, Rotation2d.fromDegrees(45.0));
 
     passingFlywheelSpeedMap.put(5.46, 1400.0);
-    passingFlywheelSpeedMap.put(17.00, 2600.0);
+    passingFlywheelSpeedMap.put(17.00, 2800.0);
 
     passingTimeOfFlightMap.put(5.46, 0.5);
     passingTimeOfFlightMap.put(17.0, 1.0);
@@ -281,7 +281,7 @@ public class LaunchCalculator {
             hoodAngle + Units.degreesToRadians(hoodAngleOffsetDeg),
             hoodVelocity,
             flywheelVelocity,
-            MathUtil.clamp(flywheelVelocity / 1.5, 0, maxIdleSpeed.get()),
+            MathUtil.clamp(flywheelVelocity / 1.5, 1450.0, maxIdleSpeed.get()),
             lookaheadLauncherToTargetDistance,
             launcherToTargetDistance,
             timeOfFlight,

@@ -247,7 +247,7 @@ public final class Constants {
         // Stator Limit: Protects the Motor (Prevents Burnout)
         // Keep this HIGH for Shooters to allow fast spin-up.
         public static final boolean STATOR_ENABLED = true;
-        public static final double STATOR_LIMIT_AMPS = 40.0;
+        public static final double STATOR_LIMIT_AMPS = 60.0;
       }
     }
 

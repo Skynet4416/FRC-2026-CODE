@@ -46,7 +46,7 @@ public class LedSubsystem extends SubsystemBase {
   public void SetIdle() {
     if (SetValue(0)) return;
     ControlRequest ledRequest;
-    ledRequest = new SolidColor(0, 64).withColor(new RGBWColor(255, 120, 0));
+    ledRequest = new SolidColor(0, 64).withColor(new RGBWColor(25, 0, 255));
     this.io.setAnimation(ledRequest);
   }
 
@@ -69,7 +69,7 @@ public class LedSubsystem extends SubsystemBase {
         new StrobeAnimation(0, 64)
             .withColor(
                 spindexer
-                    ? (shooter ? new RGBWColor(0, 255, 0) : new RGBWColor(0, 0, 255))
+                    ? (shooter ? new RGBWColor(0, 255, 0) : new RGBWColor(125, 255, 0))
                     : new RGBWColor(255, 0, 0))
             .withFrameRate(8);
     this.io.setAnimation(ledRequest);

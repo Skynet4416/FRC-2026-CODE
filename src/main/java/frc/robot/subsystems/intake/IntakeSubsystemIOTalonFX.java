@@ -53,7 +53,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
     config.CurrentLimits.SupplyCurrentLimit =
         Constants.Subsystems.Intake.CurrentLimits.SUPPLY_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerTime = 1.0;
-    config.CurrentLimits.SupplyCurrentLowerLimit = 20.0;
+    config.CurrentLimits.SupplyCurrentLowerLimit = 30.0;
 
     config.CurrentLimits.StatorCurrentLimitEnable =
         Constants.Subsystems.Intake.CurrentLimits.STATOR_ENABLED;
