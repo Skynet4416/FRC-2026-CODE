@@ -166,8 +166,9 @@ public class LaunchCalculator {
     boolean insideTowerBadBox = towerBound.contains(flippedPose.getTranslation());
     boolean behindNearHub = nearHubBound.contains(flippedPose.getTranslation());
     boolean behindFarHub = farHubBound.contains(flippedPose.getTranslation());
-    boolean outsideOfBadBoxes = !(insideTowerBadBox || behindNearHub || behindFarHub);
-
+    boolean allowShootingFromAnywhere = true;
+    boolean outsideOfBadBoxes =
+        allowShootingFromAnywhere || !(insideTowerBadBox || behindNearHub || behindFarHub);
     Rotation2d driveAngle = Rotation2d.kZero;
     double driveVelocity = 0.0;
     double hoodAngle = 0.0;
