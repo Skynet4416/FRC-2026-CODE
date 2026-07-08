@@ -96,28 +96,11 @@
             }
           },
           {
-            "title": "READY TO SHOOT",
-            "x": 0.0,
-            "y": 512.0,
-            "width": 384.0,
-            "height": 128.0,
-            "type": "Boolean Box",
-            "properties": {
-              "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/ReadyToShoot",
-              "period": 0.06,
-              "data_type": "boolean",
-              "true_color": 4283215696,
-              "false_color": 4294198070,
-              "true_icon": "None",
-              "false_icon": "None"
-            }
-          },
-          {
             "title": "limelight-left",
             "x": 384.0,
             "y": 0.0,
-            "width": 384.0,
-            "height": 384.0,
+            "width": 256.0,
+            "height": 256.0,
             "type": "Camera Stream",
             "properties": {
               "topic": "/CameraPublisher/limelight-left",
@@ -127,10 +110,10 @@
           },
           {
             "title": "limelight-right",
-            "x": 768.0,
+            "x": 896.0,
             "y": 0.0,
-            "width": 384.0,
-            "height": 384.0,
+            "width": 256.0,
+            "height": 256.0,
             "type": "Camera Stream",
             "properties": {
               "topic": "/CameraPublisher/limelight-right",
@@ -183,7 +166,7 @@
               "topic": "/SmartDashboard/Flywheel RPM +25",
               "period": 0.06,
               "show_type": true,
-              "maximize_button_space": false
+              "maximize_button_space": true
             }
           },
           {
@@ -197,21 +180,76 @@
               "topic": "/SmartDashboard/Flywheel RPM -25",
               "period": 0.06,
               "show_type": true,
-              "maximize_button_space": false
+              "maximize_button_space": true
             }
           },
           {
             "title": "Flywheel RPM Reset",
-            "x": 384.0,
+            "x": 256.0,
             "y": 512.0,
-            "width": 256.0,
+            "width": 384.0,
             "height": 128.0,
             "type": "Command",
             "properties": {
               "topic": "/SmartDashboard/Flywheel RPM Reset",
               "period": 0.06,
               "show_type": true,
-              "maximize_button_space": false
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Left 10cm",
+            "x": 384.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Left 10cm",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Right 10cm",
+            "x": 896.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Right 10cm",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Y Offset",
+            "x": 640.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Large Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Target Y Offset",
+              "period": 0.06,
+              "data_type": "double"
+            }
+          },
+          {
+            "title": "Target Reset",
+            "x": 640.0,
+            "y": 128.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Reset",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
             }
           }
         ]
@@ -959,9 +997,9 @@
           },
           {
             "title": "Target Reset",
-            "x": 640.0,
+            "x": 768.0,
             "y": 128.0,
-            "width": 512.0,
+            "width": 256.0,
             "height": 128.0,
             "type": "Command",
             "properties": {
@@ -1004,6 +1042,19 @@
             "x": 640.0,
             "y": 256.0,
             "width": 512.0,
+            "height": 128.0,
+            "type": "Large Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Target Y Offset",
+              "period": 0.06,
+              "data_type": "double"
+            }
+          },
+          {
+            "title": "Target Y Offset",
+            "x": 1024.0,
+            "y": 512.0,
+            "width": 256.0,
             "height": 128.0,
             "type": "Large Text Display",
             "properties": {

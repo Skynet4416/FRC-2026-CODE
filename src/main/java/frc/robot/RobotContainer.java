@@ -545,8 +545,7 @@ public class RobotContainer {
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0),
                 Commands.repeatingSequence(
-                    Commands.waitSeconds(0.4),
-                    Commands.runOnce(this::launchSimulatedProjectile))));
+                    Commands.waitSeconds(0.4), Commands.runOnce(this::launchSimulatedProjectile))));
 
     // Lower the intake while the left trigger is held, raise it when released
     driveController
