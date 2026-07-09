@@ -1,9 +1,11 @@
 package frc.robot.subsystems.intake;
 
 import com.ctre.phoenix6.configs.TalonFXConfiguration;
+import com.ctre.phoenix6.controls.Follower;
 import com.ctre.phoenix6.controls.TorqueCurrentFOC;
 import com.ctre.phoenix6.hardware.TalonFX;
 import com.ctre.phoenix6.signals.InvertedValue;
+import com.ctre.phoenix6.signals.MotorAlignmentValue;
 import com.ctre.phoenix6.signals.NeutralModeValue;
 import edu.wpi.first.math.filter.Debouncer;
 import edu.wpi.first.wpilibj.Alert;
@@ -15,22 +17,27 @@ import frc.robot.Constants;
 public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
 
   private final TalonFX motor;
+  private final TalonFX followerMotor;
   private final DoubleSolenoid solenoid;
 
   private final Debouncer motorConnectedDebouncer =
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);
   private final Alert motorDisconnectedAlert =
       new Alert("Intake motor disconnected!", AlertType.kWarning);
+  private final Alert followerDisconnectedAlert =
+      new Alert("Intake follower motor disconnected!", AlertType.kWarning);
   private double currentSetpoint = 0.0;
   private double requestedPercentage = 0.0;
 
   public IntakeSubsystemIOTalonFX() {
     int motorId = Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER;
+    int followerId = Constants.Subsystems.Intake.Id.Motor.RIGHT_ROLLER;
     // Single-intake robot: the remaining intake's solenoid is wired to the SINGLE channels
     int forwardChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_FORWARDS;
     int reverseChannel = Constants.Subsystems.Intake.Id.Pneumatics.SINGLE_REVERSE;
 
     motor = new TalonFX(motorId);
+    followerMotor = new TalonFX(followerId);
     solenoid = new DoubleSolenoid(4, PneumaticsModuleType.REVPH, forwardChannel, reverseChannel);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
@@ -46,7 +53,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
     config.CurrentLimits.SupplyCurrentLimit =
         Constants.Subsystems.Intake.CurrentLimits.SUPPLY_LIMIT_AMPS;
     config.CurrentLimits.SupplyCurrentLowerTime = 1.0;
-    config.CurrentLimits.SupplyCurrentLowerLimit = 20.0;
+    config.CurrentLimits.SupplyCurrentLowerLimit = 30.0;
 
     config.CurrentLimits.StatorCurrentLimitEnable =
         Constants.Subsystems.Intake.CurrentLimits.STATOR_ENABLED;
@@ -58,6 +65,9 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
         Constants.Subsystems.Intake.ROLLER_BREAK ? NeutralModeValue.Brake : NeutralModeValue.Coast;
 
     motor.getConfigurator().apply(config);
+    followerMotor.getConfigurator().apply(config);
+
+    followerMotor.setControl(new Follower(motorId, MotorAlignmentValue.Opposed));
 
     setLowered(false);
   }
@@ -71,6 +81,7 @@ public class IntakeSubsystemIOTalonFX implements IntakeSubsystemIO {
 
     inputs.connected = motorConnectedDebouncer.calculate(motor.isConnected());
     motorDisconnectedAlert.set(!inputs.connected);
+    followerDisconnectedAlert.set(!followerMotor.isConnected());
     inputs.setpointRPM = this.currentSetpoint;
     inputs.atSetpoint =
         Math.abs(inputs.velocityRPM - inputs.setpointRPM)

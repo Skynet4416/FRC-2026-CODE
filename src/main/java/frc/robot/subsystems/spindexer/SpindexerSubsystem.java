@@ -3,7 +3,6 @@ package frc.robot.subsystems.spindexer;
 import static edu.wpi.first.units.Units.Volts;
 
 import edu.wpi.first.wpilibj2.command.Command;
-import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import edu.wpi.first.wpilibj2.command.sysid.SysIdRoutine;
 import frc.robot.util.LoggedTunableNumber;
@@ -31,6 +30,10 @@ public class SpindexerSubsystem extends SubsystemBase {
     io.set(percentage);
   }
 
+  public void setSub(double percentage) {
+    io.setSub(percentage);
+  }
+
   public void setTargetRPM(double rpm) {
     io.setTargetRPM(rpm);
   }
@@ -48,11 +51,8 @@ public class SpindexerSubsystem extends SubsystemBase {
   }
 
   public void stop() {
-    io.set(0);
-  }
-
-  public Command runIndexerCommand() {
-    return Commands.run(() -> io.set(1.0), this);
+    io.stop();
+    ;
   }
 
   public void runVolts(double volts) {

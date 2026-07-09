@@ -33,7 +33,6 @@ import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
-import edu.wpi.first.wpilibj2.command.button.CommandPS5Controller;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.commands.DriveCommands;
@@ -71,13 +70,13 @@ import frc.robot.subsystems.vision.VisionIOLimelight;
 import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
+import frc.robot.util.controllers.DriverController;
 import frc.robot.util.elasticlib.Elastic;
 import frc.robot.util.geometry.AllianceFlipUtil;
 import java.util.Optional;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
-import org.littletonrobotics.junction.AutoLogOutput;
 import org.littletonrobotics.junction.Logger;
 import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 
@@ -103,23 +102,27 @@ public class RobotContainer {
   private static final LoggedTunableNumber maxOmegaScalar =
       new LoggedTunableNumber("Drive/MaxOmegaScalar", 0.8);
 
-  // Value between 0 - 100 that determines how reliable the SOTM solution must be
-  // (based on solver convergence, velocity stability, vision, heading, and distance)
-  // before the robot is allowed to fire.
-  private static final LoggedTunableNumber minShootingConfidence =
-      new LoggedTunableNumber("LaunchCalculator/MinShootingConfidence", 80.0);
-
   // Loose heading tolerance (degrees) for passing shots. Wide enough not to fight the driver while
   // being guarded, tight enough to keep passes inside the field boundaries.
   private static final LoggedTunableNumber passingHeadingToleranceDeg =
-      new LoggedTunableNumber("LaunchCalculator/PassingHeadingToleranceDeg", 80.0);
+      new LoggedTunableNumber("LaunchCalculator/PassingHeadingToleranceDeg", 35.0);
   private final HoodSubsystem hoodSubsystem;
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
   private final FuelPhysicsSim ballSim = new FuelPhysicsSim("Sim/Fuel");
 
   // Controllers
-  private final CommandPS5Controller driveController = new CommandPS5Controller(0);
+  // Lets the driver use either an Xbox or a PS5 controller, selected live from a dashboard chooser.
+  private final LoggedDashboardChooser<DriverController.Type> driverControllerTypeChooser =
+      new LoggedDashboardChooser<>("Driver Controller Type");
+  private final DriverController driveController =
+      new DriverController(
+          0,
+          () -> {
+            // Null-safe: chooser can return null before NetworkTables delivers the default.
+            DriverController.Type type = driverControllerTypeChooser.get();
+            return type == null ? DriverController.Type.XBOX : type;
+          });
   private SwerveDriveSimulation driveSimulation = null;
   private frc.robot.util.RobotBumpSim robotBumpSim = null;
   private boolean wasOnRamp = false;
@@ -157,10 +160,14 @@ public class RobotContainer {
 
   // Triggers
   private final Trigger leftIntakeLowered;
-  private Trigger readyToShoot;
-  private Trigger inPassingTolerance;
   private Trigger intakeStruggling;
   private final Trigger autoAlignmentOverride;
+
+  // Shooting triggers, built in configureShootingTriggers()
+  private Trigger hubActiveOrPassing;
+  private Trigger inPassingTolerance;
+  private Trigger inLaunchingTolerance;
+  private Trigger readyToShoot;
 
   private boolean autoAlignmentOverrideState = true;
 
@@ -171,6 +178,7 @@ public class RobotContainer {
         // Real robot, instantiate hardware IO implementations
         // ModuleIOTalonFX is intended for modules with TalonFX drive, TalonFX turn, and
         // a CANcoder
+
         drive =
             new Drive(
                 new GyroIOPigeon2(),
@@ -179,6 +187,7 @@ public class RobotContainer {
                 new ModuleIOTalonFX(TunerConstants.BackLeft),
                 new ModuleIOTalonFX(TunerConstants.BackRight),
                 (robotPose) -> {});
+
         vision =
             new Vision(
                 drive,
@@ -297,6 +306,10 @@ public class RobotContainer {
     leftIntakeLowered = new Trigger(leftIntake::isLowered);
     autoAlignmentOverride = new Trigger(() -> autoAlignmentOverrideState);
 
+    // Driver controller type (Xbox or PS5). Default Xbox; switchable live from the dashboard.
+    driverControllerTypeChooser.addDefaultOption("Xbox Controller", DriverController.Type.XBOX);
+    driverControllerTypeChooser.addOption("PS5 Controller", DriverController.Type.PS5);
+
     // Set up auto routines
     autoChooser = new LoggedDashboardChooser<>("Auto Choices", AutoBuilder.buildAutoChooser());
     runWheelsWhenFoldingChooser = new LoggedDashboardChooser<>("Run Wheels When Folding");
@@ -308,12 +321,12 @@ public class RobotContainer {
     reverseIndexWhileIntakeChooser.addOption("No", false);
 
     disableFlywheelAutoSpinupChooser = new LoggedDashboardChooser<>("Disable Flywheel Auto Spinup");
-    disableFlywheelAutoSpinupChooser.addDefaultOption("Yes", true);
-    disableFlywheelAutoSpinupChooser.addOption("No", false);
+    disableFlywheelAutoSpinupChooser.addOption("Yes", true);
+    disableFlywheelAutoSpinupChooser.addDefaultOption("No", false);
 
     ignoreHubStateChooser = new LoggedDashboardChooser<>("Ignore Hub State");
-    ignoreHubStateChooser.addOption("Yes", true);
-    ignoreHubStateChooser.addDefaultOption("No", false);
+    ignoreHubStateChooser.addDefaultOption("Yes", true);
+    ignoreHubStateChooser.addOption("No", false);
 
     // Enable the loose heading cone that keeps passing shots inside the field boundaries
     enablePassingConeChooser = new LoggedDashboardChooser<>("Enable Passing Cone");
@@ -348,27 +361,7 @@ public class RobotContainer {
           return Optional.empty();
         });
 
-    Trigger hubActiveOrPassing =
-        new Trigger(
-            () ->
-                HubShiftUtil.getOfficialShiftInfo().active()
-                    || LaunchCalculator.getInstance().getParameters().passing());
-
-    Trigger inLaunchingTolerance =
-        new Trigger(
-            () ->
-                (hoodSubsystem.atSetpoint()
-                        && flywheelSubsystem.atSetpoint()
-                        && DriveCommands.atLaunchGoal())
-                    || LaunchCalculator.getInstance().getParameters().passing());
-
-    // Last and state makes it only shoot if hub is active / passing / override is set (in elastic)
-    this.readyToShoot =
-        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(
-                inLaunchingTolerance
-                    .debounce(0.25, DebounceType.kFalling)
-                    .and(() -> ignoreHubState.getAsBoolean() || hubActiveOrPassing.getAsBoolean()));
+    configureShootingTriggers();
 
     this.intakeStruggling = new Trigger(leftIntake.isStrugglingSupplier());
 
@@ -385,8 +378,10 @@ public class RobotContainer {
     autoChooser.addOption("Choreo Test", testAuto());
     autoChooser.addOption("Left Trench Double Take", leftTrenchDoubleTake());
     autoChooser.addOption("Left Trench Return Over Bump", leftTrenchIntakeReturnOverBump());
+    autoChooser.addOption("Right Trench Return Over Bump", rightTrenchIntakeReturnOverBump());
     autoChooser.addOption("Behind Hub Intake", leftTrenchHubIntakeReturnOverBump());
     autoChooser.addOption("left Trench Single Take", leftTrenchSingleTake());
+    autoChooser.addOption("Depot", Deot());
 
     // Configure the button bindings
 
@@ -405,6 +400,51 @@ public class RobotContainer {
           //     Logger.recordOutput("Choreo/Trajectory", arr);
         }));
     configureButtonBindings();
+  }
+
+  /**
+   * Builds the trigger chain that gates shooting. The final gate is {@code readyToShoot}:
+   *
+   * <pre>
+   * readyToShoot = launch parameters valid
+   *              AND inLaunchingTolerance (debounced 0.25s on release)
+   *              AND (hub active OR passing OR "Ignore Hub State" override in Elastic)
+   * </pre>
+   */
+  private void configureShootingTriggers() {
+    // Hub shots are only allowed while our hub is active; passes are exempt from the shift state.
+    hubActiveOrPassing =
+        new Trigger(
+            () ->
+                HubShiftUtil.getOfficialShiftInfo().active()
+                    || LaunchCalculator.getInstance().getParameters().passing());
+
+    // Heading cone for passing: wide enough not to fight the driver, tight enough to keep passes
+    // inside the field. Can be disabled from Elastic ("Enable Passing Cone", null-safe default
+    // Yes).
+    inPassingTolerance =
+        new Trigger(
+            () -> {
+              Boolean enableCone = enablePassingConeChooser.get();
+              boolean coneEnabled = (enableCone == null) || enableCone;
+              return !coneEnabled || passingHeadingErrorDeg() <= passingHeadingToleranceDeg.get();
+            });
+
+    // Hood + flywheel must always be at setpoint; the heading gate depends on the shot type:
+    // hub shots use the drive launch goal, passes use the looser passing cone.
+    inLaunchingTolerance =
+        new Trigger(
+            () ->
+                hoodSubsystem.atSetpoint()
+                    && flywheelSubsystem.atSetpoint()
+                    && (LaunchCalculator.getInstance().getParameters().passing()
+                        ? inPassingTolerance.getAsBoolean()
+                        : DriveCommands.atLaunchGoal()));
+
+    readyToShoot =
+        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
+            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling))
+            .and(ignoreHubState.or(hubActiveOrPassing));
   }
 
   /**
@@ -457,7 +497,7 @@ public class RobotContainer {
 
     // Lock to 0 when A button is held
     driveController
-        .cross()
+        .a()
         .whileTrue(
             DriveCommands.joystickDriveAtAngle(
                 drive,
@@ -466,7 +506,7 @@ public class RobotContainer {
                 () -> Rotation2d.kZero));
     nearTrench
         .and(RobotModeTriggers.teleop())
-        .and(driveController.R2().negate())
+        .and(driveController.rightTrigger().negate())
         .and(autoAlignmentOverride.negate())
         .whileTrue(
             DriveCommands.autoTrenchAssist(
@@ -480,39 +520,12 @@ public class RobotContainer {
                 .withName("AlignToTrenchCommand"));
 
     // driveController
-    //     .R3()
+    //     .rightStick()
     //     .onTrue(Commands.runOnce(() -> autoAlignmentOverrideState =
     // !autoAlignmentOverrideState));
 
-    // Loose heading-only gate for passing: don't require flywheel/hood at setpoint (passing isn't
-    // accuracy-sensitive), but keep a wide heading cone so a pass can't be launched out of bounds.
-    this.inPassingTolerance =
-        new Trigger(
-            () -> {
-              double headingErrorDeg = passingHeadingErrorDeg();
-              Boolean enableCone = enablePassingConeChooser.get();
-              boolean coneEnabled = (enableCone == null) || enableCone;
-              return !coneEnabled || headingErrorDeg <= passingHeadingToleranceDeg.get();
-            });
-
-    // Careful with this one, can shoot ball outside of field boundaries when passing
-    Trigger inLaunchingTolerance =
-        new Trigger(
-            () ->
-                LaunchCalculator.getInstance().getParameters().passing()
-                    ? (inPassingTolerance.getAsBoolean()
-                        && flywheelSubsystem.atSetpoint()
-                        && hoodSubsystem.atSetpoint())
-                    : (hoodSubsystem.atSetpoint()
-                        && flywheelSubsystem.atSetpoint()
-                        && DriveCommands.atLaunchGoal()));
-
-    this.readyToShoot =
-        new Trigger(() -> LaunchCalculator.getInstance().getParameters().isValid())
-            .and(inLaunchingTolerance.debounce(0.25, DebounceType.kFalling));
-
     driveController
-        .R2()
+        .rightTrigger()
         .whileTrue(DriveCommands.joystickDriveWhileLaunching(drive, driverX, driverY))
         .whileTrue(flywheelSubsystem.runTrackTargetCommand())
         .whileTrue(hoodSubsystem.runTrackTargetCommand());
@@ -522,27 +535,26 @@ public class RobotContainer {
     //         new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.5)));
 
     // driveController
-    //     .cross()
+    //     .a()
     //     .whileTrue(new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem));
 
     driveController
-        .R2()
+        .rightTrigger()
         .and(readyToShoot)
         .whileTrue(
             Commands.parallel(
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0),
                 Commands.repeatingSequence(
-                    Commands.waitSeconds(0.25),
-                    Commands.runOnce(this::launchSimulatedProjectile))));
+                    Commands.waitSeconds(0.4), Commands.runOnce(this::launchSimulatedProjectile))));
 
-    // Lower the intake while R2 is held, raise it when released
+    // Lower the intake while the left trigger is held, raise it when released
     driveController
-        .L2()
+        .leftTrigger()
         .onTrue(Commands.runOnce(() -> leftIntake.setLowered(true)))
         .onFalse(Commands.runOnce(() -> leftIntake.setLowered(false)));
 
     driveController
-        .L1()
+        .leftBumper()
         .onTrue(Commands.runOnce(() -> leftIntake.forceReverse(true)))
         .onFalse(Commands.runOnce(() -> leftIntake.forceReverse(false)));
 
@@ -555,14 +567,17 @@ public class RobotContainer {
         .and(RobotModeTriggers.teleop())
         .whileTrue(
             Commands.runEnd(
-                () -> spindexerSubsystem.setPercentage(-0.35),
+                () -> {
+                  spindexerSubsystem.setPercentage(-0.35);
+                  spindexerSubsystem.setSub(0.5);
+                },
                 spindexerSubsystem::stop,
                 spindexerSubsystem));
 
     // Test specific button for simulated launch
 
     // Switch to X pattern when X button is pressed
-    // driveController.square().onTrue(Commands.runOnce(drive::stopWithX, drive));
+    // driveController.x().onTrue(Commands.runOnce(drive::stopWithX, drive));
     final Runnable resetOdometry =
         Constants.currentMode == Constants.Mode.SIM
             ? () -> drive.resetOdometry(driveSimulation.getSimulatedDriveTrainPose())
@@ -570,7 +585,7 @@ public class RobotContainer {
                 drive.resetOdometry(new Pose2d(drive.getPose().getTranslation(), new Rotation2d()));
 
     driveController
-        .R1()
+        .rightBumper()
         .whileTrue(
             Commands.deadline(
                 Commands.waitSeconds(1.0),
@@ -585,7 +600,7 @@ public class RobotContainer {
         "Invert both Indexers",
         Commands.deadline(
             Commands.waitSeconds(1.0),
-            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -1.0)));
+            new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, -0.5)));
     SmartDashboard.putData("Zero Hood", hoodSubsystem.zeroCommand());
 
     // Live flywheel RPM calibration: nudge the launch calculation output up/down by 25 RPM.
@@ -602,6 +617,29 @@ public class RobotContainer {
         Commands.runOnce(() -> LaunchCalculator.getInstance().resetFlywheelRpmOffset())
             .ignoringDisable(true));
 
+    // Live target calibration: nudge the aimed hub target left/right from the driver's point of
+    // view (positive Y = driver's left, per the field coordinate convention).
+    SmartDashboard.putData(
+        "Target Left 5cm",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementTargetYOffsetCm(5))
+            .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Target Right 5cm",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementTargetYOffsetCm(-5))
+            .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Target Left 10cm",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementTargetYOffsetCm(10))
+            .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Target Right 10cm",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().incrementTargetYOffsetCm(-10))
+            .ignoringDisable(true));
+    SmartDashboard.putData(
+        "Target Reset",
+        Commands.runOnce(() -> LaunchCalculator.getInstance().resetTargetYOffset())
+            .ignoringDisable(true));
+
     SmartDashboard.putData(
         "Lower left intake", Commands.runOnce(() -> leftIntake.setLowered(true)));
     SmartDashboard.putData(
@@ -609,7 +647,7 @@ public class RobotContainer {
 
     // Reset gyro to 0° when B button is pressed
     driveController
-        .circle()
+        .b()
         .onTrue(
             Commands.runOnce(
                     () ->
@@ -643,29 +681,29 @@ public class RobotContainer {
               if (leftIntake.isLowered()) {
                 leftIntake.setPercentage(1.00);
               } else {
-                leftIntake.setPercentage(spindexerSubsystem.getAppliedVolts() > 0.1 ? 0.25 : 0.0);
+                leftIntake.setPercentage(spindexerSubsystem.getAppliedVolts() > 0.1 ? 0.35 : 0.0);
               }
             },
             leftIntake));
 
     // When folding/unfolding
     leftIntakeLowered.onFalse(
-        Commands.run(() -> leftIntake.setPercentage(0.2), leftIntake)
+        Commands.run(() -> leftIntake.setPercentage(0.4), leftIntake)
             .withTimeout(intakeRunWheelsWhileFoldingDelay.get())
             .onlyIf(() -> !Boolean.FALSE.equals(runWheelsWhenFoldingChooser.get()))); // default Yes
 
     // ****** RUMBLE ALERTS ******
-    intakeStruggling
-        .whileTrue(
-            Commands.runOnce(
-                () ->
-                    driveController.setRumble(
-                        edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)))
-        .whileFalse(
-            Commands.runOnce(
-                () ->
-                    driveController.setRumble(
-                        edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)));
+    // intakeStruggling
+    //     .whileTrue(
+    //         Commands.runOnce(
+    //             () ->
+    //                 driveController.setRumble(
+    //                     edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)))
+    //     .whileFalse(
+    //         Commands.runOnce(
+    //             () ->
+    //                 driveController.setRumble(
+    //                     edu.wpi.first.wpilibj.GenericHID.RumbleType.kBothRumble, 1.0)));
 
     // Reset the timer as soon as Teleop starts
     RobotModeTriggers.teleop().onTrue(Commands.runOnce(teleopElapsedTimer::restart));
@@ -679,15 +717,19 @@ public class RobotContainer {
     Logger.recordOutput("AutoAlignment/OverrideToggle", autoAlignmentOverrideState);
     // Publish match time
     SmartDashboard.putNumber("Match Time", HubShiftUtil.getMatchTime());
-    SmartDashboard.putNumber("PSI", compressor.getPressure());
+    if (compressor != null) {
+      SmartDashboard.putNumber("PSI", compressor.getPressure());
+    }
 
     // Current flywheel RPM calibration offset applied to the launch calculation output
     SmartDashboard.putNumber(
         "Flywheel RPM Offset", LaunchCalculator.getInstance().getFlywheelRpmOffset());
+    // Current target Y calibration offset applied to the aimed hub target
+    SmartDashboard.putNumber(
+        "Target Y Offset", LaunchCalculator.getInstance().getTargetYOffsetMeters());
 
     // Controller disconnected alerts
-    driverControllerDisconnected.set(
-        !DriverStation.isJoystickConnected(driveController.getHID().getPort()));
+    driverControllerDisconnected.set(!driveController.isConnected());
     // mechanismControllerDisconnected.set(
     //     !DriverStation.isJoystickConnected(mechanismController.getHID().getPort()));
 
@@ -705,15 +747,16 @@ public class RobotContainer {
     // For displaying in Elastic
     field.setRobotPose(drive.getPose());
 
-    // --- All booleans that gate shooting ---
-    // Hub shooting conditions
+    // --- Leaf conditions that gate shooting (see configureShootingTriggers) ---
+    // Shared (both hub shots and passes)
     Logger.recordOutput(
-        "LaunchCalculator/Conditions/Hub/ParametersValid",
+        "LaunchCalculator/Conditions/ParametersValid",
         LaunchCalculator.getInstance().getParameters().isValid());
+    Logger.recordOutput("LaunchCalculator/Conditions/HoodAtSetpoint", hoodSubsystem.atSetpoint());
     Logger.recordOutput(
-        "LaunchCalculator/Conditions/Hub/HoodAtSetpoint", hoodSubsystem.atSetpoint());
-    Logger.recordOutput(
-        "LaunchCalculator/Conditions/Hub/FlywheelAtSetpoint", flywheelSubsystem.atSetpoint());
+        "LaunchCalculator/Conditions/FlywheelAtSetpoint", flywheelSubsystem.atSetpoint());
+
+    // Hub shots only
     Logger.recordOutput(
         "LaunchCalculator/Conditions/Hub/DriveAtLaunchGoal", DriveCommands.atLaunchGoal());
     Logger.recordOutput(
@@ -721,7 +764,7 @@ public class RobotContainer {
     Logger.recordOutput(
         "LaunchCalculator/Conditions/Hub/HubIgnored", ignoreHubState.getAsBoolean());
 
-    // Passing conditions
+    // Passes only
     Logger.recordOutput(
         "LaunchCalculator/Conditions/Passing/InPassingTolerance",
         inPassingTolerance != null && inPassingTolerance.getAsBoolean());
@@ -731,9 +774,9 @@ public class RobotContainer {
         "LaunchCalculator/Conditions/Passing/HeadingToleranceDeg",
         passingHeadingToleranceDeg.get());
 
+    // Final ANDed gate
     Logger.recordOutput(
-        "LaunchCalculator/Conditions/AllConditionsMet",
-        readyToShoot != null && readyToShoot.getAsBoolean());
+        "LaunchCalculator/ReadyToShoot", readyToShoot != null && readyToShoot.getAsBoolean());
   }
 
   /**
@@ -820,7 +863,7 @@ public class RobotContainer {
     // The ball's speed relative to the robot depends strictly on RPM and slip factor.
     double rpm = params.flywheelSpeed();
     double wheelDiameterMeters = 0.1524; // 6 inches
-    double slipFactor = 0.58; // The true slip factor we derived
+    double slipFactor = 0.54; // The true slip factor we derived
     double exitSpeed = slipFactor * (rpm * Math.PI * wheelDiameterMeters) / 60.0;
 
     // 3. Convert scalar speed to a 3D vector relative to the robot
@@ -871,24 +914,13 @@ public class RobotContainer {
     ballSim.launchBall(launcherPos, launchVelocity, rpm);
   }
 
-  @AutoLogOutput(key = "LaunchCalculator/ReadyToShoot")
-  public boolean readyToShoot() {
-    return readyToShoot != null && readyToShoot.getAsBoolean();
-  }
-
   /** Heading error (degrees) between the robot and the passing target. */
-  @AutoLogOutput(key = "LaunchCalculator/Passing/HeadingErrorDeg")
-  public double passingHeadingErrorDeg() {
+  private double passingHeadingErrorDeg() {
     return Math.abs(
         Drive.getInstance()
             .getRotation()
             .minus(LaunchCalculator.getInstance().getParameters().driveAngle())
             .getDegrees());
-  }
-
-  @AutoLogOutput(key = "LaunchCalculator/Passing/InPassingTolerance")
-  public boolean inPassingTolerance() {
-    return inPassingTolerance != null && inPassingTolerance.getAsBoolean();
   }
 
   public Command testAuto() {
@@ -927,7 +959,6 @@ public class RobotContainer {
             flywheelSubsystem.runTrackTargetCommand(),
             hoodSubsystem.runTrackTargetCommand(),
             Commands.repeatingSequence(
-                // Commands.waitUntil(() -> readyToShoot != null && readyToShoot.getAsBoolean()),
                 new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0)
                     .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())),
             // Launches simulated projectiles for the ball sim. This only affects simulation
@@ -965,6 +996,30 @@ public class RobotContainer {
                 trenchDeepIntake.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
                     autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(() -> leftIntake.setLowered(false))))));
+
+    return routine.cmd();
+  }
+
+  public Command Deot() {
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    AutoTrajectory Depot = routine.trajectory("Depot");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                Commands.runOnce(() -> hoodSubsystem.zero()),
+                Depot.resetOdometry(),
+                Commands.sequence(Commands.runOnce(() -> leftIntake.setLowered(false))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                Depot.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(10),
                     Commands.sequence(
                         Commands.waitSeconds(1.0),
                         Commands.runOnce(() -> leftIntake.setLowered(false))))));
@@ -1017,17 +1072,57 @@ public class RobotContainer {
             Commands.sequence(
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 firstIntake.resetOdometry(),
-                Commands.sequence(
-                    Commands.parallel(autoShoot(2.5), Commands.waitSeconds(1.0)),
-                    Commands.runOnce(
-                        () -> {
-                          leftIntake.setLowered(false);
-                        })),
+                Commands.runOnce(
+                    () -> {
+                      leftIntake.setLowered(false);
+                    }),
                 Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
                     .withTimeout(0.2),
                 firstIntake.cmd().finallyDo(() -> drive.stopWithX()),
                 Commands.parallel(
+                    autoShoot(5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                            }))),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                SecnondIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
                     autoShoot(2.5),
+                    Commands.sequence(
+                        Commands.waitSeconds(1.0),
+                        Commands.runOnce(
+                            () -> {
+                              leftIntake.setLowered(false);
+                            })))));
+
+    return routine.cmd();
+  }
+
+  public Command rightTrenchIntakeReturnOverBump() {
+    AutoRoutine routine = autoFactory.newRoutine("testAuto");
+
+    AutoTrajectory firstIntake = routine.trajectory("Right_Trench_Return_Over_Bump");
+    AutoTrajectory SecnondIntake = routine.trajectory("Right_Trench_Return_Over_Bump_2");
+
+    routine
+        .active()
+        .onTrue(
+            Commands.sequence(
+                Commands.runOnce(() -> hoodSubsystem.zero()),
+                firstIntake.resetOdometry(),
+                Commands.runOnce(
+                    () -> {
+                      leftIntake.setLowered(false);
+                    }),
+                Commands.runOnce(() -> hoodSubsystem.setTargetAngle(0.0), hoodSubsystem)
+                    .withTimeout(0.2),
+                firstIntake.cmd().finallyDo(() -> drive.stopWithX()),
+                Commands.parallel(
+                    autoShoot(5),
                     Commands.sequence(
                         Commands.waitSeconds(1.0),
                         Commands.runOnce(
@@ -1062,7 +1157,7 @@ public class RobotContainer {
                 firstIntake.resetOdometry(),
                 Commands.runOnce(() -> hoodSubsystem.zero()),
                 Commands.sequence(
-                    Commands.parallel(autoShoot(1.5), Commands.waitSeconds(1.0)),
+                    Commands.parallel(autoShoot(3.5), Commands.waitSeconds(1.0)),
                     Commands.runOnce(
                         () -> {
                           leftIntake.setLowered(false);

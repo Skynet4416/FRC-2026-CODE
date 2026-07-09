@@ -13,19 +13,26 @@ import frc.robot.Constants;
 
 public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
 
-  private final TalonFX motor;
+  private final TalonFX motorMain;
+  private final TalonFX motorSub;
   private final VelocityVoltage velocityVoltageRequest = new VelocityVoltage(0).withEnableFOC(true);
   private final VoltageOut voltageRequest = new VoltageOut(0);
 
   private final Debouncer motorConnectedDebouncer =
       new Debouncer(0.5, Debouncer.DebounceType.kFalling);
   private final Alert motorDisconnectedAlert =
-      new Alert("Spindexer motor disconnected!", AlertType.kWarning);
+      new Alert("Spindexer main motor disconnected!", AlertType.kWarning);
+
+  private final Debouncer motorSubConnectedDebouncer =
+      new Debouncer(0.5, Debouncer.DebounceType.kFalling);
+  private final Alert motorSubDisconnectedAlert =
+      new Alert("Spindexer sub motor disconnected!", AlertType.kWarning);
   private double currentSetpoint = 0.0;
   private double requestedPercentage = 0.0;
 
   public SpindexerSubsystemIOTalonFX() {
-    motor = new TalonFX(Constants.Subsystems.Spindexer.Id.Motor.INDEXER);
+    motorMain = new TalonFX(Constants.Subsystems.Spindexer.Id.Motor.INDEXER);
+    motorSub = new TalonFX(Constants.Subsystems.Spindexer.Id.Motor.INDEXER_SUB);
 
     TalonFXConfiguration config = new TalonFXConfiguration();
 
@@ -53,17 +60,19 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
             ? NeutralModeValue.Brake
             : NeutralModeValue.Coast;
 
-    motor.getConfigurator().apply(config);
+    motorMain.getConfigurator().apply(config);
+    motorSub.getConfigurator().apply(config);
   }
 
   @Override
   public void updateInputs(SpindexerIOInputs inputs) {
-    inputs.velocityRPM = motor.getVelocity().getValueAsDouble() * 60.0;
-    inputs.appliedVolts = motor.getMotorVoltage().getValueAsDouble();
-    inputs.supplyCurrentAmps = motor.getStatorCurrent().getValueAsDouble();
+    inputs.velocityRPM = motorMain.getVelocity().getValueAsDouble() * 60.0;
+    inputs.appliedVolts = motorMain.getMotorVoltage().getValueAsDouble();
+    inputs.supplyCurrentAmps = motorMain.getStatorCurrent().getValueAsDouble();
 
-    inputs.connected = motorConnectedDebouncer.calculate(motor.isConnected());
+    inputs.connected = motorConnectedDebouncer.calculate(motorMain.isConnected());
     motorDisconnectedAlert.set(!inputs.connected);
+    motorSubDisconnectedAlert.set(!motorSubConnectedDebouncer.calculate(motorSub.isConnected()));
     inputs.setpointRPM = this.currentSetpoint;
     inputs.requestedPercentage = this.requestedPercentage;
     inputs.atSetpoint =
@@ -75,24 +84,30 @@ public class SpindexerSubsystemIOTalonFX implements SpindexerSubsystemIO {
   public void setTargetRPM(double rpm) {
     this.currentSetpoint = rpm;
     this.requestedPercentage = 0.0;
-    motor.setControl(velocityVoltageRequest.withVelocity(rpm / 60.0));
+    motorMain.setControl(velocityVoltageRequest.withVelocity(rpm / 60.0));
   }
 
   @Override
   public void setVoltage(double volts) {
     this.requestedPercentage = 0.0;
-    motor.setControl(voltageRequest.withOutput(volts));
+    motorMain.setControl(voltageRequest.withOutput(volts));
   }
 
   @Override
   public void set(double percentage) {
     this.requestedPercentage = percentage;
-    motor.set(percentage);
+    motorMain.set(percentage);
+  }
+
+  @Override
+  public void setSub(double percentage) {
+    motorSub.set((Math.abs(percentage) / 2.f) * 0.8);
   }
 
   @Override
   public void stop() {
     setVoltage(0);
+    setSub(0);
     this.currentSetpoint = 0.0;
     this.requestedPercentage = 0.0;
   }

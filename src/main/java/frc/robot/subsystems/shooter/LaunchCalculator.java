@@ -35,12 +35,30 @@ public class LaunchCalculator {
   private double hoodAngleOffsetDeg = 0.0;
   private double flywheelRpmOffset = 0.0;
 
+  // Live target calibration for the shooter's not-perfectly-straight shot. Reset returns to the
+  // default; buttons nudge it live (driver's-POV left/right).
+  private static final int defaultTargetYOffsetCm = 0;
+  private int targetYOffsetCm = defaultTargetYOffsetCm;
+
   public double getHoodAngleOffsetDeg() {
     return hoodAngleOffsetDeg;
   }
 
   public double getFlywheelRpmOffset() {
     return flywheelRpmOffset;
+  }
+
+  public double getTargetYOffsetMeters() {
+    return targetYOffsetCm / 100.0;
+  }
+
+  /**
+   * Blue-frame hub target with the live Y calibration offset applied (tuned via SmartDashboard).
+   */
+  private Translation2d getHubTargetBlue() {
+    return FieldConstants.Hub.topCenterPoint
+        .toTranslation2d()
+        .plus(new Translation2d(0.0, getTargetYOffsetMeters()));
   }
 
   private final LinearFilter hoodAngleFilter =
@@ -75,7 +93,7 @@ public class LaunchCalculator {
     shotCalc.loadLUTEntry(1.6, 1450.0, 12.0, 0.9);
     shotCalc.loadLUTEntry(2.6, 1550.0, 24.0, 0.9);
     shotCalc.loadLUTEntry(4.2, 1750.0, 26.0, 0.9);
-    shotCalc.loadLUTEntry(5.25, 1850, 35.0, 0.9);
+    shotCalc.loadLUTEntry(5.25, 1900, 35.0, 0.9);
   }
 
   public static LaunchCalculator getInstance() {
@@ -118,7 +136,7 @@ public class LaunchCalculator {
       LoggedTunableNumber hoodAngleDeg, LoggedTunableNumber flywheelSpeed) {}
 
   private static final LoggedTunableNumber maxIdleSpeed =
-      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 1000);
+      new LoggedTunableNumber("LaunchCalculator/MaxIdleSpeed", 2000);
 
   private static final double xPassTarget = Units.inchesToMeters(12);
   private static final double yPassTarget = Units.inchesToMeters(65);
@@ -141,14 +159,14 @@ public class LaunchCalculator {
 
   static {
     // Passing Map Init
-    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(45.0));
-    passingHoodAngleMap.put(14.80, Rotation2d.fromDegrees(45.0));
+    passingHoodAngleMap.put(5.46, Rotation2d.fromDegrees(50.0));
+    passingHoodAngleMap.put(14.80, Rotation2d.fromDegrees(50.0));
 
-    passingFlywheelSpeedMap.put(5.46, 1800.0);
-    passingFlywheelSpeedMap.put(17.00, 3000.0);
+    passingFlywheelSpeedMap.put(5.46, 1400.0);
+    passingFlywheelSpeedMap.put(17.00, 2800.0);
 
-    passingTimeOfFlightMap.put(passingMinDistance, 1.0);
-    passingTimeOfFlightMap.put(passingMaxDistance, 5.5);
+    passingTimeOfFlightMap.put(5.46, 0.5);
+    passingTimeOfFlightMap.put(17.0, 1.0);
   }
 
   public LaunchingParameters getParameters() {
@@ -166,8 +184,9 @@ public class LaunchCalculator {
     boolean insideTowerBadBox = towerBound.contains(flippedPose.getTranslation());
     boolean behindNearHub = nearHubBound.contains(flippedPose.getTranslation());
     boolean behindFarHub = farHubBound.contains(flippedPose.getTranslation());
-    boolean outsideOfBadBoxes = !(insideTowerBadBox || behindNearHub || behindFarHub);
-
+    boolean allowShootingFromAnywhere = true;
+    boolean outsideOfBadBoxes =
+        allowShootingFromAnywhere || !(insideTowerBadBox || behindNearHub || behindFarHub);
     Rotation2d driveAngle = Rotation2d.kZero;
     double driveVelocity = 0.0;
     double hoodAngle = 0.0;
@@ -231,8 +250,7 @@ public class LaunchCalculator {
 
     } else {
       // --- NEW PHYSICS-BASED SOTM SOLVER FOR HUB ---
-      Translation2d target =
-          AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d());
+      Translation2d target = AllianceFlipUtil.apply(getHubTargetBlue());
 
       // Dynamic forward vector to prevent the solver from invalidating shots from "behind" the hub.
       Translation2d hubForward = target.minus(estimatedPose.getTranslation());
@@ -281,7 +299,7 @@ public class LaunchCalculator {
             hoodAngle + Units.degreesToRadians(hoodAngleOffsetDeg),
             hoodVelocity,
             flywheelVelocity,
-            MathUtil.clamp(flywheelVelocity / 1.5, 0, maxIdleSpeed.get()),
+            MathUtil.clamp(flywheelVelocity / 1.5, 1450.0, maxIdleSpeed.get()),
             lookaheadLauncherToTargetDistance,
             launcherToTargetDistance,
             timeOfFlight,
@@ -292,12 +310,11 @@ public class LaunchCalculator {
     Logger.recordOutput(
         "LaunchCalculator/TargetPose",
         new Pose2d(
-            passing
-                ? getPassingTarget()
-                : AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d()),
+            passing ? getPassingTarget() : AllianceFlipUtil.apply(getHubTargetBlue()),
             Rotation2d.kZero));
     Logger.recordOutput(
         "LaunchCalculator/LauncherToTargetDistance", lookaheadLauncherToTargetDistance);
+    Logger.recordOutput("LaunchCalculator/TargetYOffsetMeters", getTargetYOffsetMeters());
 
     return latestParameters;
   }
@@ -335,7 +352,7 @@ public class LaunchCalculator {
   }
 
   public static Pose2d getStationaryAimedPose(Translation2d robotTranslation, boolean forceBlue) {
-    Translation2d target = FieldConstants.Hub.topCenterPoint.toTranslation2d();
+    Translation2d target = getInstance().getHubTargetBlue();
     if (!forceBlue) {
       target = AllianceFlipUtil.apply(target);
     }
@@ -355,6 +372,14 @@ public class LaunchCalculator {
 
   public void resetFlywheelRpmOffset() {
     flywheelRpmOffset = 0.0;
+  }
+
+  public void incrementTargetYOffsetCm(int incrementCm) {
+    targetYOffsetCm += incrementCm;
+  }
+
+  public void resetTargetYOffset() {
+    targetYOffsetCm = defaultTargetYOffsetCm;
   }
 
   /** Returns the raw, uncompensated time of flight for a static shot at this distance. */

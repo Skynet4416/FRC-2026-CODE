@@ -96,28 +96,11 @@
             }
           },
           {
-            "title": "READY TO SHOOT",
-            "x": 0.0,
-            "y": 512.0,
-            "width": 384.0,
-            "height": 128.0,
-            "type": "Boolean Box",
-            "properties": {
-              "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/ReadyToShoot",
-              "period": 0.06,
-              "data_type": "boolean",
-              "true_color": 4283215696,
-              "false_color": 4294198070,
-              "true_icon": "None",
-              "false_icon": "None"
-            }
-          },
-          {
             "title": "limelight-left",
             "x": 384.0,
             "y": 0.0,
-            "width": 384.0,
-            "height": 384.0,
+            "width": 256.0,
+            "height": 256.0,
             "type": "Camera Stream",
             "properties": {
               "topic": "/CameraPublisher/limelight-left",
@@ -127,10 +110,10 @@
           },
           {
             "title": "limelight-right",
-            "x": 768.0,
+            "x": 896.0,
             "y": 0.0,
-            "width": 384.0,
-            "height": 384.0,
+            "width": 256.0,
+            "height": 256.0,
             "type": "Camera Stream",
             "properties": {
               "topic": "/CameraPublisher/limelight-right",
@@ -183,7 +166,7 @@
               "topic": "/SmartDashboard/Flywheel RPM +25",
               "period": 0.06,
               "show_type": true,
-              "maximize_button_space": false
+              "maximize_button_space": true
             }
           },
           {
@@ -197,21 +180,76 @@
               "topic": "/SmartDashboard/Flywheel RPM -25",
               "period": 0.06,
               "show_type": true,
-              "maximize_button_space": false
+              "maximize_button_space": true
             }
           },
           {
             "title": "Flywheel RPM Reset",
-            "x": 384.0,
+            "x": 256.0,
             "y": 512.0,
-            "width": 256.0,
+            "width": 384.0,
             "height": 128.0,
             "type": "Command",
             "properties": {
               "topic": "/SmartDashboard/Flywheel RPM Reset",
               "period": 0.06,
               "show_type": true,
-              "maximize_button_space": false
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Left 10cm",
+            "x": 384.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Left 10cm",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Right 10cm",
+            "x": 896.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Right 10cm",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Y Offset",
+            "x": 640.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Large Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Target Y Offset",
+              "period": 0.06,
+              "data_type": "double"
+            }
+          },
+          {
+            "title": "Target Reset",
+            "x": 640.0,
+            "y": 128.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Reset",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
             }
           }
         ]
@@ -674,85 +712,11 @@
       "grid_layout": {
         "layouts": [
           {
-            "title": "Conditions",
-            "x": 0.0,
-            "y": 0.0,
-            "width": 384.0,
-            "height": 384.0,
-            "type": "List Layout",
-            "properties": {
-              "label_position": "TOP"
-            },
-            "children": [
-              {
-                "title": "AllConditionsMet",
-                "x": 0.0,
-                "y": 0.0,
-                "width": 128.0,
-                "height": 128.0,
-                "type": "Boolean Box",
-                "properties": {
-                  "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/AllConditionsMet",
-                  "period": 0.06,
-                  "data_type": "boolean",
-                  "true_color": 4283215696,
-                  "false_color": 4294198070,
-                  "true_icon": "None",
-                  "false_icon": "None"
-                }
-              }
-            ]
-          },
-          {
-            "title": "Passing",
+            "title": "Hub",
             "x": 384.0,
             "y": 0.0,
             "width": 256.0,
-            "height": 256.0,
-            "type": "List Layout",
-            "properties": {
-              "label_position": "TOP"
-            },
-            "children": [
-              {
-                "title": "HeadingErrorDeg",
-                "x": 0.0,
-                "y": 0.0,
-                "width": 128.0,
-                "height": 128.0,
-                "type": "Text Display",
-                "properties": {
-                  "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Passing/HeadingErrorDeg",
-                  "period": 0.06,
-                  "data_type": "double",
-                  "show_submit_button": false
-                }
-              },
-              {
-                "title": "InPassingTolerance",
-                "x": 0.0,
-                "y": 0.0,
-                "width": 128.0,
-                "height": 128.0,
-                "type": "Boolean Box",
-                "properties": {
-                  "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Passing/InPassingTolerance",
-                  "period": 0.06,
-                  "data_type": "boolean",
-                  "true_color": 4283215696,
-                  "false_color": 4294198070,
-                  "true_icon": "None",
-                  "false_icon": "None"
-                }
-              }
-            ]
-          },
-          {
-            "title": "Hub",
-            "x": 640.0,
-            "y": 0.0,
-            "width": 640.0,
-            "height": 768.0,
+            "height": 384.0,
             "type": "List Layout",
             "properties": {
               "label_position": "TOP"
@@ -767,40 +731,6 @@
                 "type": "Boolean Box",
                 "properties": {
                   "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/Hub/DriveAtLaunchGoal",
-                  "period": 0.06,
-                  "data_type": "boolean",
-                  "true_color": 4283215696,
-                  "false_color": 4294198070,
-                  "true_icon": "None",
-                  "false_icon": "None"
-                }
-              },
-              {
-                "title": "FlywheelAtSetpoint",
-                "x": 0.0,
-                "y": 0.0,
-                "width": 128.0,
-                "height": 128.0,
-                "type": "Boolean Box",
-                "properties": {
-                  "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/Hub/FlywheelAtSetpoint",
-                  "period": 0.06,
-                  "data_type": "boolean",
-                  "true_color": 4283215696,
-                  "false_color": 4294198070,
-                  "true_icon": "None",
-                  "false_icon": "None"
-                }
-              },
-              {
-                "title": "HoodAtSetpoint",
-                "x": 0.0,
-                "y": 0.0,
-                "width": 128.0,
-                "height": 128.0,
-                "type": "Boolean Box",
-                "properties": {
-                  "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/Hub/HoodAtSetpoint",
                   "period": 0.06,
                   "data_type": "boolean",
                   "true_color": 4283215696,
@@ -842,16 +772,57 @@
                   "true_icon": "None",
                   "false_icon": "None"
                 }
+              }
+            ]
+          },
+          {
+            "title": "Passing",
+            "x": 640.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 384.0,
+            "type": "List Layout",
+            "properties": {
+              "label_position": "TOP"
+            },
+            "children": [
+              {
+                "title": "HeadingErrorDeg",
+                "x": 0.0,
+                "y": 0.0,
+                "width": 128.0,
+                "height": 128.0,
+                "type": "Text Display",
+                "properties": {
+                  "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/Passing/HeadingErrorDeg",
+                  "period": 0.06,
+                  "data_type": "double",
+                  "show_submit_button": false
+                }
               },
               {
-                "title": "ParametersValid",
+                "title": "HeadingToleranceDeg",
+                "x": 0.0,
+                "y": 0.0,
+                "width": 128.0,
+                "height": 128.0,
+                "type": "Text Display",
+                "properties": {
+                  "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/Passing/HeadingToleranceDeg",
+                  "period": 0.06,
+                  "data_type": "double",
+                  "show_submit_button": false
+                }
+              },
+              {
+                "title": "InPassingTolerance",
                 "x": 0.0,
                 "y": 0.0,
                 "width": 128.0,
                 "height": 128.0,
                 "type": "Boolean Box",
                 "properties": {
-                  "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/Hub/ParametersValid",
+                  "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/Passing/InPassingTolerance",
                   "period": 0.06,
                   "data_type": "boolean",
                   "true_color": 4283215696,
@@ -863,7 +834,236 @@
             ]
           }
         ],
-        "containers": []
+        "containers": [
+          {
+            "title": "FlywheelAtSetpoint",
+            "x": 1536.0,
+            "y": 0.0,
+            "width": 256.0,
+            "height": 256.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/FlywheelAtSetpoint",
+              "period": 0.06,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
+            }
+          },
+          {
+            "title": "HoodAtSetpoint",
+            "x": 1280.0,
+            "y": 0.0,
+            "width": 256.0,
+            "height": 256.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/HoodAtSetpoint",
+              "period": 0.06,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
+            }
+          },
+          {
+            "title": "ParametersValid",
+            "x": 1024.0,
+            "y": 0.0,
+            "width": 256.0,
+            "height": 256.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/Conditions/ParametersValid",
+              "period": 0.06,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
+            }
+          },
+          {
+            "title": "ReadyToShoot",
+            "x": 0.0,
+            "y": 0.0,
+            "width": 384.0,
+            "height": 256.0,
+            "type": "Boolean Box",
+            "properties": {
+              "topic": "/AdvantageKit/RealOutputs/LaunchCalculator/ReadyToShoot",
+              "period": 0.06,
+              "data_type": "boolean",
+              "true_color": 4283215696,
+              "false_color": 4294198070,
+              "true_icon": "None",
+              "false_icon": "None"
+            }
+          },
+          {
+            "title": "SetpointRPM",
+            "x": 1536.0,
+            "y": 384.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/AdvantageKit/Flywheel/SetpointRPM",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "VelocityRPM",
+            "x": 1536.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/AdvantageKit/Flywheel/VelocityRPM",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "TargetAngle",
+            "x": 1280.0,
+            "y": 384.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/AdvantageKit/Hood/TargetAngle",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": false
+            }
+          },
+          {
+            "title": "Angle",
+            "x": 1280.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Text Display",
+            "properties": {
+              "topic": "/AdvantageKit/Hood/Angle",
+              "period": 0.06,
+              "data_type": "double",
+              "show_submit_button": false
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "HubOffset",
+      "grid_layout": {
+        "layouts": [],
+        "containers": [
+          {
+            "title": "Target Left 10cm",
+            "x": 384.0,
+            "y": 128.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Left 10cm",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Left 5cm",
+            "x": 384.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Left 5cm",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Reset",
+            "x": 768.0,
+            "y": 128.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Reset",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Right 10cm",
+            "x": 1152.0,
+            "y": 128.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Right 10cm",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Right 5cm",
+            "x": 1152.0,
+            "y": 256.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Command",
+            "properties": {
+              "topic": "/SmartDashboard/Target Right 5cm",
+              "period": 0.06,
+              "show_type": true,
+              "maximize_button_space": true
+            }
+          },
+          {
+            "title": "Target Y Offset",
+            "x": 640.0,
+            "y": 256.0,
+            "width": 512.0,
+            "height": 128.0,
+            "type": "Large Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Target Y Offset",
+              "period": 0.06,
+              "data_type": "double"
+            }
+          },
+          {
+            "title": "Target Y Offset",
+            "x": 1024.0,
+            "y": 512.0,
+            "width": 256.0,
+            "height": 128.0,
+            "type": "Large Text Display",
+            "properties": {
+              "topic": "/SmartDashboard/Target Y Offset",
+              "period": 0.06,
+              "data_type": "double"
+            }
+          }
+        ]
       }
     }
   ]

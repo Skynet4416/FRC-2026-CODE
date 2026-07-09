@@ -22,6 +22,8 @@ public interface SpindexerSubsystemIO {
 
   default void set(double percentage) {}
 
+  default void setSub(double percentage) {}
+
   default void stop() {
     setVoltage(0);
   }

@@ -7,6 +7,7 @@ import com.ctre.phoenix6.signals.RGBWColor;
 import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.subsystems.intake.IntakeSubsystem;
+import frc.robot.subsystems.shooter.LaunchCalculator;
 import frc.robot.subsystems.shooter.flywheel.FlywheelSubsystem;
 import frc.robot.subsystems.shooter.shooterIndexer.ShooterIndexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystem;
@@ -45,7 +46,7 @@ public class LedSubsystem extends SubsystemBase {
   public void SetIdle() {
     if (SetValue(0)) return;
     ControlRequest ledRequest;
-    ledRequest = new SolidColor(0, 64).withColor(new RGBWColor(255, 120, 0));
+    ledRequest = new SolidColor(0, 64).withColor(new RGBWColor(25, 0, 255));
     this.io.setAnimation(ledRequest);
   }
 
@@ -68,7 +69,7 @@ public class LedSubsystem extends SubsystemBase {
         new StrobeAnimation(0, 64)
             .withColor(
                 spindexer
-                    ? (shooter ? new RGBWColor(0, 255, 0) : new RGBWColor(0, 0, 255))
+                    ? (shooter ? new RGBWColor(0, 255, 0) : new RGBWColor(125, 255, 0))
                     : new RGBWColor(255, 0, 0))
             .withFrameRate(8);
     this.io.setAnimation(ledRequest);
@@ -91,7 +92,8 @@ public class LedSubsystem extends SubsystemBase {
   public void periodic() {
     io.updateInputs(inputs);
 
-    if (flywheelSubsystem.getSetpoint() > 200) {
+    if (flywheelSubsystem.getSetpoint()
+        > LaunchCalculator.getInstance().getParameters().flywheelIdleSpeed() * 1.5) {
       if (Math.abs(spindexerSubsystem.getVelocityRPM())
               + Math.abs(shooterIndexerSubsystem.getVelocityRPM())
           > 200)
