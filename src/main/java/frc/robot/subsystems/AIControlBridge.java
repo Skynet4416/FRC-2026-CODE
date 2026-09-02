@@ -12,7 +12,6 @@ import com.pathplanner.lib.controllers.PPHolonomicDriveController;
 import com.pathplanner.lib.path.PathConstraints;
 import com.pathplanner.lib.trajectory.PathPlannerTrajectoryState;
 import edu.wpi.first.math.MathUtil;
-import edu.wpi.first.math.controller.PIDController;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
@@ -37,7 +36,7 @@ import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
@@ -59,24 +58,30 @@ import org.littletonrobotics.junction.Logger;
  *       running start at a bump, down to creep into position.</td></tr>
  *   <tr><td>{@code ActionTrigger}</td><td>{@code String}</td>
  *       <td>Name of a registered mechanism action, e.g. {@code "INTAKE"}, {@code "SHOOT_FUEL"},
- *       {@code "ALIGN_HUB"}. {@code "STOP"} cancels everything.</td></tr>
+ *       {@code "SHOOT_ON_THE_MOVE"}, {@code "ALIGN_HUB"}. {@code "STOP"} cancels
+ *       everything.</td></tr>
  * </table>
  *
- * <p><b>All robot movement goes through PathPlanner.</b> Navigation is a pathfinding command;
- * aiming is PathPlanner's own rotation controller with its target rotation overridden. Actions run
- * in a second, independent slot, so a shooting action layered on top of an in-progress path gives
- * you shooting on the move for free.
+ * <p><b>Navigation goes through PathPlanner; shooting goes through the robot's own launch
+ * drive.</b> A {@code TargetPose} is a pathfinding command. A shooting action instead runs {@code
+ * DriveCommands.joystickDriveWhileLaunching} - the command behind the driver's right trigger -
+ * which aims, leads the target for the robot's motion, and limits translation to what the shot can
+ * tolerate. That is also what makes shooting on the move real rather than approximate.
  *
- * <p><b>The agent does not own the heading while a shooting action runs.</b> Those actions are
- * registered as rotation-locking: while one is active the robot's heading is whatever the launch
- * solution needs, and the heading in {@code TargetPose} is ignored (the x/y of a path still gets
- * followed). {@code /AIControl/RotationLocked} says when that is the case, and {@code Notes} spells
- * the rule out for the agent in plain text.
+ * <p><b>The agent does not own the drivetrain while a shooting action runs</b>, and the heading in
+ * {@code TargetPose} no longer applies; {@code /AIControl/RotationLocked} says when that is the
+ * case.
+ *
+ * <p><b>Shots are taken from our alliance zone, behind the hub.</b> Past the hub the launch
+ * solution becomes a lob pass back into our own zone instead of a hub shot, so a shooting action
+ * triggered from the neutral zone drives into the alliance zone first and shoots when it arrives.
+ * {@code /AIControl/InShootingZone} reports where the robot stands.
  *
  * <p>Read-only feedback: {@code RobotPose}, {@code Navigating}, {@code ActionRunning}, {@code
- * RotationLocked}, {@code AtTarget}, {@code ActiveTarget}, {@code Status}, {@code LastAction},
- * {@code LastError}, {@code AvailableActions}, {@code HeadingUnits} and {@code Notes}. Every topic
- * is created in the constructor, so they are all there the moment the robot code starts.
+ * RotationLocked}, {@code InShootingZone}, {@code AtTarget}, {@code ActiveTarget}, {@code Status},
+ * {@code LastAction}, {@code LastError}, {@code AvailableActions}, {@code HeadingUnits} and {@code
+ * Notes}. Every topic is created in the constructor, so they are all there the moment the robot
+ * code starts.
  */
 public class AIControlBridge extends SubsystemBase {
   /** NetworkTables table that holds the whole API. */
@@ -88,13 +93,16 @@ public class AIControlBridge extends SubsystemBase {
   private static final String NOTES =
       "Write /AIControl/TargetPose = [x_m, y_m, heading_deg] to drive somewhere (PathPlanner "
           + "pathfinding). Write /AIControl/ActionTrigger = an entry of AvailableActions to run a "
-          + "mechanism. Paths and actions run at the same time, so triggering SHOOT_FUEL while a "
-          + "path is running shoots on the move. While RotationLocked is true the shooter owns the "
-          + "robot heading and the heading you asked for is ignored until the action finishes. "
-          + "Set /AIControl/MaxSpeed (m/s) and /AIControl/MaxAccel (m/s^2) before a TargetPose to "
-          + "drive gently or to build up speed. The bumps beside each hub are only crossable with "
-          + "a running start - back off a couple of metres and cross at 4+ m/s, or take the flat "
-          + "trench lanes along either side wall instead. STOP cancels everything.";
+          + "mechanism. Hub shots only score from our own alliance zone, behind the hub - past the "
+          + "hub the launch solution turns into a lob pass back into our zone - so SHOOT_FUEL and "
+          + "SHOOT_ON_THE_MOVE drive into that zone first if the robot is not already there "
+          + "(InShootingZone says which). While a shooting action runs it owns the drivetrain: it "
+          + "aims, leads the target for the robot's own motion, and ignores the heading you asked "
+          + "for, which is what RotationLocked reports. Set /AIControl/MaxSpeed (m/s) and "
+          + "/AIControl/MaxAccel (m/s^2) before a TargetPose to drive gently or to build up speed. "
+          + "The bumps beside each hub are only crossable with a running start - back off a couple "
+          + "of metres and cross at 4+ m/s, or take the flat trench lanes along either side wall "
+          + "instead. STOP cancels everything.";
 
   // Default pathfinding limits. The agent can change them live through MaxSpeed / MaxAccel - worth
   // doing, since crossing a bump needs a running start while lining up on something wants slow.
@@ -122,18 +130,16 @@ public class AIControlBridge extends SubsystemBase {
    */
   private static final double FINAL_APPROACH_RADIUS_METERS = 0.75;
 
-  // Heading controller used while the shooter owns the rotation. Its output is handed to
-  // PathPlanner as rotation feedback, so PathPlanner still drives - it just aims where we say.
-  private static final double AIM_KP = 5.0;
-  private static final double MAX_AIM_OMEGA_RAD_PER_SEC = Units.degreesToRadians(540.0);
-
   private final Supplier<Pose2d> poseSupplier;
   private final Consumer<ChassisSpeeds> velocityConsumer;
   private final Subsystem driveSubsystem;
   private final Map<String, RegisteredAction> actions = new LinkedHashMap<>();
 
-  /** Heading the shooter wants; owns the robot's rotation while a rotation-locking action runs. */
-  private Supplier<Optional<Rotation2d>> aimHeadingSupplier = Optional::empty;
+  /** True while the robot is standing where a shot counts as a hub shot. */
+  private BooleanSupplier inShootingZone = () -> true;
+
+  /** Pose to drive to before shooting, when the robot is not in the shooting zone. */
+  private Supplier<Pose2d> shootingSpot = null;
 
   // Inputs (written by the AI agent)
   private final DoubleArraySubscriber targetPoseSub;
@@ -153,6 +159,7 @@ public class AIControlBridge extends SubsystemBase {
   private final BooleanPublisher navigatingPub;
   private final BooleanPublisher actionRunningPub;
   private final BooleanPublisher rotationLockedPub;
+  private final BooleanPublisher inShootingZonePub;
   private final BooleanPublisher atTargetPub;
   private final StringPublisher statusPub;
   private final StringPublisher lastActionPub;
@@ -166,7 +173,9 @@ public class AIControlBridge extends SubsystemBase {
   private Pose2d activeTarget = null;
   private String lastAction = "";
   private boolean rotationLocked = false;
-  private final PIDController aimController = new PIDController(AIM_KP, 0.0, 0.0);
+
+  /** Name of a shooting action that is still driving into the alliance zone, else null. */
+  private String approachingShootAction = null;
 
   // PathPlanner's holonomic controller, used for the final approach onto the requested pose.
   private final PPHolonomicDriveController approachController =
@@ -175,7 +184,7 @@ public class AIControlBridge extends SubsystemBase {
   private boolean wasBusy = false;
 
   /** An action the agent can trigger by name. */
-  private record RegisteredAction(Supplier<Command> commandSupplier, boolean locksRotation) {}
+  private record RegisteredAction(Supplier<Command> commandSupplier, boolean ownsDrive) {}
 
   /**
    * @param poseSupplier the robot's current field pose
@@ -191,8 +200,6 @@ public class AIControlBridge extends SubsystemBase {
     this.poseSupplier = poseSupplier;
     this.velocityConsumer = velocityConsumer;
     this.driveSubsystem = driveSubsystem;
-
-    aimController.enableContinuousInput(-Math.PI, Math.PI);
 
     NetworkTable table = NetworkTableInstance.getDefault().getTable(TABLE_NAME);
 
@@ -225,6 +232,7 @@ public class AIControlBridge extends SubsystemBase {
     navigatingPub = table.getBooleanTopic("Navigating").publish();
     actionRunningPub = table.getBooleanTopic("ActionRunning").publish();
     rotationLockedPub = table.getBooleanTopic("RotationLocked").publish();
+    inShootingZonePub = table.getBooleanTopic("InShootingZone").publish();
     atTargetPub = table.getBooleanTopic("AtTarget").publish();
     statusPub = table.getStringTopic("Status").publish();
     lastActionPub = table.getStringTopic("LastAction").publish();
@@ -238,6 +246,7 @@ public class AIControlBridge extends SubsystemBase {
     navigatingPub.set(false);
     actionRunningPub.set(false);
     rotationLockedPub.set(false);
+    inShootingZonePub.set(inShootingZone.getAsBoolean());
     atTargetPub.set(false);
     statusPub.set("IDLE");
     lastActionPub.set("");
@@ -248,11 +257,16 @@ public class AIControlBridge extends SubsystemBase {
   }
 
   /**
-   * Sets the heading the shooter needs. While a rotation-locking action runs this is pushed into
-   * PathPlanner as the path's rotation target, so aiming and path following are the same motion.
+   * Teaches the bridge where shots are legal.
+   *
+   * <p>A shot only counts when it is taken from our alliance zone, behind the hub; from anywhere
+   * past the hub the launch solution becomes a lob pass back into our own zone instead of a hub
+   * shot. So when a shooting action is triggered from outside that zone, the bridge drives to
+   * {@code spot} first and shoots when it gets there.
    */
-  public AIControlBridge setAimHeadingSupplier(Supplier<Optional<Rotation2d>> supplier) {
-    this.aimHeadingSupplier = supplier;
+  public AIControlBridge setShootingZone(BooleanSupplier inZone, Supplier<Pose2d> spot) {
+    this.inShootingZone = inZone;
+    this.shootingSpot = spot;
     return this;
   }
 
@@ -262,16 +276,17 @@ public class AIControlBridge extends SubsystemBase {
    *
    * @param name action name, matched case-insensitively
    * @param commandSupplier builds a fresh command each time the action fires
-   * @param locksRotation true if the action aims the robot, taking the heading away from the agent
+   * @param ownsDrive true for a shooting action: it drives the robot itself, on the launch drive,
+   *     so it cancels any path and the agent's heading request no longer applies
    */
   public AIControlBridge registerAction(
-      String name, Supplier<Command> commandSupplier, boolean locksRotation) {
-    actions.put(name.toUpperCase(), new RegisteredAction(commandSupplier, locksRotation));
+      String name, Supplier<Command> commandSupplier, boolean ownsDrive) {
+    actions.put(name.toUpperCase(), new RegisteredAction(commandSupplier, ownsDrive));
     publishAvailableActions();
     return this;
   }
 
-  /** Registers an action that leaves the robot's heading under the agent's control. */
+  /** Registers an action that leaves the drivetrain under the agent's control. */
   public AIControlBridge registerAction(String name, Supplier<Command> commandSupplier) {
     return registerAction(name, commandSupplier, false);
   }
@@ -325,10 +340,19 @@ public class AIControlBridge extends SubsystemBase {
     }
     if (!actionRunning && actionCommand != null) {
       actionCommand = null;
-      setRotationLocked(false);
+      setDriveOwnedByShooter(false);
     }
     Pose2d pose = poseSupplier.get();
     boolean atTarget = activeTarget != null && atPose(pose, activeTarget);
+
+    // The approach into the alliance zone is part of the shooting action; say so when it ends and
+    // the shot itself starts.
+    if (approachingShootAction != null && (!actionRunning || inShootingZone.getAsBoolean())) {
+      if (actionRunning) {
+        statusPub.set("RUNNING " + approachingShootAction + " - shooter owns the drivetrain");
+      }
+      approachingShootAction = null;
+    }
 
     if (wasBusy && !navigating && !actionRunning) {
       statusPub.set(atTarget ? "AT TARGET" : "IDLE");
@@ -339,10 +363,12 @@ public class AIControlBridge extends SubsystemBase {
     navigatingPub.set(navigating);
     actionRunningPub.set(actionRunning);
     atTargetPub.set(atTarget);
+    inShootingZonePub.set(inShootingZone.getAsBoolean());
 
     Logger.recordOutput("AIControl/Navigating", navigating);
     Logger.recordOutput("AIControl/ActionRunning", actionRunning);
-    Logger.recordOutput("AIControl/RotationLocked", rotationLocked);
+    Logger.recordOutput("AIControl/ShooterOwnsDrivetrain", rotationLocked);
+    Logger.recordOutput("AIControl/InShootingZone", inShootingZone.getAsBoolean());
     Logger.recordOutput("AIControl/LastAction", lastAction);
     if (activeTarget != null) {
       Logger.recordOutput("AIControl/ActiveTarget", activeTarget);
@@ -365,11 +391,12 @@ public class AIControlBridge extends SubsystemBase {
   }
 
   private void cancelAction() {
+    approachingShootAction = null;
     if (actionCommand != null) {
       CommandScheduler.getInstance().cancel(actionCommand);
       actionCommand = null;
     }
-    setRotationLocked(false);
+    setDriveOwnedByShooter(false);
     actionRunningPub.set(false);
   }
 
@@ -408,17 +435,7 @@ public class AIControlBridge extends SubsystemBase {
     enableForCommandInSim();
 
     activeTarget = target;
-    navigationCommand =
-        Commands.sequence(
-                // Cross the field with PathPlanner's pathfinder. Its command ends when its
-                // trajectory timer runs out rather than when the robot arrives, so repeat it -
-                // every repeat replans from wherever the robot really is.
-                AutoBuilder.pathfindToPose(target, constraints())
-                    .repeatedly()
-                    .until(() -> withinFinalApproach(target)),
-                finalApproach(target))
-            .withTimeout(NAVIGATION_TIMEOUT_SECONDS)
-            .withName("AIControl/PathfindToPose");
+    navigationCommand = pathfindCommand(target);
     CommandScheduler.getInstance().schedule(navigationCommand);
 
     activeTargetPub.set(toArray(target));
@@ -426,21 +443,20 @@ public class AIControlBridge extends SubsystemBase {
     Logger.recordOutput("AIControl/ActiveTarget", target);
   }
 
-  /** Turns the robot in place onto the shooter's heading. Occupies the drive slot. */
-  private void startAimInPlace() {
-    cancelNavigation();
-    activeTarget = null;
-    activeTargetPub.set(new double[0]);
-    enableForCommandInSim();
-    navigationCommand =
-        Commands.run(
-                () -> velocityConsumer.accept(new ChassisSpeeds(0.0, 0.0, aimOmegaRadPerSec())),
-                driveSubsystem)
-            .until(() -> !rotationLocked)
-            .finallyDo(() -> velocityConsumer.accept(new ChassisSpeeds()))
-            .withName("AIControl/AimInPlace");
-    CommandScheduler.getInstance().schedule(navigationCommand);
-    navigatingPub.set(true);
+  /**
+   * Drives to a pose: PathPlanner's pathfinder for the distance, its controller for the last bit.
+   */
+  private Command pathfindCommand(Pose2d target) {
+    return Commands.sequence(
+            // Cross the field with PathPlanner's pathfinder. Its command ends when its trajectory
+            // timer runs out rather than when the robot arrives, so repeat it - every repeat
+            // replans from wherever the robot really is.
+            AutoBuilder.pathfindToPose(target, constraints())
+                .repeatedly()
+                .until(() -> withinFinalApproach(target)),
+            finalApproach(target))
+        .withTimeout(NAVIGATION_TIMEOUT_SECONDS)
+        .withName("AIControl/PathfindToPose");
   }
 
   /** Holds PathPlanner's holonomic controller on the target pose until the robot settles on it. */
@@ -509,57 +525,53 @@ public class AIControlBridge extends SubsystemBase {
 
     cancelAction();
     enableForCommandInSim();
-    actionCommand = action.commandSupplier().get();
-    if (actionCommand == null) {
+
+    Command command = action.commandSupplier().get();
+    if (command == null) {
       reportError("action '" + name + "' produced no command");
       return;
     }
+
+    boolean approaching = false;
+    if (action.ownsDrive()) {
+      // A shooting action drives itself, on the launch drive, so no path may be running under it.
+      cancelNavigation();
+      if (shootingSpot != null && !inShootingZone.getAsBoolean()) {
+        // Out of the alliance zone, where a shot is a lob pass rather than a hub shot. Drive in
+        // first, then shoot.
+        Pose2d spot = shootingSpot.get();
+        activeTarget = spot;
+        activeTargetPub.set(toArray(spot));
+        command = pathfindCommand(spot).andThen(command);
+        approaching = true;
+      }
+    }
+
+    actionCommand = command;
     CommandScheduler.getInstance().schedule(actionCommand);
     actionRunningPub.set(true);
-    setRotationLocked(action.locksRotation());
+    setDriveOwnedByShooter(action.ownsDrive());
 
-    if (action.locksRotation() && !isNavigating()) {
-      // Nothing is driving, so there is no path whose rotation we can take over. Turn in place onto
-      // the launch heading instead - rotation only, the robot does not travel.
-      startAimInPlace();
+    if (approaching) {
+      Pose2d spot = activeTarget;
+      approachingShootAction = name;
+      statusPub.set(
+          String.format(
+              "MOVING INTO THE ALLIANCE ZONE (%.2f, %.2f), then %s",
+              spot.getX(), spot.getY(), name));
+    } else {
+      statusPub.set(
+          "RUNNING " + name + (action.ownsDrive() ? " - shooter owns the drivetrain" : ""));
     }
-
-    statusPub.set(
-        "RUNNING " + name + (action.locksRotation() ? " - shooter owns the heading" : ""));
   }
 
-  /**
-   * Hands the robot's heading to the shooter, by overriding the rotation target PathPlanner is
-   * driving to. Movement still comes entirely from PathPlanner.
-   */
-  private void setRotationLocked(boolean locked) {
-    if (locked == rotationLocked) {
+  /** Records that a shooting action has taken the drivetrain (aim, lead and all) from the agent. */
+  private void setDriveOwnedByShooter(boolean owned) {
+    if (owned == rotationLocked) {
       return;
     }
-    rotationLocked = locked;
-    rotationLockedPub.set(locked);
-    if (locked) {
-      aimController.reset();
-      PPHolonomicDriveController.overrideRotationFeedback(this::aimOmegaRadPerSec);
-    } else {
-      PPHolonomicDriveController.clearRotationFeedbackOverride();
-    }
-  }
-
-  private Optional<Rotation2d> aimHeading() {
-    return aimHeadingSupplier.get();
-  }
-
-  /** Rotation feedback (rad/s) that turns the robot onto the shooter's heading. */
-  private double aimOmegaRadPerSec() {
-    Optional<Rotation2d> target = aimHeading();
-    if (target.isEmpty()) {
-      return 0.0;
-    }
-    double omega =
-        aimController.calculate(
-            poseSupplier.get().getRotation().getRadians(), target.get().getRadians());
-    return MathUtil.clamp(omega, -MAX_AIM_OMEGA_RAD_PER_SEC, MAX_AIM_OMEGA_RAD_PER_SEC);
+    rotationLocked = owned;
+    rotationLockedPub.set(owned);
   }
 
   /**

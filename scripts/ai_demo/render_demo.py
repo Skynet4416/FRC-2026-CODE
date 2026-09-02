@@ -26,6 +26,7 @@ ax.set_aspect("equal"); ax.axis("off")
 hud_prompt = fig.text(0.012, 0.965, "", color="#8ab4ff", fontsize=17, fontweight="bold", va="top", family="DejaVu Sans")
 hud_call   = fig.text(0.012, 0.915, "", color="#c9d1d9", fontsize=12, va="top", family="DejaVu Sans Mono")
 hud_status = fig.text(0.988, 0.962, "", color="#8b949e", fontsize=11, va="top", ha="right", family="DejaVu Sans Mono")
+hud_score  = fig.text(0.988, 0.905, "", color="#ffb000", fontsize=15, fontweight="bold", va="top", ha="right", family="DejaVu Sans Mono")
 hud_badges = fig.text(0.012, 0.878, "", color="#3fb950", fontsize=11, va="top", family="DejaVu Sans Mono")
 title      = fig.text(0.5, 0.055, "", color="#6e7681", fontsize=11, ha="center", transform=fig.transFigure)
 
@@ -92,8 +93,10 @@ for i, f in enumerate(frames):
     badges = []
     if f.get("nav"): badges.append("[ PATHFINDING ]")
     if f.get("act"): badges.append(f"[ {f.get('action') or 'ACTION'} ]")
-    if f.get("rot"): badges.append("[ ROTATION LOCKED - shooter owns the heading ]")
+    if f.get("rot"): badges.append("[ SHOOTER OWNS THE DRIVETRAIN ]")
+    badges.append("[ ALLIANCE ZONE ]" if f.get("zone") else "[ OUT OF THE SHOOTING ZONE ]")
     hud_badges.set_text("  ".join(badges))
+    hud_score.set_text(f"HUB SCORE  {f.get('score') if f.get('score') is not None else 0}")
     title.set_text("Skynet 4416  |  /AIControl NetworkTables bridge  ->  PathPlanner pathfinding  |  MapleSim + PhotonVision sim")
 
     fig.canvas.draw()

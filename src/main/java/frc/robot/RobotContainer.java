@@ -14,6 +14,7 @@ import choreo.auto.AutoFactory;
 import choreo.auto.AutoRoutine;
 import choreo.auto.AutoTrajectory;
 import com.pathplanner.lib.auto.AutoBuilder;
+import edu.wpi.first.math.MathUtil;
 import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
 import edu.wpi.first.math.geometry.Pose3d;
@@ -122,6 +123,16 @@ public class RobotContainer {
   private final SpindexerSubsystem spindexerSubsystem;
   private final ShooterIndexerSubsystem shooterIndexerSubsystem;
   private final FuelPhysicsSim ballSim = new FuelPhysicsSim("Sim/Fuel");
+
+  // Where the AI shoots from: on our side of the hub, inside the alliance zone. Past the hub the
+  // launch calculator switches to a lob pass, which does not score.
+  private static final double shootingDistanceMeters = 2.6;
+  private static final double shootingZoneMarginMeters = 0.5;
+  private static final double strafeHalfWidth = 1.3;
+  private static final double strafeInputScalar = 0.45;
+
+  /** Point the shoot-on-the-move action is translating toward, picked when it starts. */
+  private Translation2d shootingStrafeTarget = null;
 
   // Controllers
   // Lets the driver use either an Xbox or a PS5 controller, selected live from a dashboard chooser.
@@ -421,9 +432,10 @@ public class RobotContainer {
     // incoming tool calls into PathPlanner pathfinding and mechanism commands.
     aiControlBridge =
         new AIControlBridge(drive::getPose, drive::runVelocity, drive)
-            .setAimHeadingSupplier(this::launchHeading)
+            .setShootingZone(this::inShootingZone, this::shootingSpot)
             .registerAction("INTAKE", () -> intakeForSeconds(4.0))
-            .registerAction("SHOOT_FUEL", () -> shootOnTheMove(4.0), true)
+            .registerAction("SHOOT_FUEL", () -> shootAtHub(4.0), true)
+            .registerAction("SHOOT_ON_THE_MOVE", () -> shootOnTheMove(5.0), true)
             .registerAction("ALIGN_HUB", () -> aimAtHub(3.0), true);
     aiControlActive = new Trigger(aiControlBridge::isBusy);
 
@@ -441,28 +453,58 @@ public class RobotContainer {
   }
 
   /**
-   * Spins up and points the hood at the hub without feeding fuel, so the robot is ready when the
-   * next shoot command arrives. Used by the AI control bridge for its "ALIGN_HUB" action.
+   * Aims and spins up on the hub without feeding fuel, so the robot is ready when the next shoot
+   * command arrives. Used by the AI control bridge for its "ALIGN_HUB" action.
    *
-   * <p>The heading is not driven here. The bridge marks this action as rotation-locking, and takes
-   * the robot's heading to {@link #launchHeading()} itself - through PathPlanner's rotation
-   * feedback while a path is running, or by turning in place when the robot is parked.
+   * <p>Aiming is {@link DriveCommands#joystickDriveWhileLaunching} - the same command the driver's
+   * right trigger runs - so the AI gets the real launch solution: heading, lead for robot motion,
+   * and the launcher centre-of-rotation offset.
    */
   private Command aimAtHub(double seconds) {
     return Commands.parallel(
-            flywheelSubsystem.runTrackTargetCommand(), hoodSubsystem.runTrackTargetCommand())
+            DriveCommands.joystickDriveWhileLaunching(drive, () -> 0.0, () -> 0.0),
+            flywheelSubsystem.runTrackTargetCommand(),
+            hoodSubsystem.runTrackTargetCommand())
         .withTimeout(seconds)
         .withName("AIControl/AlignHub");
   }
 
   /**
-   * Shoots at the hub without touching the drivetrain, so it can run on top of a PathPlanner path:
-   * the path keeps driving, the bridge points the heading at the hub, and this feeds fuel whenever
-   * the launch solution is valid. That is shooting on the move. Used by the AI control bridge for
-   * its "SHOOT_FUEL" action.
+   * Shoots at the hub from a standstill, on the existing launch drive. Used by the AI control
+   * bridge for its "SHOOT_FUEL" action; the bridge drives the robot into the alliance zone first,
+   * so this is always a hub shot rather than a pass.
+   */
+  private Command shootAtHub(double seconds) {
+    return shootWhileLaunching(() -> 0.0, () -> 0.0, seconds).withName("AIControl/ShootAtHub");
+  }
+
+  /**
+   * Shoots while translating across the alliance zone, for the AI control bridge's
+   * "SHOOT_ON_THE_MOVE" action.
+   *
+   * <p>The drivetrain stays on {@link DriveCommands#joystickDriveWhileLaunching}, which leads the
+   * target for the robot's own velocity and caps translation at what the shot can tolerate. The
+   * only thing added here is where to translate to: the opposite side of the same shooting line, so
+   * the robot is always moving while it feeds, and always inside the alliance zone.
    */
   private Command shootOnTheMove(double seconds) {
+    return Commands.sequence(
+            Commands.runOnce(() -> shootingStrafeTarget = pickStrafeTarget()),
+            shootWhileLaunching(() -> strafeInput().getX(), () -> strafeInput().getY(), seconds))
+        .withName("AIControl/ShootOnTheMove");
+  }
+
+  /**
+   * The shooting stack: launch drive, hood and flywheel tracking, indexers whenever the shot is
+   * ready, and the simulated projectiles that make the shot visible in AdvantageScope.
+   *
+   * @param xInput driver-frame translation input, as a joystick axis would give it
+   * @param yInput driver-frame translation input, as a joystick axis would give it
+   */
+  private Command shootWhileLaunching(
+      DoubleSupplier xInput, DoubleSupplier yInput, double seconds) {
     return Commands.parallel(
+            DriveCommands.joystickDriveWhileLaunching(drive, xInput, yInput),
             flywheelSubsystem.runTrackTargetCommand(),
             hoodSubsystem.runTrackTargetCommand(),
             Commands.repeatingSequence(
@@ -473,27 +515,60 @@ public class RobotContainer {
                 Commands.waitSeconds(0.25),
                 Commands.runOnce(this::launchSimulatedProjectile)
                     .onlyIf(() -> readyToShoot != null && readyToShoot.getAsBoolean())))
-        .withTimeout(seconds)
-        .withName("AIControl/ShootOnTheMove");
+        .withTimeout(seconds);
   }
 
   /**
-   * The heading the shooter wants the robot to hold. Normally that is the launch solution's drive
-   * angle; when there is no valid solution (out of range, not spun up yet) it falls back to simply
-   * facing our hub, so an aiming action still visibly turns the robot. Handed to PathPlanner as the
-   * rotation feedback while a shooting action runs.
+   * True when the robot is in our alliance zone, behind the hub, which is where a shot counts as a
+   * hub shot: {@link LaunchCalculator} switches to a lob pass the moment the robot is past the hub,
+   * so shooting from the neutral zone throws fuel back at our own alliance zone instead of scoring.
    */
-  private Optional<Rotation2d> launchHeading() {
-    var parameters = LaunchCalculator.getInstance().getParameters();
-    if (parameters != null && parameters.isValid()) {
-      return Optional.of(parameters.driveAngle());
+  private boolean inShootingZone() {
+    return AllianceFlipUtil.applyX(drive.getPose().getX())
+        <= FieldConstants.LinesVertical.hubCenter - shootingZoneMarginMeters;
+  }
+
+  /** Where to stand to take a hub shot: on the shooting line, level with the hub. */
+  private Pose2d shootingSpot() {
+    double y = drive.getPose().getY();
+    double clamped =
+        MathUtil.clamp(
+            y, hubShootingLineY() - strafeHalfWidth, hubShootingLineY() + strafeHalfWidth);
+    return AllianceFlipUtil.apply(
+        new Pose2d(
+            FieldConstants.LinesVertical.hubCenter - shootingDistanceMeters,
+            AllianceFlipUtil.applyY(clamped),
+            Rotation2d.kZero));
+  }
+
+  /** Centre of the shooting line, i.e. the hub's Y. */
+  private static double hubShootingLineY() {
+    return FieldConstants.fieldWidth / 2.0;
+  }
+
+  /** The far end of the shooting line from wherever the robot is now. */
+  private Translation2d pickStrafeTarget() {
+    boolean aboveCentre = AllianceFlipUtil.applyY(drive.getPose().getY()) > hubShootingLineY();
+    return AllianceFlipUtil.apply(
+        new Translation2d(
+            FieldConstants.LinesVertical.hubCenter - shootingDistanceMeters,
+            hubShootingLineY() + (aboveCentre ? -strafeHalfWidth : strafeHalfWidth)));
+  }
+
+  /**
+   * Translation input toward {@link #shootingStrafeTarget}, in the driver frame the launch drive
+   * expects (it flips the axes for the red alliance, so pre-flip them here).
+   */
+  private Translation2d strafeInput() {
+    if (shootingStrafeTarget == null) {
+      return Translation2d.kZero;
     }
-    Translation2d hub = AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d());
-    Translation2d toHub = hub.minus(drive.getPose().getTranslation());
-    if (toHub.getNorm() < 0.1) {
-      return Optional.empty();
+    Translation2d error = shootingStrafeTarget.minus(drive.getPose().getTranslation());
+    if (error.getNorm() < 0.25) {
+      return Translation2d.kZero;
     }
-    return Optional.of(toHub.getAngle());
+    Translation2d input = error.div(error.getNorm()).times(strafeInputScalar);
+    return AllianceFlipUtil.shouldFlip() ? input.unaryMinus() : input;
   }
 
   /**

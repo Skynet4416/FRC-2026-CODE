@@ -54,6 +54,8 @@ async def main():
                         traj=dbls(v.get("/AdvantageKit/RealOutputs/Odometry/Trajectory")),
                         fuel=dbls(v.get("/AdvantageKit/RealOutputs/Sim/Fuel/Positions")),
                         status=v.get("/AIControl/Status"),
+                        zone=v.get("/AIControl/InShootingZone"),
+                        score=v.get("/AdvantageKit/RealOutputs/Sim/Fuel/BlueScore"),
                         nav=v.get("/AIControl/Navigating"),
                         act=v.get("/AIControl/ActionRunning"),
                         rot=v.get("/AIControl/RotationLocked"),
@@ -74,22 +76,18 @@ async def main():
 
         await prompt('"run the trench and pick up fuel"', 'TargetPose + ActionTrigger INTAKE')
         await speed(3.5, 4.5); await target(9.5, 7.2, 0); await action("INTAKE"); await pump(4)
-        await action("INTAKE"); await pump(4)
+        await action("INTAKE"); await pump(3.5)
 
-        await prompt('"get in range of our hub"', 'TargetPose -> [6.6, 5.6, 180]')
-        await speed(3.0, 4.0); await target(6.6, 5.6, 180); await pump(5)
+        await prompt('"shoot the fuel"', 'ActionTrigger SHOOT_FUEL  ->  out here a shot is only a pass, so it drives back into the alliance zone first')
+        await action("SHOOT_FUEL"); await pump(9)
+        await action("SHOOT_FUEL"); await pump(5)
 
-        await prompt('"shoot the fuel"', 'ActionTrigger SHOOT_FUEL   ->  RotationLocked, shooter owns the heading')
-        await action("SHOOT_FUEL"); await pump(4)
-        await action("SHOOT_FUEL"); await pump(4)
-
-        await prompt('"keep shooting while you drive to the far side"', 'TargetPose + SHOOT_FUEL at the same time  ->  shooting on the move')
-        await speed(2.0, 2.5); await target(11.0, 6.6, 0)
-        for _ in range(3):
-            await action("SHOOT_FUEL"); await pump(4)
+        await prompt('"keep shooting while you move"', 'ActionTrigger SHOOT_ON_THE_MOVE  ->  the launch drive aims and leads while it translates')
+        await action("SHOOT_ON_THE_MOVE"); await pump(6)
+        await action("SHOOT_ON_THE_MOVE"); await pump(6)
 
         await prompt('"back off, then charge the bump"', 'MaxSpeed 4.5 m/s  ->  the bump needs a running start')
-        await speed(3.5, 5.0); await target(2.2, 5.5, 0); await pump(7)
+        await speed(3.5, 5.0); await target(2.2, 6.6, 0); await pump(5)
         await speed(4.5, 8.0); await target(7.5, 5.5, 0); await pump(7)
 
         await prompt('"stop"', 'ActionTrigger STOP')
