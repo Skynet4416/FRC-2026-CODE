@@ -52,9 +52,6 @@
     "cpus": 4,
     "memory": "8gb"
   },
-  "remoteEnv": {
-    "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
-  },
   "customizations": {
     "vscode": {
       "extensions": [
