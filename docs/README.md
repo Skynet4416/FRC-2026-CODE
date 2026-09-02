@@ -5,6 +5,8 @@
 - **[gemini-agent.md](gemini-agent.md)** - the agent that drives the robot from
   plain-language instructions through Gemini Robotics-ER 2: setup, the GitHub
   secret, what the model sees, and how to test it without an API key.
+- **[cockpit.md](cockpit.md)** - the browser cockpit: type an instruction, watch
+  the robot and the model's thinking. Runs locally or in a Codespace.
 - **ai-control-demo.mp4** - see below.
 
 ## AI control demo
