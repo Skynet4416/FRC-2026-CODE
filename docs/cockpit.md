@@ -15,11 +15,16 @@ your laptop and in a Codespace.
 ## Run it locally
 
 ```bash
-pip install -r scripts/gemini_agent/requirements.txt
-export GEMINI_API_KEY=...              # free key: https://aistudio.google.com/apikey
+export GEMINI_API_KEY=...   # free key: https://aistudio.google.com/apikey
+bash scripts/start.sh       # deps, robot, cockpit - on http://localhost:8000
+```
 
+Or run the pieces yourself, which is the same thing:
+
+```bash
+pip install -r scripts/gemini_agent/requirements.txt
 ./gradlew simulateJava &               # the robot
-python3 scripts/gemini_agent/serve.py  # the cockpit, on http://localhost:8000
+python3 scripts/gemini_agent/serve.py  # the cockpit
 ```
 
 Open <http://localhost:8000>, type "run the left trench, pick up fuel, and score it", and
@@ -42,11 +47,14 @@ rebuild the container.
    ```
    Or set it as a [Codespaces secret](https://github.com/settings/codespaces) named
    `GEMINI_API_KEY` so every future Codespace has it.
-3. Run the two commands:
+3. Run one command:
    ```bash
-   ./gradlew simulateJava &
-   python3 scripts/gemini_agent/serve.py
+   bash scripts/start.sh
    ```
+   It installs the dependencies, starts the simulator, waits for it, and then starts the
+   cockpit - and if the robot fails to come up it prints the end of its log and names the
+   likely cause. Ctrl-C stops both. An already-running simulator is reused rather than
+   duplicated.
 4. The **Ports** tab shows *AI cockpit* on 8000 - open it.
 
 **Forwarded ports are private by default**, so the URL only works for someone signed in to
