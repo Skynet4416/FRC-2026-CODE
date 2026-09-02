@@ -33,11 +33,7 @@ TABLE = "/AIControl/"
 GAME_PIECES = "/AdvantageKit/RealOutputs/Vision/GamePieces/TargetPoses"
 TRAJECTORY = "/AdvantageKit/RealOutputs/Odometry/Trajectory"
 
-# Where the agent publishes what it is thinking and doing, so a dashboard - or
-# AdvantageScope - sees the model's reasoning in the same stream as the robot.
-AGENT_TABLE = "/AIAgent/"
-
-EXTRA_TOPICS = [AGENT_TABLE, "/CameraPublisher/", GAME_PIECES, TRAJECTORY]
+EXTRA_TOPICS = ["/CameraPublisher/", GAME_PIECES, TRAJECTORY]
 
 # pubuids are ours to choose; they only have to be unique within this client.
 _PUB = {
@@ -46,9 +42,6 @@ _PUB = {
     "MaxSpeed": (12, TYPE_DOUBLE, "double"),
     "MaxAccel": (13, TYPE_DOUBLE, "double"),
 }
-
-
-_FIRST_FREE_PUBUID = 20
 
 
 class RobotConnection:
@@ -65,8 +58,6 @@ class RobotConnection:
         self._ready = threading.Event()
         self._error: BaseException | None = None
         self._thread = threading.Thread(target=self._run, daemon=True, name="nt4")
-        self._extra_pubs: dict[str, int] = {}
-        self._next_pubuid = _FIRST_FREE_PUBUID
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -203,27 +194,6 @@ class RobotConnection:
         if max_accel is not None:
             self._publish("MaxAccel", float(max_accel))
 
-    def publish_agent_string(self, key: str, value: str) -> None:
-        """Publishes one of the agent's own /AIAgent/ topics, announcing it on first use."""
-        name = AGENT_TABLE + key
-        pubuid = self._extra_pubs.get(name)
-        if pubuid is None:
-            pubuid = self._next_pubuid
-            self._next_pubuid += 1
-            self._extra_pubs[name] = pubuid
-            self._send_json(
-                {
-                    "method": "publish",
-                    "params": {
-                        "name": name,
-                        "pubuid": pubuid,
-                        "type": "string",
-                        "properties": {"retained": True},
-                    },
-                }
-            )
-        self._send(msgpack.packb([pubuid, int(time.time() * 1e6), TYPE_STRING, str(value)]))
-
     def wait_until_idle(self, timeout: float = 25.0, settle: float = 0.4) -> bool:
         """Blocks until the robot stops navigating and running an action.
 
@@ -243,15 +213,10 @@ class RobotConnection:
 
     def _publish(self, key: str, value: Any) -> None:
         pubuid, type_id, _ = _PUB[key]
-        self._send(msgpack.packb([pubuid, int(time.time() * 1e6), type_id, value]))
-
-    def _send(self, payload) -> None:
+        payload = msgpack.packb([pubuid, int(time.time() * 1e6), type_id, value])
         if self._loop is None or self._ws is None:
             raise RuntimeError("not connected")
         asyncio.run_coroutine_threadsafe(self._ws.send(payload), self._loop).result(timeout=5)
-
-    def _send_json(self, message: dict) -> None:
-        self._send(json.dumps([message]))
 
     def _run(self) -> None:
         self._loop = asyncio.new_event_loop()
