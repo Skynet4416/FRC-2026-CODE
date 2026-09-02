@@ -225,7 +225,8 @@ def call(name: str, arguments: dict, call_id: str) -> dict:
 
 
 SCRIPT = [
-    {"steps": [call("drive_to", {"x": 6.4, "y": 4.0, "heading_deg": 0, "max_speed": 4.0}, "c1")]},
+    {"steps": [{"type": "thought", "content": [{"type": "text", "text": "Heading for the hub."}]},
+               call("drive_to", {"x": 6.4, "y": 4.0, "heading_deg": 0, "max_speed": 4.0}, "c1")]},
     {"steps": [call("look_at_field", {}, "c2")]},
     {"steps": [call("look_through_camera", {}, "c2b")]},
     {"steps": [call("run_action", {"action": "INTAKE"}, "c3")]},

@@ -80,7 +80,9 @@ class Session:
             if self.verbose:
                 for step in interaction.steps or []:
                     if getattr(step, "type", None) == "thought":
-                        print(f"  {DIM}(thinking) {_step_text(step)}{RESET}", flush=True)
+                        thought = _step_text(step)
+                        if thought:
+                            print(f"  {DIM}(thinking) {thought}{RESET}", flush=True)
             if not calls:
                 return interaction.output_text or "(no reply)"
 
@@ -134,10 +136,17 @@ class Session:
 
 
 def _step_text(step) -> str:
+    """First line of a step's text, whether it carries it directly or in content blocks."""
     for attr in ("text", "summary", "output_text"):
         value = getattr(step, attr, None)
-        if isinstance(value, str) and value:
+        if isinstance(value, str) and value.strip():
             return value.strip().splitlines()[0][:160]
+    for block in getattr(step, "content", None) or []:
+        text = getattr(block, "text", None) or (
+            block.get("text") if isinstance(block, dict) else None
+        )
+        if isinstance(text, str) and text.strip():
+            return text.strip().splitlines()[0][:160]
     return ""
 
 
