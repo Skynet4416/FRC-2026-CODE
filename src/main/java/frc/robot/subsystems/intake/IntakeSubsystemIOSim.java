@@ -20,6 +20,12 @@ import edu.wpi.first.wpilibj.simulation.DoubleSolenoidSim;
 import frc.robot.Constants;
 
 public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
+  // ponytail: hopper capacity is a guess, tune to the real spindexer
+  public static final int FUEL_CAPACITY = 150;
+
+  // Wheel RPM above which the rollers count as actually intaking
+  private static final double INTAKING_MIN_RPM = 50.0;
+
   private final SparkMax motor;
   DCMotor maxGearbox = DCMotor.getKrakenX44Foc(1);
 
@@ -30,6 +36,11 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
   private final DCMotorSim dcMotorSim;
   private double currentSetpoint = 0.0;
   private double requestedPercentage = 0.0;
+
+  // maple-sim OverTheBumperIntake logic cloned onto FuelPhysicsSim: "running" = the OTB
+  // rectangle is extended past the bumper (touch it, get it); heldFuel = pieces in the robot
+  private boolean running = false;
+  private int heldFuel = 0;
 
   public IntakeSubsystemIOSim() {
     int motorId = Constants.Subsystems.Intake.Id.Motor.LEFT_ROLLER;
@@ -68,6 +79,39 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
         new DCMotorSim(LinearSystemId.createDCMotorSystem(maxGearbox, 0.005, 1.0), maxGearbox);
   }
 
+  /** True when the OTB intake is extended and collecting (lowered + rollers on). */
+  public boolean isIntakeRunning() {
+    return running;
+  }
+
+  public boolean canHoldMore() {
+    return heldFuel < FUEL_CAPACITY;
+  }
+
+  /** Called by FuelPhysicsSim when a field ball touches the extended intake. */
+  public void addGamePieceToIntake() {
+    if (heldFuel < FUEL_CAPACITY) {
+      heldFuel++;
+    }
+  }
+
+  /** Pull one fuel out for shooting; false when empty. */
+  public boolean obtainGamePiece() {
+    if (heldFuel > 0) {
+      heldFuel--;
+      return true;
+    }
+    return false;
+  }
+
+  public int getHeldCount() {
+    return heldFuel;
+  }
+
+  public void setHeldCount(int count) {
+    heldFuel = Math.max(0, Math.min(count, FUEL_CAPACITY));
+  }
+
   @Override
   public void updateInputs(IntakeIOInputs inputs) {
     this.motorSim.iterate(
@@ -81,6 +125,13 @@ public class IntakeSubsystemIOSim implements IntakeSubsystemIO {
     inputs.appliedVolts = this.motorSim.getAppliedOutput() * this.motor.getBusVoltage();
     inputs.supplyCurrentAmps = this.motorSim.getMotorCurrent();
     inputs.lowered = (this.solenoidSim.get() == DoubleSolenoid.Value.kForward);
+    // Extend/retract the OTB intake with the mechanism state. Gate on commanded output as
+    // well as measured RPM - the SparkMax sim can report 0 RPM when bus voltage sim is off.
+    boolean rollersOn =
+        this.requestedPercentage > 0.05
+            || this.currentSetpoint > 0
+            || inputs.velocityRPM > INTAKING_MIN_RPM;
+    this.running = inputs.lowered && rollersOn;
     inputs.connected = true;
     inputs.setpointRPM = this.currentSetpoint;
     inputs.atSetpoint =

@@ -220,7 +220,9 @@ function render() {
     `${robot.in_shooting_zone ? "in the shooting zone" : "outside the shooting zone"}`
       + `${robot.rotation_locked ? "   shooter owns the drivetrain" : ""}`,
     `${latest.fuel.length} of ${(latest.fuel_all || []).length} fuel in sight`
-      + (latest.model ? `   ${latest.model}` : ""),
+      + `   ${latest.fuel_on_board ?? "?"} on board`
+      + (robot.intake_collecting ? "   intaking" : ""),
+    latest.model || "",
   ].join("\n");
 
   const events = latest.transcript || [];

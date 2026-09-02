@@ -147,6 +147,9 @@ public class RobotContainer {
             return type == null ? DriverController.Type.XBOX : type;
           });
   private SwerveDriveSimulation driveSimulation = null;
+  private IntakeSubsystemIOSim intakeSimIO = null;
+  // Fuel loaded at match start in sim. ponytail: guess, set to the real preload count
+  private static final int SIM_FUEL_PRELOAD = 8;
   private frc.robot.util.RobotBumpSim robotBumpSim = null;
   private boolean wasOnRamp = false;
   private final edu.wpi.first.wpilibj.Timer teleopElapsedTimer = new edu.wpi.first.wpilibj.Timer();
@@ -281,11 +284,23 @@ public class RobotContainer {
 
         spindexerSubsystem = new SpindexerSubsystem(new SpindexerSubsystemIOSim());
         shooterIndexerSubsystem = new ShooterIndexerSubsystem(new ShooterIndexerIOSim());
-        leftIntake = new IntakeSubsystem(new IntakeSubsystemIOSim());
+        intakeSimIO = new IntakeSubsystemIOSim();
+        leftIntake = new IntakeSubsystem(intakeSimIO);
         compressor = null;
 
         ballSim.enable();
         ballSim.placeFieldBalls();
+        // Intake pickup box from CAD (robot frame, m): LEFT (+Y) side, bumper face to 0.61
+        // out, full 0.708m span. Maple-sim style "touch it, get it": active whenever the
+        // maple-sim intake is extended (lowered + rollers on) and the hopper has room.
+        ballSim.addIntakeZone(
+            -0.354,
+            0.354,
+            0.35,
+            0.61,
+            () -> intakeSimIO.isIntakeRunning() && intakeSimIO.canHoldMore(),
+            intakeSimIO::addGamePieceToIntake);
+        intakeSimIO.setHeldCount(SIM_FUEL_PRELOAD);
         SmartDashboard.putData("Field", field);
         break;
 
@@ -1005,6 +1020,9 @@ public class RobotContainer {
     ballSim.clearBalls();
     ballSim.placeFieldBalls();
     ballSim.resetCounters();
+    if (intakeSimIO != null) {
+      intakeSimIO.setHeldCount(SIM_FUEL_PRELOAD);
+    }
   }
 
   public void updateSimulation() {
@@ -1039,6 +1057,11 @@ public class RobotContainer {
         drive::getChassisSpeeds);
     ballSim.tick();
 
+    if (intakeSimIO != null) {
+      Logger.recordOutput("Sim/Fuel/HeldBalls", intakeSimIO.getHeldCount());
+      Logger.recordOutput("Sim/Fuel/IntakeRunning", intakeSimIO.isIntakeRunning());
+    }
+
     // Object detection camera: re-publish the live fuel positions and process a frame.
     if (gamePieceVisionSim != null) {
       gamePieceVisionSim.update();
@@ -1056,6 +1079,8 @@ public class RobotContainer {
 
   private void launchSimulatedProjectile() {
     if (Constants.currentMode != Constants.Mode.SIM) return;
+    // Can only shoot fuel the robot actually holds (preload + intaked)
+    if (intakeSimIO != null && !intakeSimIO.obtainGamePiece()) return;
 
     var params = LaunchCalculator.getInstance().getParameters();
     if (params == null || !params.isValid()) return;

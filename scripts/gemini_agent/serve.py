@@ -59,6 +59,7 @@ class Cockpit:
             "robot": state,
             "fuel": [[round(x, 2), round(y, 2)] for x, y in self.robot.detected_game_pieces()],
             "fuel_all": [[round(x, 2), round(y, 2)] for x, y in self.robot.field_game_pieces()],
+            "fuel_on_board": state.get("fuel_on_board"),
             "trajectory": [[round(x, 3), round(y, 3)] for x, y in self.robot.trajectory()]
             if state["navigating"] else [],
             "transcript": self.transcript[-MAX_TRANSCRIPT:],

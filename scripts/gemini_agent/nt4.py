@@ -35,9 +35,13 @@ TABLE = "/AIControl/"
 # Logged robot state the field view draws, on top of the /AIControl API itself.
 GAME_PIECES = "/AdvantageKit/RealOutputs/Vision/GamePieces/TargetPoses"
 FIELD_PIECES = "/AdvantageKit/RealOutputs/Sim/Fuel/Positions"
+HELD_FUEL = "/AdvantageKit/RealOutputs/Sim/Fuel/HeldBalls"
+INTAKE_RUNNING = "/AdvantageKit/RealOutputs/Sim/Fuel/IntakeRunning"
 TRAJECTORY = "/AdvantageKit/RealOutputs/Odometry/Trajectory"
 
-EXTRA_TOPICS = ["/CameraPublisher/", GAME_PIECES, FIELD_PIECES, TRAJECTORY]
+EXTRA_TOPICS = [
+    "/CameraPublisher/", GAME_PIECES, FIELD_PIECES, TRAJECTORY, HELD_FUEL, INTAKE_RUNNING,
+]
 
 # pubuids are ours to choose; they only have to be unique within this client.
 _PUB = {
@@ -136,6 +140,8 @@ class RobotConnection:
             "last_error": self.get("LastError", ""),
             "max_speed_mps": self.get("MaxSpeed"),
             "max_accel_mps2": self.get("MaxAccel"),
+            "fuel_on_board": self.get(HELD_FUEL),
+            "intake_collecting": bool(self.get(INTAKE_RUNNING, False)),
         }
 
     def available_actions(self) -> list[str]:

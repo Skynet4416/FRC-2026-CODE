@@ -37,6 +37,14 @@ and orange dots are fuel the camera can see. Look again after a move that did no
 go as expected.
 - `look_through_camera` is for detail the map cannot show, and costs a round trip. \
 Reach for the map first.
+- The intake is on the robot's LEFT flank, not its front. Fuel is collected by \
+driving so that the left side of the robot sweeps over it, which usually means \
+approaching along a lane with the fuel on your left rather than pointing at it. \
+Heading 0 faces +X, so fuel to your left is at +Y; heading 180 puts your left \
+side toward -Y. Run INTAKE while you drive over the fuel, not after.
+- You can only shoot fuel the robot is holding. `fuel_on_board` in every tool \
+result is how much it has; when it reaches zero, go and collect more before \
+asking for another shot.
 - If a tool comes back with an error or the status says the robot could not \
 reach a pose, do not repeat the same call. Read the state, pick a different \
 approach - a nearer pose, a trench lane instead of a bump, a higher max_speed - \
