@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 
@@ -64,32 +65,73 @@ class Session:
         self.system_instruction = build_system_prompt(robot)
         self.executor = RobotTools(robot, on_call=self._log_call)
         self.previous_id: str | None = None
+        self.transcript: list[dict] = []
+        self._publish("Model", model)
+        self._publish("Instruction", "")
+        self._publish("Thought", "")
+        self._publish("ToolCall", "")
+        self._publish("Answer", "")
+        self._publish("Busy", "false")
+        self._publish("Transcript", "[]")
 
     def _log_call(self, name: str, args: dict) -> None:
         pretty = ", ".join(f"{k}={v!r}" for k, v in args.items())
         print(f"  {GREEN}-> {name}({pretty}){RESET}", flush=True)
+        self._publish("ToolCall", f"{name}({pretty})")
+        self._record("tool_call", f"{name}({pretty})")
+
+    def _publish(self, key: str, value: str) -> None:
+        """Mirrors the agent's own state onto NetworkTables, for the dashboard."""
+        try:
+            self.robot.publish_agent_string(key, value)
+        except Exception:
+            pass  # a dashboard going dark must never cost you the robot
+
+    def _record(self, kind: str, text: str) -> None:
+        self.transcript.append({"t": time.time(), "kind": kind, "text": text})
+        self._publish("Transcript", json.dumps(self.transcript[-40:]))
 
     def ask(self, instruction: str) -> str:
         """Runs one instruction to completion, tool call by tool call."""
+        self._publish("Instruction", instruction)
+        self._publish("Answer", "")
+        self._publish("Busy", "true")
+        self._record("instruction", instruction)
+        try:
+            return self._ask(instruction)
+        finally:
+            self._publish("Busy", "false")
+            self._publish("ToolCall", "")
+
+    def _ask(self, instruction: str) -> str:
         pending_input: object = self._opening_input(instruction)
         for step_index in range(self.max_steps):
             interaction = self._create(pending_input)
             self.previous_id = getattr(interaction, "id", None)
 
             calls = [s for s in (interaction.steps or []) if getattr(s, "type", None) == "function_call"]
-            if self.verbose:
-                for step in interaction.steps or []:
-                    if getattr(step, "type", None) == "thought":
-                        thought = _step_text(step)
-                        if thought:
-                            print(f"  {DIM}(thinking) {thought}{RESET}", flush=True)
+            for step in interaction.steps or []:
+                if getattr(step, "type", None) != "thought":
+                    continue
+                thought = _step_text(step)
+                if not thought:
+                    continue
+                self._publish("Thought", thought)
+                self._record("thought", thought)
+                if self.verbose:
+                    print(f"  {DIM}(thinking) {thought}{RESET}", flush=True)
             if not calls:
-                return interaction.output_text or "(no reply)"
+                answer = interaction.output_text or "(no reply)"
+                self._publish("Answer", answer)
+                self._record("answer", answer)
+                return answer
 
             pending_input = []
             for call in calls:
                 result, image = self.executor.call(call.name, dict(call.arguments or {}))
-                print(f"  {DIM}   {_summarise(result)}{RESET}", flush=True)
+                summary = _summarise(result)
+                print(f"  {DIM}   {summary}{RESET}", flush=True)
+                self._record("tool_result", _strip_colour(summary))
                 content = [{"type": "text", "text": json.dumps(result)}]
                 if image:
                     content.append(encode_image(image))
@@ -133,6 +175,10 @@ class Session:
         if self.previous_id:
             request["previous_interaction_id"] = self.previous_id
         return self.client.interactions.create(**request)
+
+
+def _strip_colour(text: str) -> str:
+    return re.sub(r"\033\[[0-9;]*m", "", text)
 
 
 def _step_text(step) -> str:

@@ -131,7 +131,10 @@ class FakeRobot:
                 name = pubs.get(pubuid, str(pubuid))
                 self.writes.append((name, value))
                 self._apply(name, value)
-            await send_all()
+            try:
+                await send_all()
+            except websockets.exceptions.ConnectionClosed:
+                return  # the client hung up mid-update; nothing left to tell it
 
     def _apply(self, name: str, value) -> None:
         """The bit of bridge behaviour the tools actually depend on."""
