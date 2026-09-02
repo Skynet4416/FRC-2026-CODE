@@ -1,12 +1,14 @@
-import pickle, math, numpy as np
+import os, pickle, math, numpy as np
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle, Polygon, Circle
 import imageio.v2 as imageio
 
+FIELD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets", "field26.png")
+
 frames = pickle.load(open("/tmp/demo_frames.pkl","rb"))
-img = imageio.imread("/tmp/field26.png")
+img = imageio.imread(FIELD)
 H, W = img.shape[0], img.shape[1]
 # PathPlanner ships field26.png at 200 px/m with a 0.5 m margin; scale if it is resized
 PPM, MARGIN = 200.0 * W / 3508.0, 0.5

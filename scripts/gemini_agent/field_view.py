@@ -6,8 +6,11 @@ one-metre grid, the obstacles PathPlanner will not drive through, where the
 robot is and which way it faces, what the camera can see, and the path it is
 following. Ask a spatial question about the map and the answer is on it.
 
-The obstacles come from the robot's own navgrid.json, so the picture and the
-pathfinder agree about what is solid.
+It is drawn over PathPlanner's official 2026 field image - the same background
+the demo video uses - so the hubs, trenches and alliance zones the model sees are
+the real ones rather than a sketch. On top of that go the obstacles from the
+robot's own navgrid.json, so the picture and the pathfinder also agree about what
+is solid.
 """
 
 from __future__ import annotations
@@ -15,20 +18,34 @@ from __future__ import annotations
 import io
 import json
 import os
+from functools import lru_cache
 from typing import Any
 
 import matplotlib
 
 matplotlib.use("Agg")  # headless: no display anywhere near this
+import matplotlib.image  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
-from matplotlib.patches import Rectangle  # noqa: E402
+from matplotlib.patches import Circle, Polygon, Rectangle  # noqa: E402
 
-NAVGRID = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
-    "src", "main", "deploy", "pathplanner", "navgrid.json",
-)
+_REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+NAVGRID = os.path.join(_REPO, "src", "main", "deploy", "pathplanner", "navgrid.json")
+FIELD_IMAGE = os.path.join(_REPO, "scripts", "assets", "field26.png")
 
 ROBOT_SIZE_M = 0.9
+
+# PathPlanner ships field26.png at 200 px/m with a 0.5 m margin all round.
+FIELD_IMAGE_PPM = 200.0
+FIELD_IMAGE_MARGIN_M = 0.5
+
+
+@lru_cache(maxsize=1)
+def _load_field_image(path: str = FIELD_IMAGE):
+    """PathPlanner's field image, or None if it is missing - the map still draws."""
+    try:
+        return matplotlib.image.imread(path)
+    except (OSError, ValueError):
+        return None
 
 
 def load_navgrid(path: str = NAVGRID) -> dict[str, Any] | None:
@@ -44,12 +61,24 @@ def render(robot, landmarks: dict[str, list[float]], dpi: int = 110) -> bytes:
     state = robot.state()
     size = robot.field_size() or [16.54, 8.07]
     grid = load_navgrid()
+    field = _load_field_image()
 
     figure, axes = plt.subplots(figsize=(9.0, 9.0 * size[1] / size[0]))
-    axes.set_facecolor("#1b1b1b")
-    figure.patch.set_facecolor("#1b1b1b")
+    figure.patch.set_facecolor("#f4f4f6")
+    axes.set_facecolor("#f4f4f6")
 
-    # Obstacles: the cells PathPlanner refuses to route through.
+    if field is not None:
+        height, width = field.shape[0], field.shape[1]
+        pixels_per_metre = FIELD_IMAGE_PPM * width / 3508.0
+        margin = FIELD_IMAGE_MARGIN_M
+        axes.imshow(
+            field, origin="upper", zorder=0,
+            extent=[-margin, width / pixels_per_metre - margin,
+                    -margin, height / pixels_per_metre - margin],
+        )
+
+    # Obstacles: the cells PathPlanner refuses to route through. Faint, because
+    # the field image underneath already shows what they are.
     if grid:
         cell = grid["nodeSizeMeters"]
         for row_index, row in enumerate(grid["grid"]):
@@ -58,15 +87,15 @@ def render(robot, landmarks: dict[str, list[float]], dpi: int = 110) -> bytes:
                     axes.add_patch(
                         Rectangle(
                             (column_index * cell, row_index * cell), cell, cell,
-                            facecolor="#4a4a52", edgecolor="none",
+                            facecolor="#2b2b33", alpha=0.16, edgecolor="none", zorder=1,
                         )
                     )
 
     # Landmarks, so the names in the prompt have somewhere to point.
     for name, pose in landmarks.items():
-        axes.plot(pose[0], pose[1], marker="+", color="#8a8aa0", markersize=8)
+        axes.plot(pose[0], pose[1], marker="+", color="#3c3c50", markersize=8, zorder=2)
         axes.annotate(
-            name, (pose[0], pose[1]), color="#8a8aa0", fontsize=6.5,
+            name, (pose[0], pose[1]), color="#3c3c50", fontsize=6.5, zorder=2,
             xytext=(0, 5), textcoords="offset points", ha="center",
         )
 
@@ -75,7 +104,7 @@ def render(robot, landmarks: dict[str, list[float]], dpi: int = 110) -> bytes:
     if pieces:
         axes.scatter(
             [p[0] for p in pieces], [p[1] for p in pieces],
-            s=26, color="#ff9d2e", edgecolors="#7a4400", linewidths=0.5,
+            s=26, color="#ff8c00", edgecolors="#5a3000", linewidths=0.5,
             zorder=4, label=f"fuel seen by the camera ({len(pieces)})",
         )
 
@@ -83,13 +112,13 @@ def render(robot, landmarks: dict[str, list[float]], dpi: int = 110) -> bytes:
     path = robot.trajectory()
     if path and state["navigating"]:
         axes.plot([p[0] for p in path], [p[1] for p in path],
-                  color="#54b7ff", linewidth=1.4, alpha=0.9, zorder=3, label="active path")
+                  color="#0a68d8", linewidth=1.8, alpha=0.95, zorder=3, label="active path")
 
     # Where the robot was told to go.
     target = state.get("active_target")
     if target:
-        axes.plot(target["x"], target["y"], marker="x", color="#3ddc84",
-                  markersize=11, markeredgewidth=2.2, zorder=5, label="requested pose")
+        axes.plot(target["x"], target["y"], marker="x", color="#0f9d58",
+                  markersize=11, markeredgewidth=2.4, zorder=5, label="requested pose")
 
     # The robot itself, with its heading.
     pose = state.get("pose")
@@ -101,39 +130,58 @@ def render(robot, landmarks: dict[str, list[float]], dpi: int = 110) -> bytes:
     axes.set_aspect("equal")
     axes.set_xticks(range(0, int(size[0]) + 1))
     axes.set_yticks(range(0, int(size[1]) + 1))
-    axes.grid(color="#3a3a44", linewidth=0.5)
-    axes.tick_params(colors="#b9b9c8", labelsize=7)
+    axes.grid(color="#2b2b33", linewidth=0.4, alpha=0.28)
+    axes.tick_params(colors="#3c3c50", labelsize=7)
     for spine in axes.spines.values():
-        spine.set_color("#5a5a68")
-    axes.set_xlabel("X (m) - blue wall at 0", color="#b9b9c8", fontsize=8)
-    axes.set_ylabel("Y (m) - scoring table at 0", color="#b9b9c8", fontsize=8)
-    axes.set_title(_title(state), color="#e8e8f0", fontsize=9)
+        spine.set_color("#8a8a99")
+    axes.set_xlabel("X (m) - blue wall at 0", color="#3c3c50", fontsize=8)
+    axes.set_ylabel("Y (m) - scoring table at 0", color="#3c3c50", fontsize=8)
+    axes.set_title(_title(state), color="#1c1c26", fontsize=9)
 
     handles, _labels = axes.get_legend_handles_labels()
     if handles:
-        legend = axes.legend(loc="upper right", fontsize=6.5, facecolor="#26262e",
-                             edgecolor="#5a5a68", labelcolor="#d8d8e4")
-        legend.get_frame().set_alpha(0.9)
+        legend = axes.legend(loc="upper right", fontsize=6.5, facecolor="#ffffff",
+                             edgecolor="#8a8a99", labelcolor="#1c1c26")
+        legend.get_frame().set_alpha(0.92)
 
     buffer = io.BytesIO()
-    figure.savefig(buffer, format="png", dpi=dpi, bbox_inches="tight", facecolor=figure.get_facecolor())
+    figure.savefig(buffer, format="png", dpi=dpi, bbox_inches="tight",
+                   facecolor=figure.get_facecolor())
     plt.close(figure)
     return buffer.getvalue()
 
 
 def _draw_robot(axes, x: float, y: float, heading_deg: float, rotation_locked: bool) -> None:
+    """The robot, drawn the way the demo video draws it: a bumper square, a red
+    nose for the front, and a red ring while the shooter owns the drivetrain."""
     import math
 
-    colour = "#ff5555" if rotation_locked else "#54b7ff"
-    half = ROBOT_SIZE_M / 2.0
-    axes.add_patch(
-        Rectangle((x - half, y - half), ROBOT_SIZE_M, ROBOT_SIZE_M, angle=heading_deg,
-                  rotation_point="center", facecolor=colour, alpha=0.55,
-                  edgecolor=colour, linewidth=1.4, zorder=6, label="robot")
-    )
     heading = math.radians(heading_deg)
-    axes.arrow(x, y, math.cos(heading) * 0.8, math.sin(heading) * 0.8,
-               width=0.05, color=colour, zorder=7, length_includes_head=True)
+    half = ROBOT_SIZE_M / 2.0
+    corner = (
+        x - half * math.cos(heading) + half * math.sin(heading),
+        y - half * math.sin(heading) - half * math.cos(heading),
+    )
+    axes.add_patch(
+        Rectangle(corner, ROBOT_SIZE_M, ROBOT_SIZE_M, angle=heading_deg,
+                  facecolor="#1f6feb", alpha=0.9, edgecolor="#101018",
+                  linewidth=1.2, zorder=6, label="robot")
+    )
+    axes.add_patch(
+        Polygon(
+            [
+                (x + 0.62 * math.cos(heading), y + 0.62 * math.sin(heading)),
+                (x + 0.30 * math.cos(heading + 2.4), y + 0.30 * math.sin(heading + 2.4)),
+                (x + 0.30 * math.cos(heading - 2.4), y + 0.30 * math.sin(heading - 2.4)),
+            ],
+            closed=True, facecolor="#f85149", edgecolor="none", zorder=7,
+        )
+    )
+    if rotation_locked:
+        axes.add_patch(
+            Circle((x, y), 0.75, facecolor="none", edgecolor="#e0362c", linewidth=2.0,
+                   zorder=5, label="shooter owns the drivetrain")
+        )
 
 
 def _title(state: dict) -> str:
