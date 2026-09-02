@@ -437,9 +437,44 @@ public class RobotContainer {
             .registerAction("SHOOT_FUEL", () -> shootAtHub(4.0), true)
             .registerAction("SHOOT_ON_THE_MOVE", () -> shootOnTheMove(5.0), true)
             .registerAction("ALIGN_HUB", () -> aimAtHub(3.0), true);
+    registerFieldLandmarks(aiControlBridge);
     aiControlActive = new Trigger(aiControlBridge::isBusy);
 
     configureButtonBindings();
+  }
+
+  /**
+   * Publishes the handful of field positions an agent needs to turn "go to the hub" or "run the
+   * left trench" into coordinates, so the coordinates live here with the rest of the field geometry
+   * rather than being copied into a prompt. Blue-origin, like every other pose in the API.
+   */
+  private static void registerFieldLandmarks(AIControlBridge bridge) {
+    double centreY = FieldConstants.fieldWidth / 2.0;
+    double leftLaneY =
+        (FieldConstants.LinesHorizontal.leftTrenchOpenStart
+                + FieldConstants.LinesHorizontal.leftTrenchOpenEnd)
+            / 2.0;
+    double rightLaneY =
+        (FieldConstants.LinesHorizontal.rightTrenchOpenStart
+                + FieldConstants.LinesHorizontal.rightTrenchOpenEnd)
+            / 2.0;
+    double hubX = FieldConstants.LinesVertical.hubCenter;
+    double centreX = FieldConstants.LinesVertical.center;
+
+    bridge
+        .setFieldSize(FieldConstants.fieldLength, FieldConstants.fieldWidth)
+        .registerLandmark("our_hub", new Pose2d(hubX, centreY, Rotation2d.kZero))
+        .registerLandmark(
+            "our_shooting_spot",
+            new Pose2d(hubX - shootingDistanceMeters, centreY, Rotation2d.kZero))
+        .registerLandmark(
+            "opponent_hub",
+            new Pose2d(FieldConstants.LinesVertical.oppHubCenter, centreY, Rotation2d.k180deg))
+        .registerLandmark("field_centre", new Pose2d(centreX, centreY, Rotation2d.kZero))
+        .registerLandmark("left_trench_near", new Pose2d(hubX, leftLaneY, Rotation2d.kZero))
+        .registerLandmark("left_trench_far", new Pose2d(centreX, leftLaneY, Rotation2d.kZero))
+        .registerLandmark("right_trench_near", new Pose2d(hubX, rightLaneY, Rotation2d.kZero))
+        .registerLandmark("right_trench_far", new Pose2d(centreX, rightLaneY, Rotation2d.kZero));
   }
 
   /**

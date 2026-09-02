@@ -69,6 +69,8 @@ enables the robot.
 | `AvailableActions` | `String[]` | Every action the robot accepts right now, `STOP` first. |
 | `HeadingUnits` | `String` | `degrees`. |
 | `Notes` | `String` | The rules above in plain text, meant to be dropped straight into a system prompt. |
+| `Landmarks` | `String` | JSON `{name: [x, y, heading_deg]}` of the named field positions - hub, shooting spot, trench lanes, field centre - so an agent can be told where things are instead of guessing coordinates. |
+| `FieldSize` | `double[2]` | `[length m, width m]`. |
 
 Everything is mirrored to AdvantageKit under `AIControl/…` (`Navigating`, `ActionRunning`,
 `ShooterOwnsDrivetrain`, `InShootingZone`, `LastAction`, `LastError`, `ActiveTarget`), so a
@@ -146,6 +148,12 @@ off by default (`simDrawWireframe`) because it is expensive enough to cause loop
 
 ## Wiring an LLM to it
 
+There is a working one in [`scripts/gemini_agent/`](../scripts/gemini_agent): a Gemini
+Robotics-ER 2 agent that turns "run the left trench and score it" into the calls below, with
+a top-down field view drawn for the model to read positions off.
+[`docs/gemini-agent.md`](gemini-agent.md) covers setup, the one GitHub secret it needs, and how
+to test it with no API key. What follows is what any other model needs to know.
+
 The model never talks to NetworkTables directly. Give it two or three tools that write the
 topics above, and feed `Notes`, `AvailableActions`, `RobotPose`, `Status` and `InShootingZone`
 back as observations. A tool schema that matches this API:
@@ -216,4 +224,5 @@ to the wrong host.
 | `src/main/java/frc/robot/subsystems/vision/GamePieceVisionSim.java` | Simulated fuel detection camera. |
 | `src/main/deploy/pathplanner/navgrid.json` | Pathfinding obstacle map, regenerated for the 2026 field. |
 | `scripts/ai_demo/` | Demo recorder (a worked NT4 client) and renderer. |
+| `scripts/gemini_agent/` | The Gemini Robotics-ER 2 agent that drives all of this from English. |
 | `docs/ai-control-demo.mp4` | 44 s recording of the API driving the robot. |

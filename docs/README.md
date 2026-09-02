@@ -2,6 +2,9 @@
 
 - **[ai-control.md](ai-control.md)** - the `/AIControl` NetworkTables API: topics,
   actions, behaviour, LLM tool schema, tuning and troubleshooting.
+- **[gemini-agent.md](gemini-agent.md)** - the agent that drives the robot from
+  plain-language instructions through Gemini Robotics-ER 2: setup, the GitHub
+  secret, what the model sees, and how to test it without an API key.
 - **ai-control-demo.mp4** - see below.
 
 ## AI control demo

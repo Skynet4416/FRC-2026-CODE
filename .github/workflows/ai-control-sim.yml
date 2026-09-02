@@ -1,0 +1,101 @@
+name: AI control
+
+# Two jobs:
+#   selftest  - runs the agent loop against a fake robot and a fake Gemini, no key needed.
+#   live      - boots the simulator and drives it with the real Gemini Robotics-ER 2 API.
+#               Skipped automatically until the GEMINI_API_KEY repository secret exists.
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: Instruction to give the robot
+        required: false
+        default: Drive into the alliance zone, pick up fuel, and shoot it into the hub.
+      model:
+        description: Gemini model
+        required: false
+        default: gemini-robotics-er-2-preview
+  push:
+    paths:
+      - scripts/gemini_agent/**
+      - .github/workflows/ai-control-sim.yml
+
+jobs:
+  selftest:
+    name: Agent self-test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install the agent's dependencies
+        run: pip install -r scripts/gemini_agent/requirements.txt
+      - name: Run the self-test
+        run: python3 scripts/gemini_agent/selftest.py
+
+  live:
+    name: Drive the simulator with Gemini
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    env:
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the API key is set
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::The GEMINI_API_KEY repository secret is not set. Add it under" \
+                 "Settings -> Secrets and variables -> Actions -> New repository secret," \
+                 "with a free key from https://aistudio.google.com/apikey."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install the agent's dependencies
+        run: pip install -r scripts/gemini_agent/requirements.txt
+
+      - name: Build the robot code
+        run: |
+          chmod +x gradlew
+          ./gradlew compileJava
+
+      - name: Start the simulator
+        run: |
+          nohup ./gradlew simulateJava > /tmp/sim.log 2>&1 &
+          for _ in $(seq 1 120); do
+            if python3 -c "import socket,sys; sys.exit(0 if socket.socket().connect_ex(('127.0.0.1',5810))==0 else 1)"; then
+              echo "NetworkTables is up"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "::error::The simulator never came up"
+          tail -50 /tmp/sim.log
+          exit 1
+
+      - name: Drive the robot
+        run: |
+          python3 scripts/gemini_agent/agent.py \
+            --model "${{ inputs.model }}" \
+            --task "${{ inputs.task }}" \
+            --verbose | tee /tmp/agent.log
+
+      - name: Upload the logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-control-run
+          path: |
+            /tmp/sim.log
+            /tmp/agent.log

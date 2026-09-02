@@ -135,6 +135,9 @@ public class AIControlBridge extends SubsystemBase {
   private final Subsystem driveSubsystem;
   private final Map<String, RegisteredAction> actions = new LinkedHashMap<>();
 
+  /** Named field positions, published as JSON so an agent can be told where things are. */
+  private final Map<String, double[]> landmarks = new LinkedHashMap<>();
+
   /** True while the robot is standing where a shot counts as a hub shot. */
   private BooleanSupplier inShootingZone = () -> true;
 
@@ -167,6 +170,8 @@ public class AIControlBridge extends SubsystemBase {
   private final StringArrayPublisher availableActionsPub;
   private final StringPublisher headingUnitsPub;
   private final StringPublisher notesPub;
+  private final StringPublisher landmarksPub;
+  private final DoubleArrayPublisher fieldSizePub;
 
   private Command navigationCommand = null;
   private Command actionCommand = null;
@@ -240,6 +245,8 @@ public class AIControlBridge extends SubsystemBase {
     availableActionsPub = table.getStringArrayTopic("AvailableActions").publish();
     headingUnitsPub = table.getStringTopic("HeadingUnits").publish();
     notesPub = table.getStringTopic("Notes").publish();
+    landmarksPub = table.getStringTopic("Landmarks").publish();
+    fieldSizePub = table.getDoubleArrayTopic("FieldSize").publish();
 
     robotPosePub.set(toArray(poseSupplier.get()));
     activeTargetPub.set(new double[0]);
@@ -253,7 +260,9 @@ public class AIControlBridge extends SubsystemBase {
     lastErrorPub.set("");
     headingUnitsPub.set("degrees");
     notesPub.set(NOTES);
+    fieldSizePub.set(new double[0]);
     publishAvailableActions();
+    publishLandmarks();
   }
 
   /**
@@ -594,6 +603,42 @@ public class AIControlBridge extends SubsystemBase {
     statusPub.set("ERROR: " + message);
     lastErrorPub.set("ERROR: " + message);
     Logger.recordOutput("AIControl/LastError", message);
+  }
+
+  /**
+   * Names a spot on the field, so an agent can be told where things are instead of guessing
+   * coordinates. Landmarks are published to {@code /AIControl/Landmarks} as a JSON object of {@code
+   * name: [x_m, y_m, heading_deg]}, ready to drop into a prompt.
+   */
+  public AIControlBridge registerLandmark(String name, Pose2d pose) {
+    landmarks.put(name, toArray(pose));
+    publishLandmarks();
+    return this;
+  }
+
+  /** Publishes the field size to {@code /AIControl/FieldSize} as {@code [length_m, width_m]}. */
+  public AIControlBridge setFieldSize(double lengthMeters, double widthMeters) {
+    fieldSizePub.set(new double[] {lengthMeters, widthMeters});
+    return this;
+  }
+
+  private void publishLandmarks() {
+    StringBuilder json = new StringBuilder("{");
+    boolean first = true;
+    for (Map.Entry<String, double[]> entry : landmarks.entrySet()) {
+      double[] pose = entry.getValue();
+      json.append(first ? "" : ",")
+          .append(
+              String.format(
+                  java.util.Locale.US,
+                  "\"%s\":[%.3f,%.3f,%.1f]",
+                  entry.getKey(),
+                  pose[0],
+                  pose[1],
+                  pose[2]));
+      first = false;
+    }
+    landmarksPub.set(json.append("}").toString());
   }
 
   private void publishAvailableActions() {
