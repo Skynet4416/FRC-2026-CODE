@@ -27,13 +27,17 @@ TYPE_DOUBLE_ARRAY = 17
 
 SUBPROTOCOLS = ["v4.1.networktables.first.wpi.edu", "networktables.first.wpi.edu"]
 
+# How long to wait before dialling the robot again after the connection drops.
+RECONNECT_DELAY_S = 1.0
+
 TABLE = "/AIControl/"
 
 # Logged robot state the field view draws, on top of the /AIControl API itself.
 GAME_PIECES = "/AdvantageKit/RealOutputs/Vision/GamePieces/TargetPoses"
+FIELD_PIECES = "/AdvantageKit/RealOutputs/Sim/Fuel/Positions"
 TRAJECTORY = "/AdvantageKit/RealOutputs/Odometry/Trajectory"
 
-EXTRA_TOPICS = ["/CameraPublisher/", GAME_PIECES, TRAJECTORY]
+EXTRA_TOPICS = ["/CameraPublisher/", GAME_PIECES, FIELD_PIECES, TRAJECTORY]
 
 # pubuids are ours to choose; they only have to be unique within this client.
 _PUB = {
@@ -57,6 +61,8 @@ class RobotConnection:
         self._ws = None
         self._ready = threading.Event()
         self._error: BaseException | None = None
+        self._connected = False
+        self._closing = False
         self._thread = threading.Thread(target=self._run, daemon=True, name="nt4")
 
     # -- lifecycle ---------------------------------------------------------
@@ -78,8 +84,14 @@ class RobotConnection:
             )
         return self
 
+    @property
+    def connected(self) -> bool:
+        """False while the robot is away and the client is retrying."""
+        return self._connected
+
     def close(self) -> None:
         """Closes the socket and stops the loop, so nothing is left dangling."""
+        self._closing = True
         if self._loop is None:
             return
         if self._ws is not None:
@@ -173,6 +185,11 @@ class RobotConnection:
         """Fuel the game-piece camera can see, on the field. WPILib Pose3d structs."""
         return _decode_poses(self.get(GAME_PIECES, b""), stride=56)
 
+    def field_game_pieces(self) -> list[tuple[float, float]]:
+        """Every fuel on the field, from the physics sim. Ground truth, so it is for
+        the human watching - the model is only told what the camera can see."""
+        return _decode_poses(self.get(FIELD_PIECES, b""), stride=24)
+
     def trajectory(self) -> list[tuple[float, float]]:
         """The path the robot is currently following. WPILib Pose2d structs."""
         return _decode_poses(self.get(TRAJECTORY, b""), stride=24)
@@ -235,10 +252,30 @@ class RobotConnection:
             self._loop.close()
 
     async def _client(self) -> None:
+        """Stays connected. A dashboard is left open for hours; robot code is not,
+        so losing the robot is a state to report and recover from, not a crash."""
+        first = True
+        while not self._closing:
+            try:
+                await self._session()
+            except Exception as exc:
+                if first:
+                    self._error = exc
+                    self._ready.set()
+                    return
+            self._ws = None
+            self._connected = False
+            first = False
+            await asyncio.sleep(RECONNECT_DELAY_S)
+
+    async def _session(self) -> None:
         async with websockets.connect(
             self._uri, subprotocols=SUBPROTOCOLS, max_size=None
         ) as ws:
             self._ws = ws
+            # Topic ids are handed out per connection, so a reconnect starts over.
+            with self._lock:
+                self._topics.clear()
             await ws.send(
                 json.dumps(
                     [
@@ -265,6 +302,7 @@ class RobotConnection:
                     ]
                 )
             )
+            self._connected = True
             self._ready.set()
             async for message in ws:
                 self._handle(message)

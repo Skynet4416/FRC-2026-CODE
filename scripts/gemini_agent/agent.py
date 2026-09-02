@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 import time
 
@@ -53,6 +54,7 @@ class Session:
         max_steps: int,
         verbose: bool,
         show_field: bool = True,
+        on_event=None,
     ):
         self.client = client
         self.robot = robot
@@ -60,6 +62,9 @@ class Session:
         self.max_steps = max_steps
         self.verbose = verbose
         self.show_field = show_field
+        # Called with (kind, text) for every thought, tool call, result and answer.
+        # The dashboard listens on this; nothing else needs it.
+        self.on_event = on_event or (lambda kind, text: None)
         self.tools = tool_declarations(robot.available_actions())
         self.system_instruction = build_system_prompt(robot)
         self.executor = RobotTools(robot, on_call=self._log_call)
@@ -68,28 +73,37 @@ class Session:
     def _log_call(self, name: str, args: dict) -> None:
         pretty = ", ".join(f"{k}={v!r}" for k, v in args.items())
         print(f"  {GREEN}-> {name}({pretty}){RESET}", flush=True)
+        self.on_event("tool_call", f"{name}({pretty})")
 
     def ask(self, instruction: str) -> str:
         """Runs one instruction to completion, tool call by tool call."""
+        self.on_event("instruction", instruction)
         pending_input: object = self._opening_input(instruction)
         for step_index in range(self.max_steps):
             interaction = self._create(pending_input)
             self.previous_id = getattr(interaction, "id", None)
 
             calls = [s for s in (interaction.steps or []) if getattr(s, "type", None) == "function_call"]
-            if self.verbose:
-                for step in interaction.steps or []:
-                    if getattr(step, "type", None) == "thought":
-                        thought = _step_text(step)
-                        if thought:
-                            print(f"  {DIM}(thinking) {thought}{RESET}", flush=True)
+            for step in interaction.steps or []:
+                if getattr(step, "type", None) != "thought":
+                    continue
+                thought = _step_text(step)
+                if not thought:
+                    continue
+                self.on_event("thought", thought)
+                if self.verbose:
+                    print(f"  {DIM}(thinking) {thought}{RESET}", flush=True)
             if not calls:
-                return interaction.output_text or "(no reply)"
+                answer = interaction.output_text or "(no reply)"
+                self.on_event("answer", answer)
+                return answer
 
             pending_input = []
             for call in calls:
                 result, image = self.executor.call(call.name, dict(call.arguments or {}))
-                print(f"  {DIM}   {_summarise(result)}{RESET}", flush=True)
+                summary = _summarise(result)
+                print(f"  {DIM}   {summary}{RESET}", flush=True)
+                self.on_event("tool_result", _strip_colour(summary))
                 content = [{"type": "text", "text": json.dumps(result)}]
                 if image:
                     content.append(encode_image(image))
@@ -133,6 +147,10 @@ class Session:
         if self.previous_id:
             request["previous_interaction_id"] = self.previous_id
         return self.client.interactions.create(**request)
+
+
+def _strip_colour(text: str) -> str:
+    return re.sub(r"\033\[[0-9;]*m", "", text)
 
 
 def _step_text(step) -> str:

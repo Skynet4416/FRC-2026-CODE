@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Skynet 4416 - AI robot cockpit</title>
+<link rel="stylesheet" href="style.css">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 16 16%22><text y=%2214%22 font-size=%2214%22>🤖</text></svg>">
+</head>
+<body>
+<header>
+  <h1>Skynet 4416 <span>AI cockpit</span></h1>
+  <div id="status" class="pill">connecting…</div>
+</header>
+
+<main>
+  <section class="field">
+    <canvas id="canvas" width="1754" height="907"></canvas>
+    <div id="overlay" class="overlay"></div>
+  </section>
+
+  <aside class="side">
+    <form id="prompt-form" autocomplete="off">
+      <label for="prompt">Tell the robot what to do</label>
+      <textarea id="prompt" rows="3" placeholder="run the left trench, pick up fuel, and score it"></textarea>
+      <input id="token" type="password" placeholder="access token" hidden>
+      <div class="row">
+        <button id="send" type="submit">Send</button>
+        <button id="stop" type="button" class="danger">Stop</button>
+      </div>
+      <p id="hint" class="hint"></p>
+    </form>
+
+    <h2>What the model is doing</h2>
+    <ol id="transcript" class="transcript"></ol>
+  </aside>
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

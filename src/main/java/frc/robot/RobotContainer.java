@@ -285,7 +285,7 @@ public class RobotContainer {
         compressor = null;
 
         ballSim.enable();
-        // ballSim.placeFieldBalls();
+        ballSim.placeFieldBalls();
         SmartDashboard.putData("Field", field);
         break;
 
@@ -1003,7 +1003,7 @@ public class RobotContainer {
             AllianceFlipUtil.apply(Rotation2d.fromDegrees(-90))));
     SimulatedArena.getInstance().resetFieldForAuto();
     ballSim.clearBalls();
-    // ballSim.placeFieldBalls();
+    ballSim.placeFieldBalls();
     ballSim.resetCounters();
   }
 
