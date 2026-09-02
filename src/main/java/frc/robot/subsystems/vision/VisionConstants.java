@@ -55,4 +55,28 @@ public class VisionConstants {
   public static double linearStdDevMegatag2Factor = 0.5; // More stable than full 3D solve
   public static double angularStdDevMegatag2Factor =
       Double.POSITIVE_INFINITY; // No rotation data available
+
+  // Simulation camera properties (PhotonVision sim). These drive both the AprilTag pose
+  // estimates and the MJPEG streams published on CameraServer ports 1181+.
+  public static int simCameraWidthPx = 640;
+  public static int simCameraHeightPx = 480;
+  public static double simCameraFovDeg = 90.0;
+  public static double simCameraAvgErrorPx = 0.25;
+  public static double simCameraErrorStdDevPx = 0.08;
+  public static double simCameraFps = 20.0;
+  public static double simCameraAvgLatencyMs = 35.0;
+  public static double simCameraLatencyStdDevMs = 5.0;
+
+  // Wireframe overlay makes the streams easier to read but is expensive enough to cause loop
+  // overruns with three simulated cameras. Off by default; turn it on when debugging a camera.
+  public static boolean simDrawWireframe = false;
+
+  // Simulated game piece ("fuel") detection camera. Only exists in simulation; it publishes an
+  // object detection stream so an external consumer can see where the game pieces are.
+  public static String gamePieceCameraName = "fuel-cam";
+  public static Transform3d robotToGamePieceCamera =
+      new Transform3d(0.25, 0.0, 0.55, new Rotation3d(0.0, Math.toRadians(20.0), 0.0));
+  public static double gamePieceDiameterMeters = 0.1501; // Game manual 5.10.1
+  public static int gamePieceClassId = 0;
+  public static double gamePieceMaxSightRangeMeters = 8.0;
 }

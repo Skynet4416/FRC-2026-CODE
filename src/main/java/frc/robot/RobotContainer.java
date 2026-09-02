@@ -16,10 +16,12 @@ import choreo.auto.AutoTrajectory;
 import com.pathplanner.lib.auto.AutoBuilder;
 import edu.wpi.first.math.filter.Debouncer.DebounceType;
 import edu.wpi.first.math.geometry.Pose2d;
+import edu.wpi.first.math.geometry.Pose3d;
 import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.geometry.Rotation3d;
 import edu.wpi.first.math.geometry.Transform3d;
 import edu.wpi.first.math.geometry.Translation2d;
+import edu.wpi.first.math.geometry.Translation3d;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.wpilibj.Alert;
 import edu.wpi.first.wpilibj.Alert.AlertType;
@@ -38,6 +40,7 @@ import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.commands.DriveCommands;
 import frc.robot.commands.RunBothIndexersCommand;
 import frc.robot.generated.TunerConstants;
+import frc.robot.subsystems.AIControlBridge;
 import frc.robot.subsystems.drive.*;
 import frc.robot.subsystems.intake.IntakeSubsystem;
 import frc.robot.subsystems.intake.IntakeSubsystemIO;
@@ -63,16 +66,20 @@ import frc.robot.subsystems.spindexer.SpindexerSubsystem;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIO;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOSim;
 import frc.robot.subsystems.spindexer.SpindexerSubsystemIOTalonFX;
+import frc.robot.subsystems.vision.GamePieceVisionSim;
 import frc.robot.subsystems.vision.Vision;
 import frc.robot.subsystems.vision.VisionConstants;
 import frc.robot.subsystems.vision.VisionIO;
 import frc.robot.subsystems.vision.VisionIOLimelight;
+import frc.robot.subsystems.vision.VisionIOPhotonVisionSim;
 import frc.robot.util.ContinuousConditionalCommand;
 import frc.robot.util.HubShiftUtil;
 import frc.robot.util.LoggedTunableNumber;
 import frc.robot.util.controllers.DriverController;
 import frc.robot.util.elasticlib.Elastic;
 import frc.robot.util.geometry.AllianceFlipUtil;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Optional;
 import java.util.function.DoubleSupplier;
 import org.ironmaple.simulation.SimulatedArena;
@@ -89,6 +96,11 @@ import org.littletonrobotics.junction.networktables.LoggedDashboardChooser;
 public class RobotContainer {
   // Subsystems
   private final Vision vision;
+  private final AIControlBridge aiControlBridge;
+  private GamePieceVisionSim gamePieceVisionSim = null;
+
+  // True while the AI bridge owns the drivetrain; driver-assist bindings stand down.
+  private Trigger aiControlActive;
   private final Drive drive;
   private final IntakeSubsystem leftIntake;
   private final LedSubsystem ledSubsystem;
@@ -236,15 +248,21 @@ public class RobotContainer {
                 new ModuleIOSim(driveSimulation.getModules()[3]),
                 driveSimulation::setSimulationWorldPose);
 
-        // vision =
-        //     new Vision(
-        //         drive,
-        //         new VisionIOPhotonVisionSim(
-        //             camera0Name, robotToCamera0, driveSimulation::getSimulatedDriveTrainPose),
-        //         new VisionIOPhotonVisionSim(
-        //             camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
+        // Simulated PhotonVision cameras. These feed the pose estimator and publish live camera
+        // streams, which is what lets an external AI operator see the field through the robot.
+        vision =
+            new Vision(
+                drive,
+                new VisionIOPhotonVisionSim(
+                    camera0Name, robotToCamera0, driveSimulation::getSimulatedDriveTrainPose),
+                new VisionIOPhotonVisionSim(
+                    camera1Name, robotToCamera1, driveSimulation::getSimulatedDriveTrainPose));
 
-        vision = null;
+        // Object detection camera for the fuel, fed from MapleSim's field pieces and the shots
+        // in flight in the fuel physics sim.
+        gamePieceVisionSim =
+            new GamePieceVisionSim(
+                driveSimulation::getSimulatedDriveTrainPose, this::simulatedGamePieces);
 
         flywheelSubsystem = new FlywheelSubsystem(new FlywheelSubsystemIOSim());
         hoodSubsystem = new HoodSubsystem(new HoodSubsystemIOSim());
@@ -399,7 +417,83 @@ public class RobotContainer {
           //     }
           //     Logger.recordOutput("Choreo/Trajectory", arr);
         }));
+    // Natural language / AI control bridge. Publishes the /AIControl/ topics on startup and turns
+    // incoming tool calls into PathPlanner pathfinding and mechanism commands.
+    aiControlBridge =
+        new AIControlBridge(drive::getPose, drive::runVelocity, drive)
+            .setAimHeadingSupplier(this::launchHeading)
+            .registerAction("INTAKE", () -> intakeForSeconds(4.0))
+            .registerAction("SHOOT_FUEL", () -> shootOnTheMove(4.0), true)
+            .registerAction("ALIGN_HUB", () -> aimAtHub(3.0), true);
+    aiControlActive = new Trigger(aiControlBridge::isBusy);
+
     configureButtonBindings();
+  }
+
+  /**
+   * Lowers the intake, runs it for a while, then folds it back up. Used by the AI control bridge
+   * for its "INTAKE" action.
+   */
+  private Command intakeForSeconds(double seconds) {
+    return Commands.startEnd(() -> leftIntake.setLowered(true), () -> leftIntake.setLowered(false))
+        .withTimeout(seconds)
+        .withName("AIControl/Intake");
+  }
+
+  /**
+   * Spins up and points the hood at the hub without feeding fuel, so the robot is ready when the
+   * next shoot command arrives. Used by the AI control bridge for its "ALIGN_HUB" action.
+   *
+   * <p>The heading is not driven here. The bridge marks this action as rotation-locking, and takes
+   * the robot's heading to {@link #launchHeading()} itself - through PathPlanner's rotation
+   * feedback while a path is running, or by turning in place when the robot is parked.
+   */
+  private Command aimAtHub(double seconds) {
+    return Commands.parallel(
+            flywheelSubsystem.runTrackTargetCommand(), hoodSubsystem.runTrackTargetCommand())
+        .withTimeout(seconds)
+        .withName("AIControl/AlignHub");
+  }
+
+  /**
+   * Shoots at the hub without touching the drivetrain, so it can run on top of a PathPlanner path:
+   * the path keeps driving, the bridge points the heading at the hub, and this feeds fuel whenever
+   * the launch solution is valid. That is shooting on the move. Used by the AI control bridge for
+   * its "SHOOT_FUEL" action.
+   */
+  private Command shootOnTheMove(double seconds) {
+    return Commands.parallel(
+            flywheelSubsystem.runTrackTargetCommand(),
+            hoodSubsystem.runTrackTargetCommand(),
+            Commands.repeatingSequence(
+                new RunBothIndexersCommand(spindexerSubsystem, shooterIndexerSubsystem, 1.0)
+                    .until(() -> readyToShoot == null || !readyToShoot.getAsBoolean())),
+            // Feeds the ball sim so the shots are visible in AdvantageScope (sim only).
+            Commands.repeatingSequence(
+                Commands.waitSeconds(0.25),
+                Commands.runOnce(this::launchSimulatedProjectile)
+                    .onlyIf(() -> readyToShoot != null && readyToShoot.getAsBoolean())))
+        .withTimeout(seconds)
+        .withName("AIControl/ShootOnTheMove");
+  }
+
+  /**
+   * The heading the shooter wants the robot to hold. Normally that is the launch solution's drive
+   * angle; when there is no valid solution (out of range, not spun up yet) it falls back to simply
+   * facing our hub, so an aiming action still visibly turns the robot. Handed to PathPlanner as the
+   * rotation feedback while a shooting action runs.
+   */
+  private Optional<Rotation2d> launchHeading() {
+    var parameters = LaunchCalculator.getInstance().getParameters();
+    if (parameters != null && parameters.isValid()) {
+      return Optional.of(parameters.driveAngle());
+    }
+    Translation2d hub = AllianceFlipUtil.apply(FieldConstants.Hub.topCenterPoint.toTranslation2d());
+    Translation2d toHub = hub.minus(drive.getPose().getTranslation());
+    if (toHub.getNorm() < 0.1) {
+      return Optional.empty();
+    }
+    return Optional.of(toHub.getAngle());
   }
 
   /**
@@ -508,6 +602,7 @@ public class RobotContainer {
         .and(RobotModeTriggers.teleop())
         .and(driveController.rightTrigger().negate())
         .and(autoAlignmentOverride.negate())
+        .and(aiControlActive.negate())
         .whileTrue(
             DriveCommands.autoTrenchAssist(
                     drive,
@@ -833,6 +928,20 @@ public class RobotContainer {
         drive::getPose,
         drive::getChassisSpeeds);
     ballSim.tick();
+
+    // Object detection camera: re-publish the live fuel positions and process a frame.
+    if (gamePieceVisionSim != null) {
+      gamePieceVisionSim.update();
+    }
+  }
+
+  /** Every fuel the cameras could see: MapleSim's field pieces plus the ones in flight. */
+  private List<Translation3d> simulatedGamePieces() {
+    List<Translation3d> pieces = new ArrayList<>(ballSim.getBallPositions());
+    for (Pose3d pose : SimulatedArena.getInstance().getGamePiecesPosesByType("Fuel")) {
+      pieces.add(pose.getTranslation());
+    }
+    return pieces;
   }
 
   private void launchSimulatedProjectile() {
