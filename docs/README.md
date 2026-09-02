@@ -1,4 +1,10 @@
-# AI control demo
+# Docs
+
+- **[ai-control.md](ai-control.md)** - the `/AIControl` NetworkTables API: topics,
+  actions, behaviour, LLM tool schema, tuning and troubleshooting.
+- **ai-control-demo.mp4** - see below.
+
+## AI control demo
 
 `ai-control-demo.mp4` is a 44 second recording of the simulated robot being driven
 entirely through the `/AIControl/` NetworkTables API - no joystick, no auto routine.
