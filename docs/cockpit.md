@@ -29,7 +29,11 @@ watch. The same flags as the CLI apply: `--host` for a real robot, `--model`, `-
 ## Run it in a Codespace
 
 The repo carries a devcontainer, so a Codespace comes up with Java 21, Python 3.11 and the
-agent's dependencies already installed.
+agent's dependencies already installed. It is based on Ubuntu 24.04 deliberately: photonlib's
+native libraries need a newer glibc than Debian bookworm or the default Codespaces image
+ship, and on those the robot dies at startup with `Could not instantiate robot
+org.photonvision.jni.TimeSyncServer!`. If you see that, you are on the wrong base image -
+rebuild the container.
 
 1. **Code → Codespaces → Create codespace** on this branch.
 2. Add your key once, in the Codespace terminal:

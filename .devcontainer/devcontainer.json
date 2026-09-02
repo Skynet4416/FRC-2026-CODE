@@ -1,28 +1,66 @@
 {
   "name": "FRC 2026 - robot sim + AI cockpit",
-  "image": "mcr.microsoft.com/devcontainers/java:21-bookworm",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu-24.04",
   "features": {
-    "ghcr.io/devcontainers/features/python:1": { "version": "3.11" }
+    "ghcr.io/devcontainers/features/java:1": {
+      "version": "21",
+      "installGradle": false
+    },
+    "ghcr.io/devcontainers/features/python:1": {
+      "version": "3.11"
+    }
   },
   "postCreateCommand": "chmod +x gradlew && pip install --user -r scripts/gemini_agent/requirements.txt",
-  "forwardPorts": [8000, 5810, 1181, 1182, 1183, 1184, 1185, 1186],
+  "forwardPorts": [
+    8000,
+    5810,
+    1181,
+    1182,
+    1183,
+    1184,
+    1185,
+    1186
+  ],
   "portsAttributes": {
-    "8000": { "label": "AI cockpit", "onAutoForward": "openBrowserOnce" },
-    "5810": { "label": "NetworkTables" },
-    "1181": { "label": "limelight-right raw" },
-    "1182": { "label": "limelight-right processed" },
-    "1183": { "label": "limelight-left raw" },
-    "1184": { "label": "limelight-left processed" },
-    "1185": { "label": "fuel-cam raw" },
-    "1186": { "label": "fuel-cam processed" }
+    "8000": {
+      "label": "AI cockpit",
+      "onAutoForward": "openBrowserOnce"
+    },
+    "5810": {
+      "label": "NetworkTables"
+    },
+    "1181": {
+      "label": "limelight-right raw"
+    },
+    "1182": {
+      "label": "limelight-right processed"
+    },
+    "1183": {
+      "label": "limelight-left raw"
+    },
+    "1184": {
+      "label": "limelight-left processed"
+    },
+    "1185": {
+      "label": "fuel-cam raw"
+    },
+    "1186": {
+      "label": "fuel-cam processed"
+    }
   },
-  "hostRequirements": { "cpus": 4, "memory": "8gb" },
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "8gb"
+  },
   "remoteEnv": {
     "GEMINI_API_KEY": "${localEnv:GEMINI_API_KEY}"
   },
   "customizations": {
     "vscode": {
-      "extensions": ["vscjava.vscode-java-pack", "ms-python.python"]
+      "extensions": [
+        "vscjava.vscode-java-pack",
+        "ms-python.python"
+      ]
     }
   }
 }
