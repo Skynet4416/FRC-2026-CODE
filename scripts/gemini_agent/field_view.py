@@ -6,11 +6,12 @@ one-metre grid, the obstacles PathPlanner will not drive through, where the
 robot is and which way it faces, what the camera can see, and the path it is
 following. Ask a spatial question about the map and the answer is on it.
 
-It is drawn over PathPlanner's official 2026 field image - the same background
-the demo video uses - so the hubs, trenches and alliance zones the model sees are
-the real ones rather than a sketch. On top of that go the obstacles from the
-robot's own navgrid.json, so the picture and the pathfinder also agree about what
-is solid.
+It is drawn over the official 2026 field render - the same background the demo
+video uses - so the hubs, trenches and alliance zones the model sees are the real
+ones rather than a sketch. The render is the empty field, with no game pieces on
+it, so every ball in the picture is one the simulation is really publishing. On
+top of that go the obstacles from the robot's own navgrid.json, so the picture
+and the pathfinder also agree about what is solid.
 """
 
 from __future__ import annotations
@@ -34,14 +35,14 @@ FIELD_IMAGE = os.path.join(_REPO, "scripts", "assets", "field26.png")
 
 ROBOT_SIZE_M = 0.9
 
-# PathPlanner ships field26.png at 200 px/m with a 0.5 m margin all round.
+# field26.png is framed like PathPlanner's images: 200 px/m, 0.5 m margin all round.
 FIELD_IMAGE_PPM = 200.0
 FIELD_IMAGE_MARGIN_M = 0.5
 
 
 @lru_cache(maxsize=1)
 def _load_field_image(path: str = FIELD_IMAGE):
-    """PathPlanner's field image, or None if it is missing - the map still draws."""
+    """The field image, or None if it is missing - the map still draws."""
     try:
         return matplotlib.image.imread(path)
     except (OSError, ValueError):

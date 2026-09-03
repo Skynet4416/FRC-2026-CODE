@@ -4,7 +4,7 @@
 // serve.py) and everything in the transcript comes from the model, so this file
 // only decides how it looks.
 
-const IMAGE_PIXELS_PER_METRE = 200; // PathPlanner ships field26.png at 200 px/m
+const IMAGE_PIXELS_PER_METRE = 200; // field26.png is drawn at 200 px/m
 const IMAGE_MARGIN_M = 0.5;         // ...with half a metre of margin all round
 
 // The canvas is smaller than the image, so metres map through the ratio between

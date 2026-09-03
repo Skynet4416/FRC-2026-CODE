@@ -109,8 +109,9 @@ nothing else running.
 Every instruction arrives with a **top-down view of the field**, in the same coordinates the tools
 take, and `look_at_field` redraws it on demand:
 
-- PathPlanner's official 2026 field image underneath - the same background as the demo video, so
-  the hubs, trenches and alliance zones are the real ones rather than a sketch;
+- the official 2026 field render underneath - the same background as the demo video, so the
+  hubs, trenches and alliance zones are the real ones rather than a sketch. It is the empty
+  field, with no game pieces drawn on it, so every ball in the picture is simulated fuel;
 - a one-metre grid with labelled axes, so a position can be read straight off the picture;
 - the obstacles out of the robot's own `navgrid.json`, so the map and the pathfinder agree about
   what is solid;
@@ -213,7 +214,7 @@ to whatever host it connected to.
 | `scripts/gemini_agent/agent.py` | The CLI and the model loop: instruction in, tool calls out, answer back. |
 | `scripts/gemini_agent/robot_tools.py` | Tool schema and the code behind each tool. |
 | `scripts/gemini_agent/field_view.py` | The top-down field view the model looks at. |
-| `scripts/assets/field26.png` | PathPlanner's 2026 field image, shared by the field view and the demo renderer. |
+| `scripts/assets/field26.png` | The empty 2026 field render, shared by the field view and the demo renderer. |
 | `scripts/gemini_agent/nt4.py` | NT4 client for `/AIControl`, with no robotpy dependency. |
 | `scripts/gemini_agent/camera.py` | Pulls one JPEG out of an MJPEG stream. |
 | `scripts/gemini_agent/prompt.py` | The behaviour half of the system prompt. |

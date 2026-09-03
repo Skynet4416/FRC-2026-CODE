@@ -10,7 +10,7 @@ FIELD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "assets",
 frames = pickle.load(open("/tmp/demo_frames.pkl","rb"))
 img = imageio.imread(FIELD)
 H, W = img.shape[0], img.shape[1]
-# PathPlanner ships field26.png at 200 px/m with a 0.5 m margin; scale if it is resized
+# field26.png is 200 px/m with a 0.5 m margin all round; scale if it is resized
 PPM, MARGIN = 200.0 * W / 3508.0, 0.5
 extent = [-MARGIN, W/PPM - MARGIN, -MARGIN, H/PPM - MARGIN]
 
