@@ -12,7 +12,7 @@ cd "$(dirname "$0")/.." || exit 1
 SIM_LOG=/tmp/sim.log
 NT_PORT=5810
 WEB_PORT="${WEB_PORT:-8000}"
-WAIT_SECONDS=150
+WAIT_SECONDS=600   # a cold Codespace re-downloads all of WPILib, which takes minutes
 
 say() { printf '\n\033[1m%s\033[0m\n' "$*"; }
 
@@ -37,14 +37,21 @@ else
   pip install --quiet --disable-pip-version-check -r scripts/gemini_agent/requirements.txt \
     || { echo "pip install failed - see above"; exit 1; }
 
-  say "building and starting the robot simulator (a couple of minutes the first time)"
+  say "building and starting the robot simulator (several minutes on a fresh container)"
   chmod +x gradlew
   ./gradlew simulateJava > "$SIM_LOG" 2>&1 &
   SIM_PID=$!
 
-  for _ in $(seq 1 "$WAIT_SECONDS"); do
+  # Say something every 15 s: a silent wait looks like a hang, especially on a phone.
+  for elapsed in $(seq 1 "$WAIT_SECONDS"); do
     nt_is_up && break
-    kill -0 "$SIM_PID" 2>/dev/null || break
+    if ! kill -0 "$SIM_PID" 2>/dev/null; then
+      break
+    fi
+    if [ $((elapsed % 15)) -eq 0 ]; then
+      printf '  still building/starting - %ss (last line: %s)\n' \
+        "$elapsed" "$(tail -1 "$SIM_LOG" | cut -c1-60)"
+    fi
     sleep 1
   done
 
