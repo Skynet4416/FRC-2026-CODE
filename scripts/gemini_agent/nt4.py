@@ -143,6 +143,7 @@ class RobotConnection:
         target = self.get("ActiveTarget") or []
         fuel = self.fuel()
         policy = self.intake_policy()
+        hub = self.hub_state()
         # A robot that predates Fuel only ever published whether the rollers were
         # spinning, not whether the intake was down - the closest fallback we have.
         intake_running = bool(self.get(INTAKE_RUNNING, False))
@@ -172,6 +173,13 @@ class RobotConnection:
             "auto_fold": policy.get("auto_fold"),
             "folded_for": policy.get("folded_for"),
             "hazard": policy.get("hazard"),
+            # Which alliance's hub actually scores right now - see hub_state() for
+            # the full picture, this is the slice worth putting in front of the
+            # model on every single tool result rather than only on request.
+            "hub_active": hub.get("active"),
+            "shift": hub.get("shift"),
+            "shift_remaining_s": hub.get("shift_remaining_s"),
+            "hub_state_ignored": hub.get("hub_state_ignored"),
         }
 
     def available_actions(self) -> list[str]:
@@ -219,6 +227,16 @@ class RobotConnection:
     def game_brief(self) -> str:
         """This year's game, in the robot's own words. Empty on an older robot."""
         return self.get("GameBrief", "")
+
+    def hub_state(self) -> dict[str, Any]:
+        """Which alliance's hub is scoring right now, and how long until the next
+        Alliance Shift flips it. {} on a robot that predates this topic - the same
+        defensive parsing as every other JSON topic here."""
+        raw = self.get("HubState", "")
+        try:
+            return json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return {}
 
     def intake_policy(self) -> dict[str, Any]:
         """Why the intake is where it is right now: whether the automatic trench/

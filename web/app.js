@@ -217,15 +217,24 @@ function render() {
   tokenBox.hidden = !latest.needs_token;
 
   const pose = robot.pose || { x: 0, y: 0, heading_deg: 0 };
+  // hub_active/shift/folded_for only exist on a robot running the v2 bridge -
+  // null/undefined on an older one, in which case the line is left out rather
+  // than printing "undefined".
+  const hubLine = robot.hub_active == null ? null : (
+    (robot.hub_active ? "HUB ACTIVE" : "hub inactive - collect now, shoot later")
+    + (robot.shift ? `   ${robot.shift}` : "")
+    + (robot.shift_remaining_s != null ? `   ${robot.shift_remaining_s.toFixed(0)}s left` : "")
+  );
   overlay.textContent = [
     `x ${pose.x.toFixed(2)} m   y ${pose.y.toFixed(2)} m   ${pose.heading_deg.toFixed(0)}°`,
     `${robot.in_shooting_zone ? "in the shooting zone" : "outside the shooting zone"}`
       + `${robot.rotation_locked ? "   shooter owns the drivetrain" : ""}`,
     `${latest.fuel.length} of ${(latest.fuel_all || []).length} fuel in sight`
       + `   ${latest.fuel_on_board ?? "?"} on board`
-      + (robot.intake_collecting ? "   intaking" : ""),
+      + `   ${intakeText(robot)}`,
+    hubLine,
     latest.model || "",
-  ].join("\n");
+  ].filter((line) => line !== null).join("\n");
 
   const events = latest.transcript || [];
   if (events.length < shownEvents) {
@@ -247,6 +256,16 @@ function render() {
   }
 
   draw();
+}
+
+// The intake's own three states: folded up for a trench/bump crossing (the
+// robot's automatic fold, not the operator's doing), down and either idle or
+// actively collecting, or stowed by STOW_INTAKE. folded_for beats intake_down
+// because a fold happens precisely while intake_down is momentarily false.
+function intakeText(robot) {
+  if (robot.folded_for) return `folded for ${robot.folded_for}`;
+  if (robot.intake_down) return robot.intake_collecting ? "intake down, intaking" : "intake down";
+  return "intake up";
 }
 
 function setStatus(kind, text) {

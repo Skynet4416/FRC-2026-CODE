@@ -2,8 +2,9 @@
 
 This is the agent's main sense. A camera frame shows a few metres of carpet; the
 field view shows the whole field in the same coordinates the tools take, with a
-one-metre grid, the obstacles PathPlanner will not drive through, where the
-robot is and which way it faces, what the camera can see, and the path it is
+one-metre grid, the obstacles PathPlanner will not drive through, the field's
+zones, every fuel piece on the ground (dim) with what the camera can see
+highlighted, where the robot is and which way it faces, and the path it is
 following. Ask a spatial question about the map and the answer is on it.
 
 It is drawn over the official 2026 field render - the same background the demo
@@ -39,6 +40,17 @@ ROBOT_SIZE_M = 0.9
 FIELD_IMAGE_PPM = 200.0
 FIELD_IMAGE_MARGIN_M = 0.5
 
+# A match can have hundreds of fuel on the field at once. Drawing every one of
+# them as a full marker turns the map into a smear of dots that hides the robot,
+# the path and the camera-seen pieces underneath it - so the ground-truth layer
+# is capped and drawn as small, faint dots, evenly sampled rather than just the
+# first N so a sparse corner of the field is not left looking empty.
+MAX_FUEL_DOTS = 220
+
+# The rectangles the intake folds for - drawn in a different colour from the
+# rest of the zones so it is visually obvious why the intake goes up there.
+FOLD_HAZARD_ZONES = {"left_trench", "right_trench", "left_bump", "right_bump"}
+
 
 @lru_cache(maxsize=1)
 def _load_field_image(path: str = FIELD_IMAGE):
@@ -55,6 +67,16 @@ def load_navgrid(path: str = NAVGRID) -> dict[str, Any] | None:
             return json.load(handle)
     except (OSError, json.JSONDecodeError):
         return None
+
+
+def _subsample(points: list, cap: int) -> list:
+    """Evenly thins `points` down to at most `cap` entries, so a dense cluster in
+    one corner of the field does not use up the whole budget and leave the rest
+    of the field looking emptier than it is."""
+    if len(points) <= cap:
+        return points
+    step = len(points) / cap
+    return [points[int(i * step)] for i in range(cap)]
 
 
 def render(robot, landmarks: dict[str, list[float]], dpi: int = 110) -> bytes:
@@ -91,6 +113,43 @@ def render(robot, landmarks: dict[str, list[float]], dpi: int = 110) -> bytes:
                             facecolor="#2b2b33", alpha=0.16, edgecolor="none", zorder=1,
                         )
                     )
+
+    # Field zones - alliance zones, depots, trenches, bumps, hub. The trench and
+    # bump rectangles are also where the intake folds, so they get their own
+    # colour: seeing why is the point, not just that a box is there.
+    for name, box in robot.zones().items():
+        try:
+            x0, y0 = float(box["x_min"]), float(box["y_min"])
+            width, height = float(box["x_max"]) - x0, float(box["y_max"]) - y0
+        except (KeyError, TypeError, ValueError):
+            continue  # a malformed zone should not cost the rest of the map
+        hazard = name in FOLD_HAZARD_ZONES
+        color = "#e0362c" if hazard else "#5b8def"
+        axes.add_patch(
+            Rectangle(
+                (x0, y0), width, height, facecolor="none", edgecolor=color,
+                linewidth=1.4 if hazard else 1.0, linestyle="-" if hazard else "--",
+                alpha=0.7 if hazard else 0.5, zorder=1.5,
+            )
+        )
+        label = name.replace("_", " ") + (" (folds intake)" if hazard else "")
+        axes.annotate(
+            label, (x0 + width / 2, y0 + height / 2), color=color, fontsize=6,
+            alpha=0.85, ha="center", va="center", zorder=1.5,
+        )
+
+    # Every fuel piece on the field, ground truth - dim, small, and subsampled so
+    # a few hundred balls do not drown out everything else on the map. Falls back
+    # to the AdvantageKit pose-struct path for a robot that does not yet publish
+    # the flat FuelPositions array.
+    all_fuel = robot.field_fuel() or robot.field_game_pieces()
+    if all_fuel:
+        shown = _subsample(all_fuel, MAX_FUEL_DOTS)
+        axes.scatter(
+            [p[0] for p in shown], [p[1] for p in shown],
+            s=4, color="#c8a028", alpha=0.45, edgecolors="none",
+            zorder=1.6, label=f"fuel on the field ({len(all_fuel)})",
+        )
 
     # Landmarks, so the names in the prompt have somewhere to point.
     for name, pose in landmarks.items():

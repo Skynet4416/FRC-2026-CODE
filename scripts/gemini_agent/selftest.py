@@ -30,7 +30,7 @@ import websockets
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from nt4 import RobotConnection  # noqa: E402
-from robot_tools import tool_declarations  # noqa: E402
+from robot_tools import RobotTools, tool_declarations  # noqa: E402
 
 # A 1x1 black JPEG, so `look` has something real to decode and forward.
 # How long an action "runs" on the fake robot before it retires itself.
@@ -76,7 +76,10 @@ class FakeRobot:
             "/AIControl/LastError": "",
             "/AIControl/MaxSpeed": 2.5,
             "/AIControl/MaxAccel": 2.5,
-            "/AIControl/AvailableActions": ["STOP", "INTAKE", "SHOOT_FUEL", "ALIGN_HUB"],
+            "/AIControl/AvailableActions": [
+                "STOP", "INTAKE", "STOW_INTAKE", "COLLECT_FUEL", "GRAB_FUEL",
+                "AUTO_FOLD_ON", "AUTO_FOLD_OFF", "SHOOT_FUEL", "ALIGN_HUB",
+            ],
             "/AIControl/RunningActions": [],
             "/AIControl/ResetSimulation": False,
             "/AIControl/HeadingUnits": "degrees",
@@ -84,6 +87,55 @@ class FakeRobot:
             "/AIControl/Landmarks": '{"our_hub":[9.000,4.000,0.0]}',
             "/AIControl/FieldSize": [17.55, 8.05],
             "/CameraPublisher/fuel-cam-processed/streams": [f"mjpg:{camera_url}"],
+            # v2 contract: ground-truth fuel, zones, the game brief, and the
+            # collect target the model can write.
+            "/AIControl/Fuel": json.dumps({
+                "available": True,
+                "source": "simulation ground truth",
+                "vision_source": "sim-ground-truth",
+                "on_board": 3,
+                "capacity": 150,
+                "intake_down": True,
+                "intake_collecting": True,
+                "collect_target": 10,
+                "total_on_field": 5,
+                "zones": {
+                    "neutral_zone": {"count": 5, "centre": [8.0, 4.0],
+                                      "nearest": [7.5, 4.2], "nearest_distance_m": 2.1},
+                },
+                "nearest": [{"x": 7.5, "y": 4.2, "distance_m": 2.1}],
+                "clusters": [{"x": 8.0, "y": 4.0, "count": 5, "radius_m": 1.0}],
+                "seen_by_camera": [
+                    {"x": 7.5, "y": 4.2, "distance_m": 2.1, "bearing_deg": 3.0}
+                ],
+                "pickup": {
+                    "x": 7.5, "y": 4.2, "heading_deg": 90.0, "max_speed": 1.2,
+                    "sweep_to": [7.5, 5.2], "fuel": [7.5, 4.2],
+                    "note": "drive here with INTAKE down, fuel passes on your LEFT",
+                },
+            }),
+            "/AIControl/Zones": json.dumps({
+                "our_alliance_zone": {"x_min": 0.0, "y_min": 0.0, "x_max": 3.0,
+                                       "y_max": 8.05, "what": "score here"},
+                "left_trench": {"x_min": 6.0, "y_min": 0.0, "x_max": 7.0,
+                                 "y_max": 2.0, "what": "low crossing"},
+            }),
+            "/AIControl/GameBrief": "REBUILT: collect fuel, score in the hub.",
+            "/AIControl/FuelPositions": [7.5, 4.2, 8.0, 4.0],
+            "/AIControl/FuelOnBoard": 3.0,
+            "/AIControl/CollectTarget": 10.0,
+            # v2.1 addendum: the trench/bump auto-fold.
+            "/AIControl/IntakePolicy": json.dumps({
+                "intake_down": True, "auto_fold": True, "folded_for": None,
+                "in_hazard": False, "hazard": None, "wants_down": True,
+                "reason": "clear of every hazard",
+            }),
+            "/AIControl/AutoFoldIntake": True,
+            # HubState addendum: which alliance's hub is active this shift.
+            "/AIControl/HubState": json.dumps({
+                "active": True, "shift": "SHIFT2", "shift_remaining_s": 12.4,
+                "match_time_s": 78.2, "hub_state_ignored": True,
+            }),
         }
         self.types = {
             bool: 0, float: 1, str: 4, int: 1,
@@ -290,6 +342,129 @@ SCRIPT = [
 # --------------------------------------------------------------------------
 
 
+def check_defensive_json_parsing(check) -> None:
+    """fuel()/zones()/intake_policy()/hub_state() must degrade to {} on malformed
+    JSON rather than raising - a corrupt topic must not cost the robot connection.
+    Built with __new__ so this needs no live server: get() only touches _values
+    and _lock, which is all a bare instance needs.
+    """
+    robot = RobotConnection.__new__(RobotConnection)
+    robot._lock = threading.Lock()
+    robot._values = {
+        "/AIControl/Fuel": "{not json",
+        "/AIControl/Zones": "[1, 2,",
+        "/AIControl/IntakePolicy": "nope",
+        "/AIControl/HubState": "{",
+    }
+    check("malformed Fuel JSON returns {} instead of raising",
+          robot.fuel() == {}, str(robot.fuel()))
+    check("malformed Zones JSON returns {} instead of raising",
+          robot.zones() == {}, str(robot.zones()))
+    check("malformed IntakePolicy JSON returns {} instead of raising",
+          robot.intake_policy() == {}, str(robot.intake_policy()))
+    check("malformed HubState JSON returns {} instead of raising",
+          robot.hub_state() == {}, str(robot.hub_state()))
+
+
+def _await_write(robot_sim: "FakeRobot", name: str, value, timeout: float = 5.0) -> None:
+    """Polls robot_sim.writes for one (name, value) pair, the way the reset check
+    below already does - a write lands on the fake robot a moment after the
+    client sends it, not necessarily before the call that triggered it returns."""
+    deadline = time.time() + timeout
+    while time.time() < deadline and (name, value) not in robot_sim.writes:
+        time.sleep(0.02)
+
+
+def check_v2_contract(check, robot: RobotConnection, robot_sim: "FakeRobot") -> None:
+    """The v2 contract: ground-truth fuel, zones, the game brief, the trench/bump
+    auto-fold, and the Alliance Shift hub state - parsed defensively, surfaced in
+    state(), and acted on by find_fuel/collect_fuel/grab_fuel/set_auto_fold."""
+    check("fuel() parses the Fuel JSON",
+          robot.fuel().get("on_board") == 3 and robot.fuel().get("total_on_field") == 5,
+          str(robot.fuel()))
+    check("zones() parses the Zones JSON",
+          robot.zones().get("left_trench", {}).get("x_max") == 7.0, str(robot.zones()))
+    check("game_brief() reads the brief string",
+          robot.game_brief() == "REBUILT: collect fuel, score in the hub.",
+          robot.game_brief())
+    check("intake_policy() parses the IntakePolicy JSON",
+          robot.intake_policy().get("auto_fold") is True, str(robot.intake_policy()))
+    check("hub_state() parses the HubState JSON",
+          robot.hub_state().get("shift") == "SHIFT2", str(robot.hub_state()))
+    check("field_fuel() decodes the flat FuelPositions array",
+          robot.field_fuel() == [(7.5, 4.2), (8.0, 4.0)], str(robot.field_fuel()))
+
+    state = robot.state()
+    check("state() carries the new fuel keys",
+          state["fuel_on_board"] == 3 and state["intake_down"] is True
+          and state["intake_collecting"] is True
+          and state["nearest_fuel"] == {"x": 7.5, "y": 4.2, "distance_m": 2.1}
+          and state["fuel_by_zone"] == {"neutral_zone": 5},
+          str({k: state[k] for k in
+               ("fuel_on_board", "intake_down", "intake_collecting",
+                "nearest_fuel", "fuel_by_zone")}))
+    check("state() carries the auto-fold keys",
+          state["auto_fold"] is True and state["folded_for"] is None
+          and state["hazard"] is None,
+          str({k: state[k] for k in ("auto_fold", "folded_for", "hazard")}))
+    check("state() carries the hub-shift keys",
+          state["hub_active"] is True and state["shift"] == "SHIFT2"
+          and state["shift_remaining_s"] == 12.4 and state["hub_state_ignored"] is True,
+          str({k: state[k] for k in
+               ("hub_active", "shift", "shift_remaining_s", "hub_state_ignored")}))
+
+    tools = RobotTools(robot)
+
+    fuel_result = tools.find_fuel()
+    check("find_fuel reports availability and the ground-truth picture",
+          fuel_result["available"] is True and fuel_result["total_on_field"] == 5
+          and fuel_result["vision_source"] == "sim-ground-truth"
+          and fuel_result["seen_by_camera"], str(fuel_result))
+
+    view = tools.look_at_field()
+    check("look_at_field carries the per-zone fuel counts and the vision label",
+          view["fuel_by_zone"] == {"neutral_zone": 5}
+          and view["vision_source"] == "sim-ground-truth" and view["seen_by_camera"],
+          str({k: view[k] for k in ("fuel_by_zone", "vision_source", "seen_by_camera")}))
+
+    before = len(robot_sim.writes)
+    tools.collect_fuel(count=7, wait=False)
+    _await_write(robot_sim, "/AIControl/ActionTrigger", "COLLECT_FUEL")
+    since_collect = robot_sim.writes[before:]
+    names = [n for n, _v in since_collect]
+    check("collect_fuel wrote CollectTarget before triggering COLLECT_FUEL",
+          "/AIControl/CollectTarget" in names and "/AIControl/ActionTrigger" in names
+          and names.index("/AIControl/CollectTarget") < names.index("/AIControl/ActionTrigger"),
+          str(since_collect))
+    check("collect_fuel's count and trigger both reached the robot",
+          ("/AIControl/CollectTarget", 7.0) in since_collect
+          and ("/AIControl/ActionTrigger", "COLLECT_FUEL") in since_collect,
+          str(since_collect))
+
+    before = len(robot_sim.writes)
+    tools.grab_fuel(count=2, wait=False)
+    _await_write(robot_sim, "/AIControl/ActionTrigger", "GRAB_FUEL")
+    since_grab = robot_sim.writes[before:]
+    names = [n for n, _v in since_grab]
+    check("grab_fuel wrote CollectTarget before triggering GRAB_FUEL",
+          "/AIControl/CollectTarget" in names and "/AIControl/ActionTrigger" in names
+          and names.index("/AIControl/CollectTarget") < names.index("/AIControl/ActionTrigger"),
+          str(since_grab))
+    check("grab_fuel's count and trigger both reached the robot",
+          ("/AIControl/CollectTarget", 2.0) in since_grab
+          and ("/AIControl/ActionTrigger", "GRAB_FUEL") in since_grab,
+          str(since_grab))
+
+    robot.set_auto_fold(False)
+    _await_write(robot_sim, "/AIControl/AutoFoldIntake", False)
+    check("set_auto_fold(False) reached the robot",
+          ("/AIControl/AutoFoldIntake", False) in robot_sim.writes)
+    robot.set_auto_fold(True)
+    _await_write(robot_sim, "/AIControl/AutoFoldIntake", True)
+    check("set_auto_fold(True) reached the robot",
+          ("/AIControl/AutoFoldIntake", True) in robot_sim.writes)
+
+
 def check_cockpit_restart(check, robot: RobotConnection) -> None:
     """The cockpit's restart button: the match goes back, the conversation is dropped."""
     from serve import Cockpit
@@ -345,18 +520,30 @@ def main() -> int:
         checks.append((label, bool(ok), detail))
 
     check("connected and read AvailableActions",
-          robot.available_actions() == ["STOP", "INTAKE", "SHOOT_FUEL", "ALIGN_HUB"],
+          robot.available_actions() == [
+              "STOP", "INTAKE", "STOW_INTAKE", "COLLECT_FUEL", "GRAB_FUEL",
+              "AUTO_FOLD_ON", "AUTO_FOLD_OFF", "SHOOT_FUEL", "ALIGN_HUB",
+          ],
           str(robot.available_actions()))
     check("read Landmarks as JSON", robot.landmarks() == {"our_hub": [9.0, 4.0, 0.0]},
           str(robot.landmarks()))
     check("found the camera stream", "fuel-cam-processed" in robot.camera_streams(),
           str(robot.camera_streams()))
 
+    check_defensive_json_parsing(check)
+    check_v2_contract(check, robot, robot_sim)
+
     schema = tool_declarations(robot.available_actions())
-    check("the field view is offered as a tool",
-          {t["name"] for t in schema} == {"drive_to", "run_action", "get_robot_state",
-                                          "look_at_field", "look_through_camera", "wait"},
-          str([t["name"] for t in schema]))
+    tools = RobotTools(robot)
+    check("tool declarations are well-formed function specs",
+          all(t.get("type") == "function" and t.get("name") and "parameters" in t
+              for t in schema),
+          str(schema))
+    check("no duplicate tool names",
+          len({t["name"] for t in schema}) == len(schema), str([t["name"] for t in schema]))
+    check("tool declarations match the handler map exactly",
+          {t["name"] for t in schema} == set(tools.handlers),
+          str(sorted({t["name"] for t in schema} ^ set(tools.handlers))))
     check("tool schema offers the robot's own actions",
           schema[1]["parameters"]["properties"]["action"]["enum"] == robot.available_actions())
 
@@ -364,6 +551,10 @@ def main() -> int:
     check("system prompt carries the robot's notes and landmarks",
           "Test notes from the robot." in session.system_instruction
           and "our_hub" in session.system_instruction)
+    check("system prompt folds in the game brief and the zones",
+          "REBUILT: collect fuel" in session.system_instruction
+          and "left_trench" in session.system_instruction
+          and "our_alliance_zone" in session.system_instruction)
 
     answer = session.ask("drive to the hub, look, and intake")
     print("\nmodel's final answer:", answer, "\n")

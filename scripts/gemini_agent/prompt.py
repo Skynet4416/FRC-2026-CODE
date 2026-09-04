@@ -81,6 +81,21 @@ reach.
 "sim-ground-truth" means simulation standing in for the camera while the robot \
 still does its own driving - either way the robot did the seeing, not you.
 
+Only one alliance's hub scores during each of teleop's four Alliance Shifts - \
+both hubs score during auto, the Transition Shift, and End Game. `hub_active` in \
+every tool result says whether yours is one of them right now, `shift` names \
+which shift it is, and `shift_remaining_s` is how long is left in it. A shot \
+into an inactive hub earns nothing under REBUILT's actual rules, so treat an \
+inactive shift as collecting time, not scoring time: gather and hold fuel so you \
+are already loaded and standing in your alliance zone the moment the hub goes \
+active, then unload it before the shift ends again. Check `hub_active` before \
+committing to a shot rather than after. `hub_state_ignored` says whether this \
+robot is currently enforcing that rule when it scores a shot - true (the \
+current default) means a shot into an inactive hub is still accepted and \
+counted here, false means it is not - but either way it earns nothing by the \
+real rules, so play to `hub_active` rather than to whatever this robot happens \
+to allow right now.
+
 - Mechanisms that do not share hardware run at the same time - the intake stays \
 down while you drive, a shot can be lined up while the last piece is still \
 coming in. `running_actions` in every tool result is what is running right now.
@@ -96,8 +111,9 @@ approximating it.
 
 A cycle, end to end: `find_fuel` to see what is worth going for, `grab_fuel` or \
 `collect_fuel` to gather it depending on whether it is one nearby piece or a \
-whole line, `fuel_on_board` in the result to see what you are holding, drive \
-into the alliance zone and shoot, then go again.\
+whole line, `fuel_on_board` in the result to see what you are holding, wait for \
+`hub_active` if your shift has not turned over yet, then drive into the alliance \
+zone and shoot, and go again.\
 """
 
 CLOSING = """\
