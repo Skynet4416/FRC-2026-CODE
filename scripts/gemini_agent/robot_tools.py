@@ -15,13 +15,23 @@ import field_view
 from camera import grab_frame
 from nt4 import RobotConnection
 
+# Orange-blob detection on look_through_camera frames is a nice-to-have for whoever
+# is watching, not something the model depends on - cv2 stays optional so a
+# machine without it still gets the plain frame instead of a broken tool.
+try:
+    import cv2
+    import numpy as np
+except ImportError:
+    cv2 = None
+    np = None
+
 # How long a tool waits for the robot before it reports back anyway. A path that
 # has not arrived by then is not an error - the model gets the live state and can
 # wait again - but the bridge's own 20 s timeout will have reported a failure.
 DRIVE_TIMEOUT_S = 30.0
 ACTION_TIMEOUT_S = 30.0
-# COLLECT_FUEL is a whole autonomous sweep, not one mechanism spinning up - it can
-# legitimately run far longer than any other single action.
+# COLLECT_FUEL and GRAB_FUEL are whole autonomous manoeuvres, not one mechanism
+# spinning up - they can legitimately run far longer than any other single action.
 COLLECT_TIMEOUT_S = 90.0
 
 
@@ -39,7 +49,12 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
                 "Drive the robot to a field pose with PathPlanner pathfinding, avoiding the "
                 "field's obstacles. Returns the robot state once it arrives or gives up. Any "
                 "action that does not need the drivetrain - the intake, for one - keeps running "
-                "while the robot drives."
+                "while the robot drives. While the intake is down the robot clamps you to 1.5 "
+                "m/s no matter what max_speed you ask for, and fuel is only collected by "
+                "driving over it with the intake down. That makes this the slow, manual way to "
+                "pick up a piece - grab_fuel and collect_fuel do the same driving for you, so "
+                "prefer those for fuel and save drive_to for getting somewhere or lining up a "
+                "shot."
             ),
             "parameters": {
                 "type": "object",
@@ -76,8 +91,18 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
                 "Run one of the robot's mechanism actions. Actions on different mechanisms run "
                 "at the same time, so call this with wait=false and then drive_to to intake "
                 "while driving; only actions that need the same mechanism replace each other. "
-                "Shooting actions take over the drivetrain and drive into the alliance zone "
-                "first if the robot is not already there. STOP cancels everything."
+                "INTAKE lowers the intake and latches it down, rollers running, until "
+                "STOW_INTAKE or STOP - it never folds itself, so there is no need to "
+                "re-trigger it, and the intake's normal resting state is down everywhere on "
+                "the field, not just while you are chasing a piece. The robot folds it by "
+                "itself only to cross the trench and the bumps, lowering it again once clear "
+                "- see folded_for in the robot state for when this is happening. AUTO_FOLD_OFF "
+                "hands you manual control of that fold; AUTO_FOLD_ON gives it back. "
+                "COLLECT_FUEL and GRAB_FUEL read how many pieces to gather from CollectTarget "
+                "- call the collect_fuel/grab_fuel tools instead of this one for those, since "
+                "they set it for you. Shooting actions take over the drivetrain and drive into "
+                "the alliance zone first if the robot is not already there. STOP cancels "
+                "everything."
             ),
             "parameters": {
                 "type": "object",
@@ -106,9 +131,11 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
             "description": (
                 "Look at the field from above: a top-down map in the same coordinates these "
                 "tools take, with a one-metre grid, the obstacles the robot cannot drive "
-                "through, the robot and its heading, the fuel its camera can see, the path it "
+                "through, the robot and its heading, every fuel piece on the field (faint) "
+                "with the ones its camera can see highlighted, the field's zones, the path it "
                 "is following and the pose it was asked for. This is the view to use for "
-                "anything about position, route or layout."
+                "anything about position, route or layout - for where fuel actually is, "
+                "find_fuel has the numbers this map only draws."
             ),
             "parameters": {"type": "object", "properties": {}},
         },
@@ -145,6 +172,74 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
                 "required": ["seconds"],
             },
         },
+        {
+            "type": "function",
+            "name": "find_fuel",
+            "description": (
+                "Where fuel actually is on the field right now - ground truth from the robot, "
+                "not a guess from a camera frame. Per-zone counts and centres, the nearest "
+                "pieces, the biggest clusters, what the camera itself can currently see, and a "
+                "ready-made pickup pose and heading. Call this to decide where fuel is worth "
+                "going for, instead of hunting for it with look_at_field or "
+                "look_through_camera. It only tells you where fuel is - use grab_fuel for a "
+                "single nearby piece, collect_fuel to sweep a whole line, or drive_to plus "
+                "INTAKE for anywhere neither can reach."
+            ),
+            "parameters": {"type": "object", "properties": {}},
+        },
+        {
+            "type": "function",
+            "name": "grab_fuel",
+            "description": (
+                "The default reflex when there is fuel near you: the robot looks for it with "
+                "its camera, drives itself onto the nearest piece and takes it. You do not "
+                "need to work out a pose, a heading or a speed, and you do not need to place "
+                "the ball on your left flank yourself - the robot does. Prefer this over "
+                "drive_to for a piece or two right in front of you; use collect_fuel for a "
+                "whole line of fuel, and find_fuel first if nothing is in reach yet."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "number",
+                        "description": "How many pieces to grab before stopping, 1-20. Default 1.",
+                    },
+                    "wait": {
+                        "type": "boolean",
+                        "description": "Block until the grab finishes (default true).",
+                    },
+                },
+            },
+        },
+        {
+            "type": "function",
+            "name": "collect_fuel",
+            "description": (
+                "The preferred way to gather a whole line of fuel: the robot lowers the "
+                "intake, plans a slow sweep so the fuel passes down its left flank, and drives "
+                "it - you do not need to drive or manage the intake yourself. Use find_fuel() "
+                "first to see where a sweep is worth making, or grab_fuel() instead for a "
+                "single nearby piece that does not need a whole sweep. Leaves the intake down "
+                "when it finishes."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "count": {
+                        "type": "number",
+                        "description": (
+                            "How many pieces to gather before stopping, 1-150 (hopper "
+                            "capacity). Default 10."
+                        ),
+                    },
+                    "wait": {
+                        "type": "boolean",
+                        "description": "Block until the sweep finishes (default true).",
+                    },
+                },
+            },
+        },
     ]
 
 
@@ -161,6 +256,9 @@ class RobotTools:
             "look_at_field": self.look_at_field,
             "look_through_camera": self.look_through_camera,
             "wait": self.wait,
+            "find_fuel": self.find_fuel,
+            "grab_fuel": self.grab_fuel,
+            "collect_fuel": self.collect_fuel,
         }
 
     def call(self, name: str, arguments: dict) -> tuple[dict, bytes | None]:
@@ -221,15 +319,24 @@ class RobotTools:
         image = field_view.render(self.robot, self.robot.landmarks())
         state = self.robot.state()
         pieces = self.robot.detected_game_pieces()
+        fuel = self.robot.fuel()
         return {
             "view": "top-down field map, attached as an image",
             "note": (
                 "X increases to the right, Y upwards, grid lines every metre. Grey cells are "
-                "obstacles the pathfinder will not cross."
+                "obstacles the pathfinder will not cross, faint dots are every fuel piece on "
+                "the field, bright orange dots are fuel the camera can actually see, and "
+                "dashed boxes are the field's zones - the red ones fold the intake."
             ),
             "fuel_seen_by_camera": [
                 {"x": round(x, 2), "y": round(y, 2)} for x, y in pieces
             ],
+            "fuel_by_zone": state.get("fuel_by_zone", {}),
+            # From the Fuel JSON directly: bearing/range detections plus the label
+            # for where they came from - never let a sim stand-in pass as the real
+            # detector.
+            "seen_by_camera": fuel.get("seen_by_camera", []),
+            "vision_source": fuel.get("vision_source"),
             "robot": state,
             "_image": image,
         }
@@ -246,8 +353,56 @@ class RobotTools:
             "camera": name,
             "note": "The image is attached. It is a live view through this camera.",
             "robot": self.robot.state(),
-            "_image": frame,
+            "_image": _annotate_orange_blobs(frame),
         }
+
+    def find_fuel(self) -> dict:
+        fuel = self.robot.fuel()
+        if not fuel or not fuel.get("available", False):
+            return {
+                "available": False,
+                "note": (
+                    "the robot is not publishing ground-truth fuel positions - older robot "
+                    "code, or a real field - so use look_at_field / look_through_camera to "
+                    "find fuel visually instead"
+                ),
+            }
+        return {
+            "available": True,
+            "source": fuel.get("source"),
+            "vision_source": fuel.get("vision_source"),
+            "total_on_field": fuel.get("total_on_field"),
+            "on_board": fuel.get("on_board"),
+            "capacity": fuel.get("capacity"),
+            "zones": fuel.get("zones", {}),
+            "nearest": fuel.get("nearest", []),
+            "clusters": fuel.get("clusters", []),
+            "seen_by_camera": fuel.get("seen_by_camera", []),
+            "pickup": fuel.get("pickup"),
+        }
+
+    def grab_fuel(self, count: float = 1, wait: bool = True) -> dict:
+        return self._collect_action("GRAB_FUEL", count, wait)
+
+    def collect_fuel(self, count: float = 10, wait: bool = True) -> dict:
+        return self._collect_action("COLLECT_FUEL", count, wait)
+
+    def _collect_action(self, action: str, count: float, wait: bool) -> dict:
+        """The shared machinery behind grab_fuel and collect_fuel: both are just
+        COLLECT_FUEL with a different fuel source on the robot side, and both need
+        CollectTarget written before the trigger - the action reads it the moment
+        it starts, not on some later tick."""
+        available = {a.upper() for a in self.robot.available_actions()}
+        if action not in available:
+            return {"error": f"no such action {action!r}",
+                     "available_actions": sorted(available)}
+        self.robot.set_collect_target(count)
+        self.robot.set_action(action)
+        if wait:
+            self.robot.wait_until_action_done(action, timeout=COLLECT_TIMEOUT_S)
+        else:
+            time.sleep(0.3)
+        return self._state_with(f"{action} (target {count})")
 
     # -- helpers -----------------------------------------------------------
 
@@ -256,6 +411,32 @@ class RobotTools:
         if did:
             state["requested"] = did
         return state
+
+
+def _annotate_orange_blobs(jpeg: bytes) -> bytes:
+    """Circles anything orange-ish, so a human watching the tool call can see
+    roughly what a fuel detector would be looking at. Purely cosmetic and
+    best-effort: cv2 is optional (see the import at the top of this file), and
+    any decode failure here falls back to the untouched frame rather than losing
+    the tool call over a cosmetic overlay."""
+    if cv2 is None:
+        return jpeg
+    try:
+        frame = cv2.imdecode(np.frombuffer(jpeg, dtype=np.uint8), cv2.IMREAD_COLOR)
+        if frame is None:
+            return jpeg
+        hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
+        mask = cv2.inRange(hsv, (5, 120, 120), (25, 255, 255))  # "fuel orange"
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        for contour in contours:
+            if cv2.contourArea(contour) < 40:
+                continue  # noise, not a ball
+            (x, y), radius = cv2.minEnclosingCircle(contour)
+            cv2.circle(frame, (int(x), int(y)), int(radius), (0, 140, 255), 2)
+        ok, encoded = cv2.imencode(".jpg", frame)
+        return encoded.tobytes() if ok else jpeg
+    except Exception:
+        return jpeg
 
 
 def _default_camera(streams: dict[str, str]) -> str:
