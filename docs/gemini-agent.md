@@ -135,7 +135,7 @@ the last error. So the model is never guessing about what the robot just did.
 | Tool | What it does |
 | --- | --- |
 | `drive_to(x, y, heading_deg, max_speed?, max_accel?, wait?)` | PathPlanner pathfinding to a pose. Waits for arrival by default. |
-| `run_action(action, wait?)` | Runs a mechanism action - the enum comes from the robot's own `AvailableActions`, so a newly registered action is offered without touching the agent. |
+| `run_action(action, wait?)` | Runs a mechanism action - the enum comes from the robot's own `AvailableActions`, so a newly registered action is offered without touching the agent. Actions on different mechanisms run at the same time, so `wait=false` then `drive_to` is how the model intakes while driving. |
 | `look_at_field()` | Redraws the top-down view. |
 | `look_through_camera(camera?)` | One frame from a PhotonVision MJPEG stream. Defaults to the game-piece camera's processed stream. |
 | `get_robot_state()` | Pose and status, without doing anything. |

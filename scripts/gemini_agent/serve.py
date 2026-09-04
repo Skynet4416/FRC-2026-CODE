@@ -49,6 +49,10 @@ class Cockpit:
         self.busy = False
         self.error = ""
         self.lock = threading.Lock()
+        # Bumped by restart(). An instruction still in flight when the match is
+        # restarted belongs to the run that just went away, so its events and its
+        # "finished" are ignored rather than landing in the fresh transcript.
+        self.generation = 0
 
     # -- what the page reads ----------------------------------------------
 
@@ -89,19 +93,44 @@ class Cockpit:
         self.robot.set_action("STOP")
         self._event("stopped", "STOP - the path and the action were cancelled")
 
-    def _run(self, instruction: str) -> None:
-        try:
-            if self.session is None:
-                self.session = self.session_factory(self._event)
-            self.error = ""
-            self.session.ask(instruction)
-        except Exception as exc:
-            self.error = f"{type(exc).__name__}: {exc}"
-            self._event("error", self.error)
-        finally:
-            self.busy = False
+    def restart(self) -> None:
+        """Back to the top: the simulated match restarts and the conversation is forgotten.
 
-    def _event(self, kind: str, text: str) -> None:
+        Dropping the session is what clears the chat - the model's memory of the run
+        lives in the session's interaction id, not in the transcript the page draws -
+        so the next instruction starts from a robot that is where it began.
+        """
+        with self.lock:
+            self.generation += 1
+            self.session = None
+            self.transcript = []
+            self.error = ""
+            self.busy = False
+        self.robot.set_action("STOP")
+        self.robot.reset_simulation()
+
+    def _run(self, instruction: str) -> None:
+        generation = self.generation
+        try:
+            with self.lock:
+                if self.session is None:
+                    self.session = self.session_factory(
+                        lambda kind, text: self._event(kind, text, generation)
+                    )
+                session = self.session
+            self.error = ""
+            session.ask(instruction)
+        except Exception as exc:
+            if generation == self.generation:
+                self.error = f"{type(exc).__name__}: {exc}"
+                self._event("error", self.error, generation)
+        finally:
+            if generation == self.generation:
+                self.busy = False
+
+    def _event(self, kind: str, text: str, generation: int | None = None) -> None:
+        if generation is not None and generation != self.generation:
+            return  # from a run the restart button already threw away
         self.transcript.append({"t": time.time(), "kind": kind, "text": text})
         del self.transcript[:-MAX_TRANSCRIPT]
 
@@ -144,6 +173,9 @@ def make_handler(cockpit: Cockpit):
                                   {"ok": status == 202, "message": message})
             if path == "/stop":
                 cockpit.stop()
+                return self._json(200, {"ok": True})
+            if path == "/restart":
+                cockpit.restart()
                 return self._json(200, {"ok": True})
             return self._json(404, {"error": "not found"})
 

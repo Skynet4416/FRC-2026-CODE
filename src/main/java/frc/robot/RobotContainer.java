@@ -452,6 +452,11 @@ public class RobotContainer {
             .registerAction("SHOOT_FUEL", () -> shootAtHub(4.0), true)
             .registerAction("SHOOT_ON_THE_MOVE", () -> shootOnTheMove(5.0), true)
             .registerAction("ALIGN_HUB", () -> aimAtHub(3.0), true);
+    if (Constants.currentMode == Constants.Mode.SIM) {
+      // Only the simulator has a match to restart; on a real robot the bridge says so instead of
+      // reporting a reset that never happened.
+      aiControlBridge.onSimulationReset(this::resetSimulation);
+    }
     registerFieldLandmarks(aiControlBridge);
     aiControlActive = new Trigger(aiControlBridge::isBusy);
 
@@ -1017,6 +1022,10 @@ public class RobotContainer {
             AllianceFlipUtil.applyY(7.430),
             AllianceFlipUtil.apply(Rotation2d.fromDegrees(-90))));
     SimulatedArena.getInstance().resetFieldForAuto();
+    // The bump sim owns field X while a crossing is in progress, so without this it would pull the
+    // robot straight back off the starting pose it was just put on.
+    robotBumpSim.reset();
+    wasOnRamp = false;
     ballSim.clearBalls();
     ballSim.placeFieldBalls();
     ballSim.resetCounters();

@@ -17,6 +17,7 @@ import edu.wpi.first.math.geometry.Rotation2d;
 import edu.wpi.first.math.kinematics.ChassisSpeeds;
 import edu.wpi.first.math.util.Units;
 import edu.wpi.first.networktables.BooleanPublisher;
+import edu.wpi.first.networktables.BooleanSubscriber;
 import edu.wpi.first.networktables.DoubleArrayPublisher;
 import edu.wpi.first.networktables.DoubleArraySubscriber;
 import edu.wpi.first.networktables.DoublePublisher;
@@ -34,6 +35,7 @@ import edu.wpi.first.wpilibj2.command.CommandScheduler;
 import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.function.BooleanSupplier;
@@ -60,6 +62,10 @@ import org.littletonrobotics.junction.Logger;
  *       <td>Name of a registered mechanism action, e.g. {@code "INTAKE"}, {@code "SHOOT_FUEL"},
  *       {@code "SHOOT_ON_THE_MOVE"}, {@code "ALIGN_HUB"}. {@code "STOP"} cancels
  *       everything.</td></tr>
+ *   <tr><td>{@code ResetSimulation}</td><td>{@code boolean}</td>
+ *       <td>Writing {@code true} cancels everything and puts the simulated match back to its
+ *       starting state. It is deliberately not an action, so it never reaches the agent's tool
+ *       list: restarting the match is the human's button, not the model's.</td></tr>
  * </table>
  *
  * <p><b>Navigation goes through PathPlanner; shooting goes through the robot's own launch
@@ -102,7 +108,11 @@ public class AIControlBridge extends SubsystemBase {
           + "/AIControl/MaxAccel (m/s^2) before a TargetPose to drive gently or to build up speed. "
           + "The bumps beside each hub are only crossable with a running start - back off a couple "
           + "of metres and cross at 4+ m/s, or take the flat trench lanes along either side wall "
-          + "instead. STOP cancels everything.";
+          + "instead. Actions on different mechanisms run at the same time: trigger INTAKE and "
+          + "then drive, and the intake stays down for the whole path. Only actions that need the "
+          + "same mechanism replace each other, and a shooting action or a new TargetPose takes "
+          + "the drivetrain back from whatever had it. RunningActions lists what is running right "
+          + "now. STOP cancels everything.";
 
   // Default pathfinding limits. The agent can change them live through MaxSpeed / MaxAccel - worth
   // doing, since crossing a bump needs a running start while lining up on something wants slow.
@@ -144,13 +154,18 @@ public class AIControlBridge extends SubsystemBase {
   /** Pose to drive to before shooting, when the robot is not in the shooting zone. */
   private Supplier<Pose2d> shootingSpot = null;
 
+  /** Puts the simulated match back to its starting state. No-op until something registers one. */
+  private Runnable simulationReset = null;
+
   // Inputs (written by the AI agent)
   private final DoubleArraySubscriber targetPoseSub;
   private final StringSubscriber actionTriggerSub;
+  private final BooleanSubscriber resetSimulationSub;
 
   // Input topics are published once so they exist (with a neutral value) at startup.
   private final DoubleArrayPublisher targetPosePub;
   private final StringPublisher actionTriggerPub;
+  private final BooleanPublisher resetSimulationPub;
   private final DoublePublisher maxSpeedPub;
   private final DoublePublisher maxAccelPub;
   private final DoubleSubscriber maxSpeedSub;
@@ -168,13 +183,22 @@ public class AIControlBridge extends SubsystemBase {
   private final StringPublisher lastActionPub;
   private final StringPublisher lastErrorPub;
   private final StringArrayPublisher availableActionsPub;
+  private final StringArrayPublisher runningActionsPub;
   private final StringPublisher headingUnitsPub;
   private final StringPublisher notesPub;
   private final StringPublisher landmarksPub;
   private final DoubleArrayPublisher fieldSizePub;
 
   private Command navigationCommand = null;
-  private Command actionCommand = null;
+
+  /**
+   * The actions running right now, by name. Mechanisms that do not share a subsystem run at the
+   * same time - intaking while a path drives over the fuel is the whole point - so this is a map
+   * rather than the one slot it used to be. Ordered, so status text reads in the order the actions
+   * were triggered.
+   */
+  private final Map<String, Command> runningActions = new LinkedHashMap<>();
+
   private Pose2d activeTarget = null;
   private String lastAction = "";
   private boolean rotationLocked = false;
@@ -222,6 +246,13 @@ public class AIControlBridge extends SubsystemBase {
         actionTriggerTopic.subscribe(
             "", PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
 
+    var resetSimulationTopic = table.getBooleanTopic("ResetSimulation");
+    resetSimulationPub = resetSimulationTopic.publish();
+    resetSimulationPub.set(false);
+    resetSimulationSub =
+        resetSimulationTopic.subscribe(
+            false, PubSubOption.sendAll(true), PubSubOption.keepDuplicates(true));
+
     var maxSpeedTopic = table.getDoubleTopic("MaxSpeed");
     maxSpeedPub = maxSpeedTopic.publish();
     maxSpeedPub.set(DEFAULT_MAX_SPEED_MPS);
@@ -243,6 +274,7 @@ public class AIControlBridge extends SubsystemBase {
     lastActionPub = table.getStringTopic("LastAction").publish();
     lastErrorPub = table.getStringTopic("LastError").publish();
     availableActionsPub = table.getStringArrayTopic("AvailableActions").publish();
+    runningActionsPub = table.getStringArrayTopic("RunningActions").publish();
     headingUnitsPub = table.getStringTopic("HeadingUnits").publish();
     notesPub = table.getStringTopic("Notes").publish();
     landmarksPub = table.getStringTopic("Landmarks").publish();
@@ -258,6 +290,7 @@ public class AIControlBridge extends SubsystemBase {
     statusPub.set("IDLE");
     lastActionPub.set("");
     lastErrorPub.set("");
+    runningActionsPub.set(new String[0]);
     headingUnitsPub.set("degrees");
     notesPub.set(NOTES);
     fieldSizePub.set(new double[0]);
@@ -300,15 +333,36 @@ public class AIControlBridge extends SubsystemBase {
     return registerAction(name, commandSupplier, false);
   }
 
+  /**
+   * Teaches the bridge how to put the simulated match back to its starting state, so a dashboard
+   * can restart a demo without restarting the robot code.
+   *
+   * <p>This is not a registered action on purpose: actions are published in {@code
+   * AvailableActions} and become the agent's tool list, and an agent that can wipe the field
+   * mid-instruction is an agent that can hide its own mistakes. Restarting is the human's button,
+   * driven by writing {@code true} to {@code /AIControl/ResetSimulation}.
+   *
+   * @param reset run on the main robot thread; expected to no-op away from simulation
+   */
+  public AIControlBridge onSimulationReset(Runnable reset) {
+    this.simulationReset = reset;
+    return this;
+  }
+
   /** True while a pathfinding command from this bridge is running. */
   public boolean isNavigating() {
     return navigationCommand != null
         && CommandScheduler.getInstance().isScheduled(navigationCommand);
   }
 
-  /** True while a mechanism action from this bridge is running. */
+  /** True while at least one mechanism action from this bridge is running. */
   public boolean isActionRunning() {
-    return actionCommand != null && CommandScheduler.getInstance().isScheduled(actionCommand);
+    return !runningActions.isEmpty();
+  }
+
+  /** Names of the actions running right now, in the order they were triggered. */
+  public String[] runningActions() {
+    return runningActions.keySet().toArray(new String[0]);
   }
 
   /** True while the bridge owns the drivetrain, i.e. it is navigating or aiming. */
@@ -324,6 +378,13 @@ public class AIControlBridge extends SubsystemBase {
     for (String value : actionTriggerSub.readQueueValues()) {
       handleAction(value);
     }
+    for (boolean value : resetSimulationSub.readQueueValues()) {
+      if (value) {
+        handleResetSimulation();
+      }
+    }
+
+    pruneFinishedActions();
 
     boolean navigating = isNavigating();
     boolean actionRunning = isActionRunning();
@@ -347,17 +408,14 @@ public class AIControlBridge extends SubsystemBase {
                 activeTarget.getX(), activeTarget.getY()));
       }
     }
-    if (!actionRunning && actionCommand != null) {
-      actionCommand = null;
-      setDriveOwnedByShooter(false);
-    }
     Pose2d pose = poseSupplier.get();
     boolean atTarget = activeTarget != null && atPose(pose, activeTarget);
 
     // The approach into the alliance zone is part of the shooting action; say so when it ends and
     // the shot itself starts.
-    if (approachingShootAction != null && (!actionRunning || inShootingZone.getAsBoolean())) {
-      if (actionRunning) {
+    if (approachingShootAction != null
+        && (!runningActions.containsKey(approachingShootAction) || inShootingZone.getAsBoolean())) {
+      if (runningActions.containsKey(approachingShootAction)) {
         statusPub.set("RUNNING " + approachingShootAction + " - shooter owns the drivetrain");
       }
       approachingShootAction = null;
@@ -373,9 +431,11 @@ public class AIControlBridge extends SubsystemBase {
     actionRunningPub.set(actionRunning);
     atTargetPub.set(atTarget);
     inShootingZonePub.set(inShootingZone.getAsBoolean());
+    runningActionsPub.set(runningActions());
 
     Logger.recordOutput("AIControl/Navigating", navigating);
     Logger.recordOutput("AIControl/ActionRunning", actionRunning);
+    Logger.recordOutput("AIControl/RunningActions", runningActions());
     Logger.recordOutput("AIControl/ShooterOwnsDrivetrain", rotationLocked);
     Logger.recordOutput("AIControl/InShootingZone", inShootingZone.getAsBoolean());
     Logger.recordOutput("AIControl/LastAction", lastAction);
@@ -384,10 +444,10 @@ public class AIControlBridge extends SubsystemBase {
     }
   }
 
-  /** Cancels the running path and action. */
+  /** Cancels the running path and every running action. */
   public void cancel() {
     cancelNavigation();
-    cancelAction();
+    cancelActions();
     statusPub.set("STOPPED");
   }
 
@@ -399,14 +459,83 @@ public class AIControlBridge extends SubsystemBase {
     navigatingPub.set(false);
   }
 
-  private void cancelAction() {
+  /** Cancels every running action. */
+  private void cancelActions() {
     approachingShootAction = null;
-    if (actionCommand != null) {
-      CommandScheduler.getInstance().cancel(actionCommand);
-      actionCommand = null;
+    for (Command command : runningActions.values()) {
+      CommandScheduler.getInstance().cancel(command);
     }
+    runningActions.clear();
     setDriveOwnedByShooter(false);
     actionRunningPub.set(false);
+    runningActionsPub.set(new String[0]);
+  }
+
+  /**
+   * Cancels the running actions that cannot coexist with {@code command}: the ones that need a
+   * subsystem it needs. The scheduler enforces this by itself when the new command is scheduled;
+   * doing it here keeps {@code runningActions} honest about it in the same loop, and keeps a
+   * cancelled action out of the status text.
+   *
+   * @param except an action name to leave alone, or null
+   */
+  private void cancelConflictingActions(Command command, String except) {
+    var required = command.getRequirements();
+    runningActions
+        .entrySet()
+        .removeIf(
+            entry -> {
+              if (entry.getKey().equals(except)
+                  || Collections.disjoint(entry.getValue().getRequirements(), required)) {
+                return false;
+              }
+              CommandScheduler.getInstance().cancel(entry.getValue());
+              return true;
+            });
+  }
+
+  /**
+   * Drops the actions whose commands have ended, so the running set is only what is really live.
+   */
+  private void pruneFinishedActions() {
+    boolean removed =
+        runningActions
+            .values()
+            .removeIf(command -> !CommandScheduler.getInstance().isScheduled(command));
+    if (!removed) {
+      return;
+    }
+    if (runningActions.isEmpty()) {
+      approachingShootAction = null;
+    }
+    setDriveOwnedByShooter(anyRunningActionOwnsDrive());
+  }
+
+  /** True while one of the running actions is a shooting action, which drives the robot itself. */
+  private boolean anyRunningActionOwnsDrive() {
+    return runningActions.keySet().stream()
+        .map(actions::get)
+        .anyMatch(action -> action != null && action.ownsDrive());
+  }
+
+  /** Cancels everything the bridge is doing, then puts the simulated match back to the start. */
+  private void handleResetSimulation() {
+    cancel();
+    activeTarget = null;
+    activeTargetPub.set(new double[0]);
+    atTargetPub.set(false);
+    lastAction = "";
+    lastActionPub.set("");
+    lastErrorPub.set("");
+    if (simulationReset == null) {
+      reportError("nothing registered to reset the simulation");
+      return;
+    }
+    simulationReset.run();
+    statusPub.set("RESET");
+    // Nothing is running any more, so the end-of-work branch below must not overwrite this
+    // with IDLE on the way out of the same loop.
+    wasBusy = false;
   }
 
   private void handleTargetPose(double[] value) {
@@ -445,6 +574,9 @@ public class AIControlBridge extends SubsystemBase {
 
     activeTarget = target;
     navigationCommand = pathfindCommand(target);
+    // Taking the drivetrain back ends a shooting action, but not an intake running beside it.
+    cancelConflictingActions(navigationCommand, null);
+    setDriveOwnedByShooter(anyRunningActionOwnsDrive());
     CommandScheduler.getInstance().schedule(navigationCommand);
 
     activeTargetPub.set(toArray(target));
@@ -532,13 +664,18 @@ public class AIControlBridge extends SubsystemBase {
       return;
     }
 
-    cancelAction();
     enableForCommandInSim();
 
     Command command = action.commandSupplier().get();
     if (command == null) {
       reportError("action '" + name + "' produced no command");
       return;
+    }
+
+    // Retriggering an action restarts it rather than stacking a second copy on the mechanism.
+    Command previous = runningActions.remove(name);
+    if (previous != null) {
+      CommandScheduler.getInstance().cancel(previous);
     }
 
     boolean approaching = false;
@@ -556,10 +693,15 @@ public class AIControlBridge extends SubsystemBase {
       }
     }
 
-    actionCommand = command;
-    CommandScheduler.getInstance().schedule(actionCommand);
+    // Only the actions that need a subsystem this one needs have to give way; everything else keeps
+    // running alongside it, so the intake can stay down while the robot drives or shoots.
+    cancelConflictingActions(command, name);
+
+    runningActions.put(name, command);
+    CommandScheduler.getInstance().schedule(command);
     actionRunningPub.set(true);
-    setDriveOwnedByShooter(action.ownsDrive());
+    runningActionsPub.set(runningActions());
+    setDriveOwnedByShooter(anyRunningActionOwnsDrive());
 
     if (approaching) {
       Pose2d spot = activeTarget;
@@ -570,7 +712,9 @@ public class AIControlBridge extends SubsystemBase {
               spot.getX(), spot.getY(), name));
     } else {
       statusPub.set(
-          "RUNNING " + name + (action.ownsDrive() ? " - shooter owns the drivetrain" : ""));
+          "RUNNING "
+              + String.join(" + ", runningActions())
+              + (anyRunningActionOwnsDrive() ? " - shooter owns the drivetrain" : ""));
     }
   }
 

@@ -33,6 +33,12 @@ from nt4 import RobotConnection  # noqa: E402
 from robot_tools import tool_declarations  # noqa: E402
 
 # A 1x1 black JPEG, so `look` has something real to decode and forward.
+# How long an action "runs" on the fake robot before it retires itself.
+ACTION_SECONDS = 2.0
+
+# Empty arrays carry no element type, so the string ones are named rather than guessed.
+STRING_ARRAY_TOPICS = {"/AIControl/AvailableActions", "/AIControl/RunningActions"}
+
 JPEG = base64.b64decode(
     "/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAAgGBgcGBQgHBwcJCQgKDBQNDAsLDBkSEw8UHRofHh0a"
     "HBwgJC4nICIsIxwcKDcpLDAxNDQ0Hyc5PTgyPC4zNDL/wAALCAABAAEBAREA/8QAFAABAAAAAAAA"
@@ -71,6 +77,8 @@ class FakeRobot:
             "/AIControl/MaxSpeed": 2.5,
             "/AIControl/MaxAccel": 2.5,
             "/AIControl/AvailableActions": ["STOP", "INTAKE", "SHOOT_FUEL", "ALIGN_HUB"],
+            "/AIControl/RunningActions": [],
+            "/AIControl/ResetSimulation": False,
             "/AIControl/HeadingUnits": "degrees",
             "/AIControl/Notes": "Test notes from the robot.",
             "/AIControl/Landmarks": '{"our_hub":[9.000,4.000,0.0]}',
@@ -80,6 +88,10 @@ class FakeRobot:
         self.types = {
             bool: 0, float: 1, str: 4, int: 1,
         }
+        # name -> the moment it stops running. Actions on different mechanisms overlap
+        # here exactly as they do on the robot, so the tools' waits are really exercised.
+        self.action_ends: dict[str, float] = {}
+        self.resets = 0
         self._loop: asyncio.AbstractEventLoop | None = None
         self._ready = threading.Event()
 
@@ -106,15 +118,26 @@ class FakeRobot:
         ids = {name: i for i, name in enumerate(self.values, start=100)}
 
         async def send_all():
+            self._expire_actions()
             await ws.send(json.dumps([
                 {"method": "announce",
-                 "params": {"name": name, "id": ids[name], "type": _nt_type(value),
+                 "params": {"name": name, "id": ids[name], "type": _nt_type(name, value),
                             "pubuid": None, "properties": {}}}
                 for name, value in self.values.items()
             ]))
             for name, value in self.values.items():
                 await ws.send(msgpack.packb([ids[name], int(time.time() * 1e6),
-                                             _nt_type_id(value), value]))
+                                             _nt_type_id(name, value), value]))
+
+        async def heartbeat():
+            # The real bridge publishes every loop, which is how a client sees an action
+            # finish. Without it the tools' waits would only ever see the last write.
+            try:
+                while True:
+                    await asyncio.sleep(0.05)
+                    await send_all()
+            except Exception:
+                pass  # the connection went away
 
         async for message in ws:
             if isinstance(message, str):
@@ -123,6 +146,7 @@ class FakeRobot:
                     if item.get("method") == "publish":
                         pubs[params["pubuid"]] = params["name"]
                     elif item.get("method") == "subscribe":
+                        asyncio.create_task(heartbeat())
                         await send_all()
                 continue
             unpacker = msgpack.Unpacker(raw=False, use_list=True)
@@ -131,7 +155,17 @@ class FakeRobot:
                 name = pubs.get(pubuid, str(pubuid))
                 self.writes.append((name, value))
                 self._apply(name, value)
-            await send_all()
+            try:
+                await send_all()
+            except Exception:
+                return  # the client hung up between its write and our reply
+
+    def _expire_actions(self) -> None:
+        """Retires the actions whose time is up, the way the bridge's periodic does."""
+        now = time.time()
+        self.action_ends = {n: end for n, end in self.action_ends.items() if end > now}
+        self.values["/AIControl/RunningActions"] = list(self.action_ends)
+        self.values["/AIControl/ActionRunning"] = bool(self.action_ends)
 
     def _apply(self, name: str, value) -> None:
         """The bit of bridge behaviour the tools actually depend on."""
@@ -142,25 +176,37 @@ class FakeRobot:
             self.values["/AIControl/Status"] = "AT TARGET"
         elif name == "/AIControl/ActionTrigger" and value:
             self.values["/AIControl/LastAction"] = value
-            self.values["/AIControl/Status"] = f"RUNNING {value}"
+            if value == "STOP":
+                self.action_ends.clear()
+                self.values["/AIControl/Status"] = "STOPPED"
+            else:
+                self.action_ends[value] = time.time() + ACTION_SECONDS
+                self.values["/AIControl/Status"] = f"RUNNING {value}"
+        elif name == "/AIControl/ResetSimulation" and value:
+            self.resets += 1
+            self.action_ends.clear()
+            self.values["/AIControl/RobotPose"] = [1.5, 4.0, 0.0]
+            self.values["/AIControl/Status"] = "RESET"
         elif name in ("/AIControl/MaxSpeed", "/AIControl/MaxAccel"):
             self.values[name] = value
 
 
-def _nt_type(value) -> str:
+def _nt_type(name: str, value) -> str:
     if isinstance(value, bool):
         return "boolean"
     if isinstance(value, str):
         return "string"
     if isinstance(value, (int, float)):
         return "double"
-    if value and isinstance(value[0], str):
+    if name in STRING_ARRAY_TOPICS or (value and isinstance(value[0], str)):
         return "string[]"
     return "double[]"
 
 
-def _nt_type_id(value) -> int:
-    return {"boolean": 0, "double": 1, "string": 4, "double[]": 17, "string[]": 20}[_nt_type(value)]
+def _nt_type_id(name: str, value) -> int:
+    return {"boolean": 0, "double": 1, "string": 4, "double[]": 17, "string[]": 20}[
+        _nt_type(name, value)
+    ]
 
 
 # --------------------------------------------------------------------------
@@ -231,6 +277,9 @@ SCRIPT = [
     {"steps": [call("look_through_camera", {}, "c2b")]},
     {"steps": [call("run_action", {"action": "INTAKE"}, "c3")]},
     {"steps": [call("run_action", {"action": "FLY"}, "c4")]},
+    # Intake down, then drive - the two have to overlap, not queue up behind each other.
+    {"steps": [call("run_action", {"action": "INTAKE", "wait": False}, "c5")]},
+    {"steps": [call("drive_to", {"x": 3.0, "y": 2.0, "heading_deg": 90}, "c6")]},
     {"steps": [{"type": "model_output",
                 "content": [{"type": "text",
                              "text": "Drove to (6.4, 4.0), looked, and intook. FLY is not a real "
@@ -239,6 +288,45 @@ SCRIPT = [
 
 
 # --------------------------------------------------------------------------
+
+
+def check_cockpit_restart(check, robot: RobotConnection) -> None:
+    """The cockpit's restart button: the match goes back, the conversation is dropped."""
+    from serve import Cockpit
+
+    class FakeSession:
+        model = "fake"
+
+        def __init__(self, on_event):
+            self.on_event = on_event
+
+        def ask(self, instruction):
+            self.on_event("instruction", instruction)
+            self.on_event("answer", f"did {instruction}")
+
+    cockpit = Cockpit(robot, FakeSession, None)
+    cockpit.submit("drive somewhere")
+    deadline = time.time() + 5
+    while cockpit.busy and time.time() < deadline:
+        time.sleep(0.02)
+    first_session = cockpit.session
+    check("the cockpit kept a transcript and a session", bool(cockpit.transcript) and first_session)
+
+    cockpit.restart()
+    check("restart cleared the chat", cockpit.transcript == [], str(cockpit.transcript))
+    check("restart dropped the model's memory of the run", cockpit.session is None)
+    check("restart left the cockpit ready for the next instruction", not cockpit.busy)
+
+    cockpit.submit("drive somewhere else")
+    deadline = time.time() + 5
+    while cockpit.busy and time.time() < deadline:
+        time.sleep(0.02)
+    check("the next instruction started a fresh conversation",
+          cockpit.session is not None and cockpit.session is not first_session)
+    check("only the new instruction is in the transcript",
+          [e["text"] for e in cockpit.transcript] == ["drive somewhere else",
+                                                      "did drive somewhere else"],
+          str([e["text"] for e in cockpit.transcript]))
 
 
 def main() -> int:
@@ -285,7 +373,8 @@ def main() -> int:
 
     writes = dict(robot_sim.writes)
     check("model's drive_to reached the robot as a TargetPose",
-          writes.get("/AIControl/TargetPose") == [6.4, 4.0, 0.0], str(writes.get("/AIControl/TargetPose")))
+          ("/AIControl/TargetPose", [6.4, 4.0, 0.0]) in robot_sim.writes,
+          str([w for w in robot_sim.writes if w[0] == "/AIControl/TargetPose"]))
     check("max_speed reached the robot", writes.get("/AIControl/MaxSpeed") == 4.0,
           str(writes.get("/AIControl/MaxSpeed")))
     check("INTAKE reached the robot as an ActionTrigger",
@@ -294,13 +383,13 @@ def main() -> int:
           ("/AIControl/ActionTrigger", "FLY") not in robot_sim.writes)
 
     sent = gemini.requests
-    check("six interactions: five tool rounds and the answer", len(sent) == 6, str(len(sent)))
+    check("eight interactions: seven tool rounds and the answer", len(sent) == 8, str(len(sent)))
     check("system_instruction sent every time",
           all("system_instruction" in r for r in sent))
     check("tools sent every time", all(r.get("tools") for r in sent))
     check("conversation continued with previous_interaction_id",
           [r.get("previous_interaction_id") for r in sent[1:]]
-          == ["int_1", "int_2", "int_3", "int_4", "int_5"],
+          == ["int_1", "int_2", "int_3", "int_4", "int_5", "int_6", "int_7"],
           str([r.get("previous_interaction_id") for r in sent[1:]]))
 
     results = [r["input"][0] for r in sent[1:]]
@@ -310,7 +399,9 @@ def main() -> int:
               ("function_result", "c2", "look_at_field"),
               ("function_result", "c2b", "look_through_camera"),
               ("function_result", "c3", "run_action"),
-              ("function_result", "c4", "run_action")],
+              ("function_result", "c4", "run_action"),
+              ("function_result", "c5", "run_action"),
+              ("function_result", "c6", "drive_to")],
           str([(x["type"], x["call_id"]) for x in results]))
     check("the field view went to the model as an image block",
           any(c.get("type") == "image" for c in results[1]["result"]),
@@ -327,6 +418,32 @@ def main() -> int:
     check("tool results carry the robot's live pose",
           json.loads(results[0]["result"][0]["text"])["pose"] == {"x": 6.4, "y": 4.0, "heading_deg": 0.0},
           results[0]["result"][0]["text"][:120])
+
+    driving_state = json.loads(results[6]["result"][0]["text"])
+    check("a drive_to returned while the intake was still running",
+          driving_state["running_actions"] == ["INTAKE"]
+          and driving_state["pose"] == {"x": 3.0, "y": 2.0, "heading_deg": 90.0},
+          str(driving_state.get("running_actions")))
+
+    robot.reset_simulation()
+    deadline = time.time() + 5
+    while time.time() < deadline and (
+        "/AIControl/ResetSimulation", False
+    ) not in robot_sim.writes:
+        time.sleep(0.02)
+    check("reset_simulation reached the robot on its own topic, not as an action",
+          robot_sim.resets == 1
+          and not any(name == "/AIControl/ActionTrigger" and value == "RESET_SIMULATION"
+                      for name, value in robot_sim.writes),
+          str(robot_sim.resets))
+    check("restarting is not offered to the model as an action",
+          not any("RESET" in t.upper() for t in robot.available_actions()),
+          str(robot.available_actions()))
+    reset_writes = [v for name, v in robot_sim.writes if name == "/AIControl/ResetSimulation"]
+    check("the reset topic was pulsed and left back at false",
+          reset_writes == [True, False], str(reset_writes))
+
+    check_cockpit_restart(check, robot)
 
     robot.close()
 

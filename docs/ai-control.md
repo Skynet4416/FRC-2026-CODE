@@ -48,9 +48,10 @@ enables the robot.
 | Topic | Type | Meaning |
 | --- | --- | --- |
 | `TargetPose` | `double[3]` | `[x m, y m, heading deg]`, blue-origin field coordinates. Writing it starts a PathPlanner pathfind to that pose. |
-| `ActionTrigger` | `String` | Name of an action from `AvailableActions`. `STOP` cancels the path and the action. |
+| `ActionTrigger` | `String` | Name of an action from `AvailableActions`. Actions on different mechanisms run side by side. `STOP` cancels the path and every action. |
 | `MaxSpeed` | `double` | Pathfinding speed limit, m/s. Clamped to 0.3 - 4.5. Applies to the next path. |
 | `MaxAccel` | `double` | Pathfinding acceleration limit, m/s². Clamped to 0.3 - 8.0. |
+| `ResetSimulation` | `boolean` | Writing `true` cancels everything and puts the simulated match back to its starting state. Not an action, so it never reaches an agent's tool list - restarting is the human's button. |
 
 ### Read by the agent
 
@@ -58,7 +59,8 @@ enables the robot.
 | --- | --- | --- |
 | `RobotPose` | `double[3]` | `[x m, y m, heading deg]`, same convention as `TargetPose`. |
 | `Navigating` | `boolean` | A pathfinding command is running. |
-| `ActionRunning` | `boolean` | A mechanism action is running. |
+| `ActionRunning` | `boolean` | At least one mechanism action is running. |
+| `RunningActions` | `String[]` | The actions running right now, in the order they were triggered. |
 | `RotationLocked` | `boolean` | A shooting action holds the drivetrain; the heading you asked for does not apply. |
 | `InShootingZone` | `boolean` | The robot is in our alliance zone, where a shot scores in the hub. |
 | `AtTarget` | `boolean` | The robot is within 0.15 m and 5° of the last requested pose. |
@@ -73,8 +75,8 @@ enables the robot.
 | `FieldSize` | `double[2]` | `[length m, width m]`. |
 
 Everything is mirrored to AdvantageKit under `AIControl/…` (`Navigating`, `ActionRunning`,
-`ShooterOwnsDrivetrain`, `InShootingZone`, `LastAction`, `LastError`, `ActiveTarget`), so a
-run can be replayed from the log.
+`ShooterOwnsDrivetrain`, `InShootingZone`, `LastAction`, `LastError`, `RunningActions`,
+`ActiveTarget`), so a run can be replayed from the log.
 
 ## Actions
 
@@ -84,7 +86,7 @@ run can be replayed from the log.
 | `SHOOT_FUEL` | Aims and shoots at the hub for 4 s from a standstill. | yes |
 | `SHOOT_ON_THE_MOVE` | Same, for 5 s, while translating across the shooting line. | yes |
 | `ALIGN_HUB` | Aims and spins up for 3 s without feeding fuel. | yes |
-| `STOP` | Cancels the running path and action. | - |
+| `STOP` | Cancels the running path and every running action. | - |
 
 Actions are registered in `RobotContainer`, so adding one is a line:
 
@@ -97,9 +99,18 @@ aiControlBridge.registerAction("SHOOT_FAR", () -> farShot(3.0), true);  // actio
 
 ## How it behaves
 
-**Navigation and actions are separate slots.** A new `TargetPose` replaces the running
-path; a new `ActionTrigger` replaces the running action. An action that does not take the
-drivetrain (`INTAKE`) runs happily on top of a path.
+**Mechanisms run in parallel; only shared hardware serialises.** A new `TargetPose`
+replaces the running path. A new `ActionTrigger` joins whatever is already running and only
+displaces the actions that need a subsystem it needs - so `INTAKE` stays down for a whole
+path, and triggering it again restarts it rather than stacking a second copy. A shooting
+action, or a new `TargetPose`, takes the drivetrain back from whatever had it. This is
+WPILib's own requirement rule; the bridge only mirrors it into `RunningActions`, which is
+the list of what is live right now.
+
+**Restarting the simulated match** is `ResetSimulation`, not an action: it puts the robot
+back on its starting pose, refills the field with fuel, resets the counters and reloads the
+preload. It is kept out of `AvailableActions` on purpose, so an agent cannot wipe the field
+in the middle of an instruction it is getting wrong.
 
 **All travel is PathPlanner.** `AutoBuilder.pathfindToPose` does the distance. Its command
 ends when its trajectory timer runs out rather than when the robot arrives, so the bridge

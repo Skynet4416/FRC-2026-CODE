@@ -21,6 +21,7 @@ import msgpack
 import websockets
 
 # NT4 type ids for the types this client writes.
+TYPE_BOOLEAN = 0
 TYPE_DOUBLE = 1
 TYPE_STRING = 4
 TYPE_DOUBLE_ARRAY = 17
@@ -49,11 +50,16 @@ _PUB = {
     "ActionTrigger": (11, TYPE_STRING, "string"),
     "MaxSpeed": (12, TYPE_DOUBLE, "double"),
     "MaxAccel": (13, TYPE_DOUBLE, "double"),
+    "ResetSimulation": (14, TYPE_BOOLEAN, "boolean"),
 }
 
 
 class RobotConnection:
-    """Live view of /AIControl/, plus the four topics an agent is allowed to write."""
+    """Live view of /AIControl/, plus the topics an agent is allowed to write.
+
+    ResetSimulation is the one write that is not the agent's: it belongs to whoever
+    is watching, which is why it is a topic of its own rather than an action.
+    """
 
     def __init__(self, host: str = "127.0.0.1", port: int = 5810, name: str = "gemini-agent"):
         self._host = host
@@ -135,6 +141,7 @@ class RobotConnection:
             "in_shooting_zone": bool(self.get("InShootingZone", False)),
             "at_target": bool(self.get("AtTarget", False)),
             "active_target": _pose_dict(target) if target else None,
+            "running_actions": self.running_actions(),
             "status": self.get("Status", ""),
             "last_action": self.get("LastAction", ""),
             "last_error": self.get("LastError", ""),
@@ -146,6 +153,11 @@ class RobotConnection:
 
     def available_actions(self) -> list[str]:
         return list(self.get("AvailableActions") or [])
+
+    def running_actions(self) -> list[str]:
+        """Actions running right now. More than one at a time, as long as they do not
+        need the same subsystem - an intake stays down while a path drives over fuel."""
+        return list(self.get("RunningActions") or [])
 
     def notes(self) -> str:
         return self.get("Notes", "")
@@ -211,6 +223,16 @@ class RobotConnection:
     def set_action(self, action: str) -> None:
         self._publish("ActionTrigger", str(action))
 
+    def reset_simulation(self) -> None:
+        """Puts the simulated match back to its starting state: pose, fuel, counters.
+
+        Deliberately not an action, so it stays out of AvailableActions and therefore
+        out of the model's tool list - restarting the match is the human's button.
+        """
+        self._publish("ResetSimulation", True)
+        # Back to the neutral value, so a reconnecting client does not replay the restart.
+        self._publish("ResetSimulation", False)
+
     def set_limits(self, max_speed: float | None, max_accel: float | None) -> None:
         if max_speed is not None:
             self._publish("MaxSpeed", float(max_speed))
@@ -218,16 +240,36 @@ class RobotConnection:
             self._publish("MaxAccel", float(max_accel))
 
     def wait_until_idle(self, timeout: float = 25.0, settle: float = 0.4) -> bool:
-        """Blocks until the robot stops navigating and running an action.
+        """Blocks until the robot stops navigating and running every action."""
+        return self._wait_until(lambda: not self.busy(), timeout, settle)
 
-        Returns True if it went idle, False on timeout. `settle` covers the gap
-        between writing a topic and the robot scheduling the command, so a call
-        that has not started yet is not mistaken for one that has finished.
+    def wait_until_arrived(self, timeout: float = 25.0, settle: float = 0.4) -> bool:
+        """Blocks until the path is done, whatever else is still running.
+
+        Waiting on the whole robot would mean a drive_to never returns while an
+        intake runs beside it, which is the concurrency this API is for.
         """
+        return self._wait_until(
+            lambda: not bool(self.get("Navigating", False)), timeout, settle
+        )
+
+    def wait_until_action_done(
+        self, action: str, timeout: float = 25.0, settle: float = 0.4
+    ) -> bool:
+        """Blocks until this one action leaves RunningActions, ignoring the others."""
+        name = action.upper()
+        return self._wait_until(
+            lambda: name not in {a.upper() for a in self.running_actions()}, timeout, settle
+        )
+
+    def _wait_until(self, done, timeout: float, settle: float) -> bool:
+        """Returns True once `done()` holds, False on timeout. `settle` covers the gap
+        between writing a topic and the robot scheduling the command, so a call that has
+        not started yet is not mistaken for one that has finished."""
         deadline = time.time() + timeout
         start = time.time()
         while time.time() < deadline:
-            if not self.busy() and time.time() - start > settle:
+            if done() and time.time() - start > settle:
                 return True
             time.sleep(0.05)
         return False

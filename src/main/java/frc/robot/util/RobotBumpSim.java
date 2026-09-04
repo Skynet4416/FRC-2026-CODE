@@ -256,6 +256,23 @@ public class RobotBumpSim {
   }
 
   /**
+   * Forgets the crossing in progress, so a teleport is not dragged back onto the ramp.
+   *
+   * <p>While {@link #isOnRamp()} is true this sim owns field X, and {@link
+   * #getSimWorldPose(Pose2d)} keeps returning the X it was integrating - which would undo a pose
+   * reset that moved the robot somewhere else entirely. Whoever teleports the robot calls this.
+   */
+  public void reset() {
+    onRamp = false;
+    simXPos = 0.0;
+    simXVel = 0.0;
+    for (int i = 0; i < 4; i++) {
+      moduleZPos[i] = 0.0;
+      moduleZVel[i] = 0.0;
+    }
+  }
+
+  /**
    * Returns the 2D pose that should be set on MapleSim while on the ramp.
    *
    * <p>The X coordinate is replaced with the frictionless {@link #simXPos}; Y and rotation are

@@ -120,6 +120,8 @@ button {
 button:hover { border-color: var(--blue); }
 button:disabled { opacity: 0.5; cursor: default; border-color: var(--line); }
 button.danger { flex: 0 0 90px; color: var(--red); }
+button.quiet { background: transparent; color: var(--dim); }
+button.quiet:hover { color: var(--text); }
 
 .hint { color: var(--dim); font-size: 12px; min-height: 18px; margin: 8px 0 0; }
 .hint.bad { color: var(--red); }

@@ -34,7 +34,9 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
             "name": "drive_to",
             "description": (
                 "Drive the robot to a field pose with PathPlanner pathfinding, avoiding the "
-                "field's obstacles. Returns the robot state once it arrives or gives up."
+                "field's obstacles. Returns the robot state once it arrives or gives up. Any "
+                "action that does not need the drivetrain - the intake, for one - keeps running "
+                "while the robot drives."
             ),
             "parameters": {
                 "type": "object",
@@ -68,9 +70,11 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
             "type": "function",
             "name": "run_action",
             "description": (
-                "Run one of the robot's mechanism actions. Shooting actions take over the "
-                "drivetrain and drive into the alliance zone first if the robot is not already "
-                "there. STOP cancels the running path and action."
+                "Run one of the robot's mechanism actions. Actions on different mechanisms run "
+                "at the same time, so call this with wait=false and then drive_to to intake "
+                "while driving; only actions that need the same mechanism replace each other. "
+                "Shooting actions take over the drivetrain and drive into the alliance zone "
+                "first if the robot is not already there. STOP cancels everything."
             ),
             "parameters": {
                 "type": "object",
@@ -78,7 +82,10 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
                     "action": {"type": "string", "enum": actions},
                     "wait": {
                         "type": "boolean",
-                        "description": "Block until the action finishes (default true).",
+                        "description": (
+                            "Block until this action finishes (default true). Pass false to "
+                            "leave it running and do something else in the meantime."
+                        ),
                     },
                 },
                 "required": ["action"],
@@ -182,7 +189,9 @@ class RobotTools:
         self.robot.set_limits(max_speed, max_accel)
         self.robot.set_target_pose(x, y, heading_deg)
         if wait:
-            self.robot.wait_until_idle(timeout=DRIVE_TIMEOUT_S)
+            # Only the path: an intake or a spin-up running alongside it is not this
+            # call's business, and waiting for it would undo the point of running both.
+            self.robot.wait_until_arrived(timeout=DRIVE_TIMEOUT_S)
         else:
             time.sleep(0.3)
         return self._state_with("driving to (%.2f, %.2f, %.1f deg)" % (x, y, heading_deg))
@@ -193,7 +202,7 @@ class RobotTools:
             return {"error": f"no such action {action!r}", "available_actions": available}
         self.robot.set_action(action.upper())
         if wait and action.upper() != "STOP":
-            self.robot.wait_until_idle(timeout=ACTION_TIMEOUT_S)
+            self.robot.wait_until_action_done(action, timeout=ACTION_TIMEOUT_S)
         else:
             time.sleep(0.3)
         return self._state_with(f"ran {action.upper()}")

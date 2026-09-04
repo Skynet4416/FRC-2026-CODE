@@ -42,6 +42,11 @@ driving so that the left side of the robot sweeps over it, which usually means \
 approaching along a lane with the fuel on your left rather than pointing at it. \
 Heading 0 faces +X, so fuel to your left is at +Y; heading 180 puts your left \
 side toward -Y. Run INTAKE while you drive over the fuel, not after.
+- Mechanisms that do not share hardware run together. Start the intake with \
+`run_action(action="INTAKE", wait=false)` and then `drive_to` the fuel, rather \
+than driving and intaking one after the other - the robot only collects fuel it \
+sweeps over while the intake is down. `running_actions` in every tool result is \
+what is running at this moment.
 - You can only shoot fuel the robot is holding. `fuel_on_board` in every tool \
 result is how much it has; when it reaches zero, go and collect more before \
 asking for another shot.

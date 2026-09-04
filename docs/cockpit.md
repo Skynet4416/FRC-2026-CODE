@@ -75,7 +75,7 @@ Gemini quota, so that is the thing to gate:
 AGENT_WEB_TOKEN=some-shared-secret python3 scripts/gemini_agent/serve.py
 ```
 
-The page then asks for the token before it will send an instruction or a stop. Combined with
+The page then asks for the token before it will send an instruction, a stop or a restart. Combined with
 organization-visible port forwarding, that is two independent locks; on a public port it is
 the only one.
 
@@ -93,6 +93,10 @@ cockpit talks to Google.
 - **The active PathPlanner trajectory** and the pose that was requested.
 - **The transcript**: the instruction, the model's thinking, each tool call and its result,
   and the final answer.
+- **Restart match & clear chat**, which puts the robot back on its starting pose, refills the
+  field with fuel, empties the transcript and drops the conversation - so the next
+  instruction starts from a robot that is where it began, with a model that has no memory of
+  the last run. Use it between demos instead of restarting the simulator.
 - **The status pill**: what the robot is doing, or why it cannot - a missing robot, a missing
   key, or an error from the model.
 

@@ -22,6 +22,7 @@ const promptBox = document.getElementById("prompt");
 const tokenBox = document.getElementById("token");
 const hint = document.getElementById("hint");
 const sendButton = document.getElementById("send");
+const restartButton = document.getElementById("restart");
 
 const field = new Image();
 field.src = "field26.png";
@@ -211,6 +212,7 @@ function render() {
   }
 
   sendButton.disabled = latest.busy || !latest.connected;
+  restartButton.disabled = !latest.connected;
   sendButton.textContent = latest.busy ? "Working…" : "Send";
   tokenBox.hidden = !latest.needs_token;
 
@@ -282,6 +284,26 @@ document.getElementById("prompt-form").addEventListener("submit", async (event) 
 
 document.getElementById("stop").addEventListener("click", async () => {
   await post("stop", {});
+  poll();
+});
+
+// Back to the start: the simulated match restarts and the model forgets the run.
+// The transcript is cleared here as well as on the server, so the page does not
+// keep drawing the old run until the next poll comes back.
+document.getElementById("restart").addEventListener("click", async () => {
+  restartButton.disabled = true;
+  hint.className = "hint";
+  hint.textContent = "restarting…";
+  const { ok, payload } = await post("restart", {});
+  if (ok) {
+    transcriptList.replaceChildren();
+    shownEvents = 0;
+    hint.textContent = "match and chat restarted";
+  } else {
+    hint.className = "hint bad";
+    hint.textContent = payload.error || payload.message || "the cockpit refused that";
+  }
+  restartButton.disabled = false;
   poll();
 });
 
