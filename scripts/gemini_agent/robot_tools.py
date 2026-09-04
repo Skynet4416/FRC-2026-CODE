@@ -20,6 +20,9 @@ from nt4 import RobotConnection
 # wait again - but the bridge's own 20 s timeout will have reported a failure.
 DRIVE_TIMEOUT_S = 30.0
 ACTION_TIMEOUT_S = 30.0
+# COLLECT_FUEL is a whole autonomous sweep, not one mechanism spinning up - it can
+# legitimately run far longer than any other single action.
+COLLECT_TIMEOUT_S = 90.0
 
 
 def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:

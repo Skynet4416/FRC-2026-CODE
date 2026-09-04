@@ -44,6 +44,12 @@ EXTRA_TOPICS = [
     "/CameraPublisher/", GAME_PIECES, FIELD_PIECES, TRAJECTORY, HELD_FUEL, INTAKE_RUNNING,
 ]
 
+# Fuel, Zones, GameBrief, FuelPositions, FuelOnBoard, CollectTarget, IntakePolicy and
+# AutoFoldIntake all live under /AIControl/, which is already subscribed with prefix=True
+# below - so they show up in _values the moment the robot announces them and need no
+# entry of their own here. Only topics *outside* /AIControl/ (the AdvantageKit path
+# above) have to be listed explicitly.
+
 # pubuids are ours to choose; they only have to be unique within this client.
 _PUB = {
     "TargetPose": (10, TYPE_DOUBLE_ARRAY, "double[]"),
@@ -51,6 +57,8 @@ _PUB = {
     "MaxSpeed": (12, TYPE_DOUBLE, "double"),
     "MaxAccel": (13, TYPE_DOUBLE, "double"),
     "ResetSimulation": (14, TYPE_BOOLEAN, "boolean"),
+    "CollectTarget": (15, TYPE_DOUBLE, "double"),
+    "AutoFoldIntake": (16, TYPE_BOOLEAN, "boolean"),
 }
 
 
@@ -133,6 +141,11 @@ class RobotConnection:
         """Everything the agent is allowed to see, in one snapshot."""
         pose = self.get("RobotPose") or []
         target = self.get("ActiveTarget") or []
+        fuel = self.fuel()
+        policy = self.intake_policy()
+        # A robot that predates Fuel only ever published whether the rollers were
+        # spinning, not whether the intake was down - the closest fallback we have.
+        intake_running = bool(self.get(INTAKE_RUNNING, False))
         return {
             "pose": _pose_dict(pose),
             "navigating": bool(self.get("Navigating", False)),
@@ -147,8 +160,18 @@ class RobotConnection:
             "last_error": self.get("LastError", ""),
             "max_speed_mps": self.get("MaxSpeed"),
             "max_accel_mps2": self.get("MaxAccel"),
-            "fuel_on_board": self.get(HELD_FUEL),
-            "intake_collecting": bool(self.get(INTAKE_RUNNING, False)),
+            "fuel_on_board": fuel.get("on_board", self.get(HELD_FUEL)),
+            "intake_down": fuel.get("intake_down", intake_running),
+            "intake_collecting": fuel.get("intake_collecting", intake_running),
+            "nearest_fuel": _nearest_fuel(fuel),
+            "fuel_by_zone": {
+                name: info.get("count", 0) for name, info in (fuel.get("zones") or {}).items()
+            },
+            # None (not False) when the robot does not publish IntakePolicy at all,
+            # so the model is not told "not folding" when the truth is "unknown".
+            "auto_fold": policy.get("auto_fold"),
+            "folded_for": policy.get("folded_for"),
+            "hazard": policy.get("hazard"),
         }
 
     def available_actions(self) -> list[str]:
@@ -168,6 +191,53 @@ class RobotConnection:
             return json.loads(raw) if raw else {}
         except json.JSONDecodeError:
             return {}
+
+    def fuel(self) -> dict[str, Any]:
+        """Ground-truth fuel: zones, nearest pieces, clusters, a ready pickup pose.
+
+        Sim only - a real robot publishes it with `available: false` and empty
+        lists, and an older robot does not publish it at all. Either way this
+        returns {} rather than raising, because a caller that forgets to check
+        `available` should get nothing rather than something wrong.
+        """
+        raw = self.get("Fuel", "")
+        try:
+            return json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return {}
+
+    def zones(self) -> dict[str, dict[str, Any]]:
+        """Named field zones - alliance zones, depots, trenches, bumps, hubs - as
+        axis-aligned boxes in metres. Blue-relative and fixed, so these do not need
+        to change with alliance colour."""
+        raw = self.get("Zones", "")
+        try:
+            return json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return {}
+
+    def game_brief(self) -> str:
+        """This year's game, in the robot's own words. Empty on an older robot."""
+        return self.get("GameBrief", "")
+
+    def intake_policy(self) -> dict[str, Any]:
+        """Why the intake is where it is right now: whether the automatic trench/
+        bump fold is on, and what it is folded for if anything. {} on a robot that
+        does not publish it, same as every other JSON topic here."""
+        raw = self.get("IntakePolicy", "")
+        try:
+            return json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return {}
+
+    def field_fuel(self) -> list[tuple[float, float]]:
+        """Every fuel on the field, as (x, y) pairs, from the flat FuelPositions
+        double array. Ground truth like field_game_pieces(), but published as plain
+        doubles instead of riding along the AdvantageKit pose-struct path."""
+        raw = self.get("FuelPositions") or []
+        if not isinstance(raw, list):
+            return []
+        return [(float(raw[i]), float(raw[i + 1])) for i in range(0, len(raw) - 1, 2)]
 
     def field_size(self) -> list[float]:
         return list(self.get("FieldSize") or [])
@@ -238,6 +308,15 @@ class RobotConnection:
             self._publish("MaxSpeed", float(max_speed))
         if max_accel is not None:
             self._publish("MaxAccel", float(max_accel))
+
+    def set_collect_target(self, count: float) -> None:
+        """How many fuel COLLECT_FUEL should gather before it stops on its own."""
+        self._publish("CollectTarget", float(count))
+
+    def set_auto_fold(self, on: bool) -> None:
+        """Hands the trench/bump intake fold to the robot (True, the default) or
+        takes manual control of it (False, same as triggering AUTO_FOLD_OFF)."""
+        self._publish("AutoFoldIntake", bool(on))
 
     def wait_until_idle(self, timeout: float = 25.0, settle: float = 0.4) -> bool:
         """Blocks until the robot stops navigating and running every action."""
@@ -374,6 +453,20 @@ def _pose_dict(pose) -> dict[str, float] | None:
     if not pose or len(pose) < 3:
         return None
     return {"x": round(pose[0], 3), "y": round(pose[1], 3), "heading_deg": round(pose[2], 1)}
+
+
+def _nearest_fuel(fuel: dict[str, Any]) -> dict[str, float] | None:
+    """The single closest piece out of Fuel's `nearest` list, or None if there is
+    none - no fuel in reach, or an older robot that never sent one."""
+    nearest = fuel.get("nearest") or []
+    if not nearest:
+        return None
+    first = nearest[0]
+    return {
+        "x": round(first.get("x", 0.0), 3),
+        "y": round(first.get("y", 0.0), 3),
+        "distance_m": round(first.get("distance_m", 0.0), 2),
+    }
 
 
 def _decode_poses(raw, stride: int) -> list[tuple[float, float]]:
