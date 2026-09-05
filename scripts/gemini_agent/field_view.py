@@ -51,6 +51,12 @@ MAX_FUEL_DOTS = 220
 # rest of the zones so it is visually obvious why the intake goes up there.
 FOLD_HAZARD_ZONES = {"left_trench", "right_trench", "left_bump", "right_bump"}
 
+# Depots are a fuel source, not a hazard or a plain scoring zone, and get their
+# own look: a filled tint rather than another dashed outline. They were missing
+# from the map entirely until a depot went unmarked and the model never went
+# near it - see REGISTRATION.md.
+DEPOT_ZONES = {"our_depot", "opponent_depot"}
+
 
 @lru_cache(maxsize=1)
 def _load_field_image(path: str = FIELD_IMAGE):
@@ -115,14 +121,30 @@ def render(robot, landmarks: dict[str, list[float]], dpi: int = 110) -> bytes:
                     )
 
     # Field zones - alliance zones, depots, trenches, bumps, hub. The trench and
-    # bump rectangles are also where the intake folds, so they get their own
-    # colour: seeing why is the point, not just that a box is there.
+    # bump rectangles are also where the intake folds, and the depots are a fuel
+    # source, so both get their own look rather than blending into a generic box.
     for name, box in robot.zones().items():
         try:
             x0, y0 = float(box["x_min"]), float(box["y_min"])
             width, height = float(box["x_max"]) - x0, float(box["y_max"]) - y0
         except (KeyError, TypeError, ValueError):
             continue  # a malformed zone should not cost the rest of the map
+        if name in DEPOT_ZONES:
+            # Filled, not outlined: a depot is a pile of fuel sitting against the
+            # wall, and a tint reads as "fuel is here" the way a dashed box does
+            # not. Ground-truth fuel dots (drawn after this) show through on top.
+            axes.add_patch(
+                Rectangle(
+                    (x0, y0), width, height, facecolor="#d4a017", alpha=0.32,
+                    edgecolor="#8a6100", linewidth=1.2, zorder=1.5,
+                )
+            )
+            axes.annotate(
+                name.replace("_", " ") + "\n(fuel depot)", (x0 + width / 2, y0 + height / 2),
+                color="#6b5000", fontsize=6.5, fontweight="bold", alpha=0.95,
+                ha="center", va="center", zorder=1.55,
+            )
+            continue
         hazard = name in FOLD_HAZARD_ZONES
         color = "#e0362c" if hazard else "#5b8def"
         axes.add_patch(
@@ -252,3 +274,200 @@ def _title(state: dict) -> str:
     )
     zone = "in the shooting zone" if state["in_shooting_zone"] else "outside the shooting zone"
     return f"{where} - {zone}\n{state['status']}"
+
+
+class _ReferenceField:
+    """A stand-in for RobotConnection with no live robot behind it, so the map
+    can be rendered and its registration checked from nothing but this repo.
+
+    The numbers are the field geometry measured against field26.png itself in
+    REGISTRATION.md, not anything render() computes - this is the answer key a
+    self-check compares the real code's output against, and what --save draws
+    when there is no robot to ask.
+    """
+
+    SIZE = [16.541, 8.069]
+    HUB_CENTRE = (4.619, 4.035)
+    ZONES: dict[str, dict[str, Any]] = {
+        "our_alliance_zone": {"x_min": 0.000, "y_min": 0.0, "x_max": 4.022,
+                               "y_max": 8.069, "what": "score here"},
+        "neutral_zone": {"x_min": 5.223, "y_min": 0.0, "x_max": 11.319,
+                          "y_max": 8.069, "what": "shared fuel"},
+        "opponent_alliance_zone": {"x_min": 12.519, "y_min": 0.0, "x_max": 16.541,
+                                    "y_max": 8.069, "what": ""},
+        "hub": {"x_min": 4.022, "y_min": 3.438, "x_max": 5.216,
+                "y_max": 4.632, "what": "score fuel here"},
+        "opponent_hub": {"x_min": 11.312, "y_min": 3.438, "x_max": 12.506,
+                          "y_max": 4.632, "what": ""},
+        "left_trench": {"x_min": 0.0, "y_min": 6.790, "x_max": 16.541,
+                         "y_max": 8.069, "what": "low crossing"},
+        "right_trench": {"x_min": 0.0, "y_min": 0.0, "x_max": 16.541,
+                          "y_max": 1.279, "what": "low crossing"},
+        "left_bump": {"x_min": 4.619 - 0.927, "y_min": 4.632, "x_max": 4.619 + 0.927,
+                       "y_max": 6.486, "what": "bump crossing"},
+        "right_bump": {"x_min": 4.619 - 0.927, "y_min": 1.583, "x_max": 4.619 + 0.927,
+                        "y_max": 3.438, "what": "bump crossing"},
+        "our_depot": {"x_min": 0.000, "y_min": 5.430, "x_max": 0.686,
+                       "y_max": 6.497, "what": "preloaded fuel"},
+        "opponent_depot": {"x_min": 15.855, "y_min": 1.572, "x_max": 16.541,
+                            "y_max": 2.639, "what": "preloaded fuel"},
+    }
+
+    def state(self) -> dict[str, Any]:
+        return {
+            "navigating": False, "active_target": None, "pose": None,
+            "rotation_locked": False, "in_shooting_zone": False,
+            "status": "reference geometry - no live robot",
+        }
+
+    def field_size(self) -> list[float]:
+        return list(self.SIZE)
+
+    def zones(self) -> dict[str, dict[str, Any]]:
+        return {name: dict(box) for name, box in self.ZONES.items()}
+
+    def field_fuel(self) -> list[tuple[float, float]]:
+        return []
+
+    def field_game_pieces(self) -> list[tuple[float, float]]:
+        return []
+
+    def detected_game_pieces(self) -> list[tuple[float, float]]:
+        return []
+
+    def trajectory(self) -> list[tuple[float, float]]:
+        return []
+
+
+def check_registration(check, field_size: list[float] | None = None) -> None:
+    """The self-check that would have caught the depot bug: recomputes the same
+    field->pixel mapping render() uses and checks it against known geometry,
+    rather than trusting that the image, FIELD_IMAGE_PPM/MARGIN_M, and the
+    field's own numbers stay in agreement forever. Takes a `check(label, ok,
+    detail="")` callback in the same shape selftest.py's checks use, and needs
+    no live robot - only the repo's own field26.png and the reference geometry
+    measured in REGISTRATION.md.
+    """
+    size = field_size or list(_ReferenceField.SIZE)
+    image = _load_field_image()
+    check("field26.png loads", image is not None)
+    if image is None:
+        return
+
+    height, width = image.shape[0], image.shape[1]
+    pixels_per_metre = FIELD_IMAGE_PPM * width / 3508.0
+    margin = FIELD_IMAGE_MARGIN_M
+
+    # The span the image implies once FIELD_IMAGE_PPM is applied has to equal
+    # the declared field size plus a margin on each side - this is the whole
+    # image/field/constants agreement render()'s extent depends on.
+    span_x, span_y = width / pixels_per_metre, height / pixels_per_metre
+    check(
+        "image extent matches the declared field size to the millimetre",
+        abs(span_x - (size[0] + 2 * margin)) < 2e-3
+        and abs(span_y - (size[1] + 2 * margin)) < 2e-3,
+        f"image implies {span_x:.4f} x {span_y:.4f} m, expected "
+        f"{size[0] + 2 * margin:.4f} x {size[1] + 2 * margin:.4f} m",
+    )
+
+    def to_pixel(x: float, y: float) -> tuple[float, float]:
+        # The inverse of imshow(extent=[-margin, ...], origin="upper"): field
+        # metres -> (row, col) in the source image array.
+        return height - (y + margin) * pixels_per_metre, (x + margin) * pixels_per_metre
+
+    hub_row, hub_col = to_pixel(*_ReferenceField.HUB_CENTRE)
+    check(
+        "the hub centre maps inside the image's own pixel bounds",
+        0 <= hub_row < height and 0 <= hub_col < width,
+        f"(row={hub_row:.1f}, col={hub_col:.1f}) of {height}x{width}",
+    )
+
+    hub_box = _ReferenceField.ZONES["hub"]
+    row_max, col_min = to_pixel(hub_box["x_min"], hub_box["y_min"])
+    row_min, col_max = to_pixel(hub_box["x_max"], hub_box["y_max"])
+    check(
+        "the hub centre's pixel lands inside the hub zone's own pixel box",
+        row_min <= hub_row <= row_max and col_min <= hub_col <= col_max,
+        f"hub centre pixel ({hub_row:.1f}, {hub_col:.1f}) vs box "
+        f"rows [{row_min:.1f}, {row_max:.1f}] cols [{col_min:.1f}, {col_max:.1f}]",
+    )
+
+    for name in ("our_depot", "opponent_depot"):
+        box = _ReferenceField.ZONES[name]
+        corners = [to_pixel(box["x_min"], box["y_min"]), to_pixel(box["x_max"], box["y_max"])]
+        rows, cols = [r for r, _c in corners], [c for _r, c in corners]
+        inside = all(0 <= r < height for r in rows) and all(0 <= c < width for c in cols)
+        check(
+            f"{name} maps inside the image's pixel bounds",
+            inside,
+            f"rows {[round(r, 1) for r in rows]} cols {[round(c, 1) for c in cols]} "
+            f"of {height}x{width}",
+        )
+
+
+def _run_registration_check() -> bool:
+    """Standalone runner for `--check-overlay`: prints PASS/FAIL the way
+    selftest.py does, and returns whether everything passed."""
+    failures = 0
+
+    def check(label: str, ok: bool, detail: str = "") -> None:
+        nonlocal failures
+        if not ok:
+            failures += 1
+        print(f"  {'PASS' if ok else 'FAIL'}  {label}" + (f"   [{detail}]" if not ok and detail else ""))
+
+    check_registration(check)
+    print()
+    print("all overlay registration checks passed" if not failures else f"{failures} check(s) FAILED")
+    return failures == 0
+
+
+def _main() -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description="Check the field map's registration, or save a render to look at by eye."
+    )
+    parser.add_argument(
+        "--check-overlay", action="store_true",
+        help="check the field image lines up with the field's own geometry, and exit",
+    )
+    parser.add_argument(
+        "--save", metavar="PATH",
+        help="render the field view and save it as a PNG - the reference geometry by "
+             "default, or a live robot if --host is given - so registration can be "
+             "eyeballed without running the whole agent",
+    )
+    parser.add_argument("--host", help="render a live robot/simulator instead of the reference scene")
+    parser.add_argument("--port", type=int, default=5810)
+    args = parser.parse_args()
+
+    if not args.check_overlay and not args.save:
+        parser.print_help()
+        return 1
+
+    ok = True
+    if args.check_overlay:
+        ok = _run_registration_check()
+
+    if args.save:
+        robot, landmarks, live = _ReferenceField(), {}, None
+        if args.host:
+            from nt4 import RobotConnection
+
+            live = RobotConnection(args.host, args.port).connect()
+            robot, landmarks = live, live.landmarks()
+        try:
+            image = render(robot, landmarks)
+        finally:
+            if live is not None:
+                live.close()
+        with open(args.save, "wb") as handle:
+            handle.write(image)
+        print(f"saved {args.save} ({len(image)} bytes)")
+
+    return 0 if ok else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())

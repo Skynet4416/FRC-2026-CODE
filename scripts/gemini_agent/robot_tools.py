@@ -132,8 +132,9 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
                 "Look at the field from above: a top-down map in the same coordinates these "
                 "tools take, with a one-metre grid, the obstacles the robot cannot drive "
                 "through, the robot and its heading, every fuel piece on the field (faint) "
-                "with the ones its camera can see highlighted, the field's zones, the path it "
-                "is following and the pose it was asked for. This is the view to use for "
+                "with the ones its camera can see highlighted, the field's zones including "
+                "the depots (a filled gold box - a preloaded pile of fuel), the path it is "
+                "following and the pose it was asked for. This is the view to use for "
                 "anything about position, route or layout - for where fuel actually is, "
                 "find_fuel has the numbers this map only draws."
             ),
@@ -325,8 +326,9 @@ class RobotTools:
             "note": (
                 "X increases to the right, Y upwards, grid lines every metre. Grey cells are "
                 "obstacles the pathfinder will not cross, faint dots are every fuel piece on "
-                "the field, bright orange dots are fuel the camera can actually see, and "
-                "dashed boxes are the field's zones - the red ones fold the intake."
+                "the field, bright orange dots are fuel the camera can actually see, dashed "
+                "boxes are the field's zones (red ones fold the intake), and filled gold "
+                "boxes are the depots - a preloaded pile of fuel against the wall."
             ),
             "fuel_seen_by_camera": [
                 {"x": round(x, 2), "y": round(y, 2)} for x, y in pieces

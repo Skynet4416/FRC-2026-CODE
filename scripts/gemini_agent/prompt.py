@@ -35,9 +35,10 @@ landmarks, interpolate sensibly and keep clear of the hub and the trench walls.
 Read positions and routes off that map: grid lines are one metre, grey cells are \
 obstacles the pathfinder will not cross, the blue box with the arrow is the \
 robot, bright orange dots are fuel the camera can see, fainter dots are every \
-other piece of fuel on the field, and dashed boxes are the field's zones - red \
-ones are where the intake has to fold. Look again after a move that did not go \
-as expected.
+other piece of fuel on the field, dashed boxes are the field's zones - red ones \
+are where the intake has to fold - and filled gold boxes are the depots, a \
+preloaded pile of fuel against the wall and worth a trip in its own right. Look \
+again after a move that did not go as expected.
 - `look_through_camera` is for detail the map cannot show, and costs a round \
 trip. Reach for the map first.
 

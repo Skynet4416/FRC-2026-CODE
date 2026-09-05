@@ -29,6 +29,7 @@ import websockets
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
+import field_view  # noqa: E402
 from nt4 import RobotConnection  # noqa: E402
 from robot_tools import RobotTools, tool_declarations  # noqa: E402
 
@@ -119,6 +120,8 @@ class FakeRobot:
                                        "y_max": 8.05, "what": "score here"},
                 "left_trench": {"x_min": 6.0, "y_min": 0.0, "x_max": 7.0,
                                  "y_max": 2.0, "what": "low crossing"},
+                "our_depot": {"x_min": 0.0, "y_min": 5.43, "x_max": 0.686,
+                               "y_max": 6.497, "what": "preloaded fuel"},
             }),
             "/AIControl/GameBrief": "REBUILT: collect fuel, score in the hub.",
             "/AIControl/FuelPositions": [7.5, 4.2, 8.0, 4.0],
@@ -384,6 +387,8 @@ def check_v2_contract(check, robot: RobotConnection, robot_sim: "FakeRobot") -> 
           str(robot.fuel()))
     check("zones() parses the Zones JSON",
           robot.zones().get("left_trench", {}).get("x_max") == 7.0, str(robot.zones()))
+    check("zones() carries the depot",
+          robot.zones().get("our_depot", {}).get("x_max") == 0.686, str(robot.zones()))
     check("game_brief() reads the brief string",
           robot.game_brief() == "REBUILT: collect fuel, score in the hub.",
           robot.game_brief())
@@ -532,6 +537,7 @@ def main() -> int:
 
     check_defensive_json_parsing(check)
     check_v2_contract(check, robot, robot_sim)
+    field_view.check_registration(check)
 
     schema = tool_declarations(robot.available_actions())
     tools = RobotTools(robot)
@@ -554,7 +560,8 @@ def main() -> int:
     check("system prompt folds in the game brief and the zones",
           "REBUILT: collect fuel" in session.system_instruction
           and "left_trench" in session.system_instruction
-          and "our_alliance_zone" in session.system_instruction)
+          and "our_alliance_zone" in session.system_instruction
+          and "our_depot" in session.system_instruction)
 
     answer = session.ask("drive to the hub, look, and intake")
     print("\nmodel's final answer:", answer, "\n")
