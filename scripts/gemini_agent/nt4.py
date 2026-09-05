@@ -49,11 +49,11 @@ EXTRA_TOPICS = [
     BLUE_SCORE, RED_SCORE,
 ]
 
-# Fuel, Zones, GameBrief, FuelPositions, FuelOnBoard, CollectTarget, IntakePolicy,
-# AutoFoldIntake and Match all live under /AIControl/, which is already subscribed
-# with prefix=True below - so they show up in _values the moment the robot announces
-# them and need no entry of their own here. Only topics *outside* /AIControl/ (the
-# AdvantageKit paths above) have to be listed explicitly.
+# Fuel, Zones, GameBrief, Tactics, Playbook, FuelPositions, FuelOnBoard, CollectTarget,
+# IntakePolicy, AutoFoldIntake, PlayName, ShootSeconds and Match all live under
+# /AIControl/, which is already subscribed with prefix=True below - so they show up in
+# _values the moment the robot announces them and need no entry of their own here. Only
+# topics *outside* /AIControl/ (the AdvantageKit paths above) have to be listed explicitly.
 
 # pubuids are ours to choose; they only have to be unique within this client.
 _PUB = {
@@ -64,7 +64,15 @@ _PUB = {
     "ResetSimulation": (14, TYPE_BOOLEAN, "boolean"),
     "CollectTarget": (15, TYPE_DOUBLE, "double"),
     "AutoFoldIntake": (16, TYPE_BOOLEAN, "boolean"),
+    "PlayName": (17, TYPE_STRING, "string"),
+    "ShootSeconds": (18, TYPE_DOUBLE, "double"),
 }
+
+# ShootSeconds clamp, mirrored here so a value that never should have been sent
+# does not even reach the wire looking legitimate - the robot clamps it again
+# itself regardless, this just keeps a bad client honest too.
+SHOOT_SECONDS_MIN = 1.0
+SHOOT_SECONDS_MAX = 15.0
 
 
 class RobotConnection:
@@ -237,6 +245,23 @@ class RobotConnection:
         """This year's game, in the robot's own words. Empty on an older robot."""
         return self.get("GameBrief", "")
 
+    def tactics(self) -> str:
+        """Ten driving rules distilled from this team's own real autonomous routines, in
+        the robot's own words - not written here, so it never goes stale against the
+        robot's actual autos. Empty on an older robot, same as game_brief()."""
+        return self.get("Tactics", "")
+
+    def playbook(self) -> dict[str, Any]:
+        """Those same routines as literal, replayable plays: {"plays": [{"name",
+        "purpose", "steps"}, ...]}. {} on a robot that predates this or sends
+        malformed JSON, same defensive parsing as every other JSON topic here -
+        a caller wants an empty playbook, never a crash, out of a bad topic."""
+        raw = self.get("Playbook", "")
+        try:
+            return json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            return {}
+
     def hub_state(self) -> dict[str, Any]:
         """Which alliance's hub is scoring right now, and how long until the next
         Alliance Shift flips it. {} on a robot that predates this topic - the same
@@ -392,6 +417,16 @@ class RobotConnection:
         """Hands the trench/bump intake fold to the robot (True, the default) or
         takes manual control of it (False, same as triggering AUTO_FOLD_OFF)."""
         self._publish("AutoFoldIntake", bool(on))
+
+    def set_play_name(self, name: str) -> None:
+        """Which entry of Playbook the RUN_PLAY action replays."""
+        self._publish("PlayName", str(name))
+
+    def set_shoot_seconds(self, seconds: float) -> None:
+        """How long SHOOT_FUEL holds its shot window open, seconds. Clamped 1-15
+        here too, matching the robot's own clamp - see SHOOT_SECONDS_MIN/MAX."""
+        clamped = max(SHOOT_SECONDS_MIN, min(SHOOT_SECONDS_MAX, seconds))
+        self._publish("ShootSeconds", float(clamped))
 
     def wait_until_idle(self, timeout: float = 25.0, settle: float = 0.4) -> bool:
         """Blocks until the robot stops navigating and running every action."""

@@ -2,9 +2,10 @@
 
 Most of it is written by the robot, not by this file: the game brief comes from
 /AIControl/GameBrief, the rules of the API come from /AIControl/Notes, the
-action list from /AIControl/AvailableActions, and the field coordinates and
-zones from /AIControl/Landmarks and /AIControl/Zones. So when the robot code
-changes, the prompt changes with it and nothing here goes stale.
+team's own driving tactics come from /AIControl/Tactics, the action list from
+/AIControl/AvailableActions, and the field coordinates and zones from
+/AIControl/Landmarks and /AIControl/Zones. So when the robot code changes, the
+prompt changes with it and nothing here goes stale.
 """
 
 from __future__ import annotations
@@ -110,11 +111,23 @@ and say what you changed.
 - If an instruction is unsafe or impossible with these tools, say so instead of \
 approximating it.
 
-A cycle, end to end: `find_fuel` to see what is worth going for, `grab_fuel` or \
-`collect_fuel` to gather it depending on whether it is one nearby piece or a \
-whole line, `fuel_on_board` in the result to see what you are holding, wait for \
-`hub_active` if your shift has not turned over yet, then drive into the alliance \
-zone and shoot, and go again.\
+Before a cycle, decide two things: where the fuel is actually coming from, and \
+which way of getting it fits. `find_fuel` gives you the ground truth - the \
+neutral zone, our depot, whatever the camera can see - so start there rather \
+than guessing off the map. `list_plays` shows the named routines this robot \
+knows; when the situation resembles one, `run_play` carries out the whole thing \
+on its own pathfinding, driving the lanes and speeds the team's own drivers \
+trust rather than ones you would have to invent. Fall back to `collect_fuel` \
+for a line of fuel no play covers, and `grab_fuel` for a single piece right \
+there. Either way, size the shot window to how much fuel you expect to be \
+holding when you actually take it, the way the tactics below do.
+
+`hub_active` and `shift_remaining_s` are how you time a freeform cycle: be \
+loaded and back in the alliance zone before the shift turns over, not after - a \
+running play ignores this and fires on its own timer instead, per the tactics \
+below. Before a play or a sweep - anything that runs for a while - say in one \
+short sentence what you are about to do and why, so whoever is watching the \
+cockpit can follow the plan before it unfolds rather than only after.\
 """
 
 CLOSING = """\
@@ -135,6 +148,12 @@ def build_system_prompt(robot: RobotConnection) -> str:
     parts.append("\nThe robot's own rules, from the robot:")
     parts.append(robot.notes())
     parts.append("")
+
+    tactics = robot.tactics()
+    if tactics:
+        parts.append("The team's own tactics, from the robot:")
+        parts.append(tactics)
+        parts.append("")
 
     actions = robot.available_actions()
     if actions:

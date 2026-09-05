@@ -78,7 +78,7 @@ class FakeRobot:
             "/AIControl/MaxSpeed": 2.5,
             "/AIControl/MaxAccel": 2.5,
             "/AIControl/AvailableActions": [
-                "STOP", "INTAKE", "STOW_INTAKE", "COLLECT_FUEL", "GRAB_FUEL",
+                "STOP", "RUN_PLAY", "INTAKE", "STOW_INTAKE", "COLLECT_FUEL", "GRAB_FUEL",
                 "AUTO_FOLD_ON", "AUTO_FOLD_OFF", "SHOOT_FUEL", "ALIGN_HUB",
             ],
             "/AIControl/RunningActions": [],
@@ -139,6 +139,25 @@ class FakeRobot:
                 "active": True, "shift": "SHIFT2", "shift_remaining_s": 12.4,
                 "match_time_s": 78.2, "hub_state_ignored": True,
             }),
+            # v3 addendum: the team's own tactics and playbook, and the RUN_PLAY inputs.
+            "/AIControl/Tactics": "Ten test tactics from the robot.",
+            "/AIControl/Playbook": json.dumps({
+                "plays": [
+                    {
+                        "name": "left_trench_double_take",
+                        "purpose": "sweep the left trench twice, shooting after each",
+                        "steps": [
+                            {"type": "drive", "x": 3.635, "y": 7.44, "heading_deg": -90.7,
+                             "speed_mps": 2.0, "note": "play start pose"},
+                            {"type": "action", "name": "INTAKE", "seconds": 0.0, "note": ""},
+                            {"type": "action", "name": "SHOOT_FUEL", "seconds": 2.5,
+                             "note": "empties the shallow sweep"},
+                        ],
+                    },
+                ],
+            }),
+            "/AIControl/PlayName": "",
+            "/AIControl/ShootSeconds": 4.0,
         }
         self.types = {
             bool: 0, float: 1, str: 4, int: 1,
@@ -242,7 +261,8 @@ class FakeRobot:
             self.action_ends.clear()
             self.values["/AIControl/RobotPose"] = [1.5, 4.0, 0.0]
             self.values["/AIControl/Status"] = "RESET"
-        elif name in ("/AIControl/MaxSpeed", "/AIControl/MaxAccel"):
+        elif name in ("/AIControl/MaxSpeed", "/AIControl/MaxAccel",
+                      "/AIControl/PlayName", "/AIControl/ShootSeconds"):
             self.values[name] = value
 
 
@@ -358,6 +378,7 @@ def check_defensive_json_parsing(check) -> None:
         "/AIControl/Zones": "[1, 2,",
         "/AIControl/IntakePolicy": "nope",
         "/AIControl/HubState": "{",
+        "/AIControl/Playbook": "{\"plays\": [",
     }
     check("malformed Fuel JSON returns {} instead of raising",
           robot.fuel() == {}, str(robot.fuel()))
@@ -367,6 +388,28 @@ def check_defensive_json_parsing(check) -> None:
           robot.intake_policy() == {}, str(robot.intake_policy()))
     check("malformed HubState JSON returns {} instead of raising",
           robot.hub_state() == {}, str(robot.hub_state()))
+    check("malformed Playbook JSON returns {} instead of raising",
+          robot.playbook() == {}, str(robot.playbook()))
+
+
+def check_older_robot_degrades(check) -> None:
+    """Tactics/Playbook/list_plays/run_play must all degrade gracefully on a robot
+    that predates them - nothing published at all, not even a malformed value,
+    the way an older robot's actual /AIControl/ looks from this client's side.
+    """
+    robot = RobotConnection.__new__(RobotConnection)
+    robot._lock = threading.Lock()
+    robot._values = {}
+    check("tactics() is empty on an older robot", robot.tactics() == "", repr(robot.tactics()))
+    check("playbook() is {} on an older robot", robot.playbook() == {}, str(robot.playbook()))
+
+    tools = RobotTools(robot)
+    listing = tools.list_plays()
+    check("list_plays reports unavailable rather than crashing on an older robot",
+          listing["available"] is False and listing["plays"] == [], str(listing))
+    result = tools.run_play("anything")
+    check("run_play on an older robot is refused with an empty play list, not a crash",
+          "error" in result and result.get("available_plays") == [], str(result))
 
 
 def _await_write(robot_sim: "FakeRobot", name: str, value, timeout: float = 5.0) -> None:
@@ -470,6 +513,78 @@ def check_v2_contract(check, robot: RobotConnection, robot_sim: "FakeRobot") -> 
           ("/AIControl/AutoFoldIntake", True) in robot_sim.writes)
 
 
+def check_playbook_contract(
+    check, robot: RobotConnection, robot_sim: "FakeRobot", tools: RobotTools
+) -> None:
+    """The v3 contract: Tactics and Playbook read from the robot, list_plays/
+    run_play acting on them, and ShootSeconds clamped the same way client-side
+    as the robot clamps it itself."""
+    check("tactics() reads the Tactics string",
+          robot.tactics() == "Ten test tactics from the robot.", robot.tactics())
+    check("playbook() parses the Playbook JSON",
+          robot.playbook().get("plays", [{}])[0].get("name") == "left_trench_double_take",
+          str(robot.playbook()))
+
+    listing = tools.list_plays()
+    check("list_plays reports the robot's playbook as available",
+          listing["available"] is True and len(listing["plays"]) == 1, str(listing))
+    play = listing["plays"][0]
+    check("list_plays carries the play's name and purpose",
+          play["name"] == "left_trench_double_take" and "sweep the left trench" in play["purpose"],
+          str(play))
+    check("list_plays turns steps into a readable summary",
+          any("drive to (3.63, 7.44" in s for s in play["steps"])
+          and any(s == "INTAKE" for s in play["steps"])
+          and any("SHOOT_FUEL" in s and "empties the shallow sweep" in s for s in play["steps"]),
+          str(play["steps"]))
+
+    unknown = tools.run_play("no_such_play")
+    check("an unknown play name is refused with the real list, not a bare error",
+          unknown.get("error") and unknown.get("available_plays") == ["left_trench_double_take"],
+          str(unknown))
+    check("the unknown play name never reached the robot",
+          not any(v == "no_such_play" for _n, v in robot_sim.writes
+                  if _n == "/AIControl/PlayName"))
+
+    before = len(robot_sim.writes)
+    result = tools.run_play("left_trench_double_take", shoot_seconds=6.0)
+    since = robot_sim.writes[before:]
+    names = [n for n, _v in since]
+    check("run_play wrote PlayName before triggering RUN_PLAY",
+          "/AIControl/PlayName" in names and "/AIControl/ActionTrigger" in names
+          and names.index("/AIControl/PlayName") < names.index("/AIControl/ActionTrigger"),
+          str(since))
+    check("run_play's name, shoot_seconds and trigger all reached the robot",
+          ("/AIControl/PlayName", "left_trench_double_take") in since
+          and ("/AIControl/ShootSeconds", 6.0) in since
+          and ("/AIControl/ActionTrigger", "RUN_PLAY") in since,
+          str(since))
+    check("run_play's result carries the step-by-step progress it polled",
+          isinstance(result.get("play_progress"), list) and len(result["play_progress"]) >= 1
+          and any("RUN_PLAY" in s for s in result["play_progress"]),
+          str(result.get("play_progress")))
+
+    before = len(robot_sim.writes)
+    tools.run_action("SHOOT_FUEL", shoot_seconds=7.5)
+    since = robot_sim.writes[before:]
+    names = [n for n, _v in since]
+    check("run_action's shoot_seconds writes ShootSeconds before triggering the action",
+          "/AIControl/ShootSeconds" in names and "/AIControl/ActionTrigger" in names
+          and names.index("/AIControl/ShootSeconds") < names.index("/AIControl/ActionTrigger"),
+          str(since))
+    check("run_action's shoot_seconds value reached the robot",
+          ("/AIControl/ShootSeconds", 7.5) in since, str(since))
+
+    robot.set_shoot_seconds(999)
+    _await_write(robot_sim, "/AIControl/ShootSeconds", 15.0)
+    check("set_shoot_seconds clamps a too-high value to 15",
+          ("/AIControl/ShootSeconds", 15.0) in robot_sim.writes)
+    robot.set_shoot_seconds(-5)
+    _await_write(robot_sim, "/AIControl/ShootSeconds", 1.0)
+    check("set_shoot_seconds clamps a too-low value to 1",
+          ("/AIControl/ShootSeconds", 1.0) in robot_sim.writes)
+
+
 def check_cockpit_restart(check, robot: RobotConnection) -> None:
     """The cockpit's restart button: the match goes back, the conversation is dropped."""
     from serve import Cockpit
@@ -526,7 +641,7 @@ def main() -> int:
 
     check("connected and read AvailableActions",
           robot.available_actions() == [
-              "STOP", "INTAKE", "STOW_INTAKE", "COLLECT_FUEL", "GRAB_FUEL",
+              "STOP", "RUN_PLAY", "INTAKE", "STOW_INTAKE", "COLLECT_FUEL", "GRAB_FUEL",
               "AUTO_FOLD_ON", "AUTO_FOLD_OFF", "SHOOT_FUEL", "ALIGN_HUB",
           ],
           str(robot.available_actions()))
@@ -536,6 +651,7 @@ def main() -> int:
           str(robot.camera_streams()))
 
     check_defensive_json_parsing(check)
+    check_older_robot_degrades(check)
     check_v2_contract(check, robot, robot_sim)
     field_view.check_registration(check)
 
@@ -553,6 +669,8 @@ def main() -> int:
     check("tool schema offers the robot's own actions",
           schema[1]["parameters"]["properties"]["action"]["enum"] == robot.available_actions())
 
+    check_playbook_contract(check, robot, robot_sim, tools)
+
     session = Session(make_client("test-key"), robot, "gemini-robotics-er-2-preview", 12, False)
     check("system prompt carries the robot's notes and landmarks",
           "Test notes from the robot." in session.system_instruction
@@ -562,6 +680,8 @@ def main() -> int:
           and "left_trench" in session.system_instruction
           and "our_alliance_zone" in session.system_instruction
           and "our_depot" in session.system_instruction)
+    check("system prompt folds in the team's tactics",
+          "Ten test tactics from the robot." in session.system_instruction)
 
     answer = session.ask("drive to the hub, look, and intake")
     print("\nmodel's final answer:", answer, "\n")

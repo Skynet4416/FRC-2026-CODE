@@ -23,12 +23,21 @@ tools do the fuel work so the model rarely has to drive-and-intake by hand:
 `grab_fuel(count)` to chase down a nearby piece the camera can see, and
 `collect_fuel(count)` for an autonomous slow sweep across a whole line of it.
 
+The robot also publishes its own playbook: `list_plays()` shows the team's real
+autonomous routines (name, purpose, and a step-by-step summary), and
+`run_play(name)` replays one whole play on the robot's own pathfinding - the
+model's preferred move whenever a situation matches one, since these are the
+lanes and speeds the team's own drivers trust rather than something improvised
+call by call. `run_action`/`run_play` both take an optional `shoot_seconds` to
+size a shot's window (1-15 s) to how much fuel is actually on board, the same
+way the real autos vary theirs.
+
 | File | Role |
 | --- | --- |
 | `agent.py` | CLI and model loop. `--task` for one-shot, `--host` for a real robot, `--print-prompt` to see what the model is told. |
-| `robot_tools.py` | The tools and what they write to `/AIControl`: driving, actions, the field/camera views, and `find_fuel`/`grab_fuel`/`collect_fuel`. |
+| `robot_tools.py` | The tools and what they write to `/AIControl`: driving, actions, the field/camera views, `find_fuel`/`grab_fuel`/`collect_fuel`, and `list_plays`/`run_play`. |
 | `field_view.py` | Top-down field map - the model's main sense. Draws every fuel piece on the field (faint) with camera-seen ones highlighted, plus the field's zones. |
-| `nt4.py` | NT4 client, websockets + msgpack only. Reads `Fuel`, `Zones`, `GameBrief`, `IntakePolicy` and `HubState`; writes `CollectTarget` and `AutoFoldIntake`. |
+| `nt4.py` | NT4 client, websockets + msgpack only. Reads `Fuel`, `Zones`, `GameBrief`, `Tactics`, `Playbook`, `IntakePolicy` and `HubState`; writes `CollectTarget`, `AutoFoldIntake`, `PlayName` and `ShootSeconds`. |
 | `camera.py` | One JPEG out of a PhotonVision MJPEG stream. |
-| `prompt.py` | The behaviour half of the system prompt - the intake rules, the fuel tools, the Alliance Shift hub cycle; the rest (game brief, notes, landmarks, zones) comes from the robot. |
+| `prompt.py` | The behaviour half of the system prompt - the intake rules, the fuel tools, the Alliance Shift hub cycle, and how to choose between a play and a hand-built cycle; the rest (game brief, notes, tactics, landmarks, zones) comes from the robot. |
 | `selftest.py` | End-to-end test against a fake robot and a fake Gemini. No key needed. |

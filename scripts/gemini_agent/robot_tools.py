@@ -33,6 +33,10 @@ ACTION_TIMEOUT_S = 30.0
 # COLLECT_FUEL and GRAB_FUEL are whole autonomous manoeuvres, not one mechanism
 # spinning up - they can legitimately run far longer than any other single action.
 COLLECT_TIMEOUT_S = 90.0
+# A play chains a dozen-plus drive legs and actions, several of them full collection
+# sweeps and long shot windows in their own right - the longest real ones run for
+# minutes, well beyond any other single action here.
+PLAY_TIMEOUT_S = 240.0
 
 
 def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
@@ -100,7 +104,9 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
                 "hands you manual control of that fold; AUTO_FOLD_ON gives it back. "
                 "COLLECT_FUEL and GRAB_FUEL read how many pieces to gather from CollectTarget "
                 "- call the collect_fuel/grab_fuel tools instead of this one for those, since "
-                "they set it for you. Shooting actions take over the drivetrain and drive into "
+                "they set it for you. RUN_PLAY replays a whole named routine from the playbook "
+                "- call list_plays/run_play instead of this one for that, since run_play sets "
+                "PlayName for you. Shooting actions take over the drivetrain and drive into "
                 "the alliance zone first if the robot is not already there. STOP cancels "
                 "everything."
             ),
@@ -113,6 +119,15 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
                         "description": (
                             "Block until this action finishes (default true). Pass false to "
                             "leave it running and do something else in the meantime."
+                        ),
+                    },
+                    "shoot_seconds": {
+                        "type": "number",
+                        "description": (
+                            "For SHOOT_FUEL/SHOOT_ON_THE_MOVE: how long the shot window stays "
+                            "open, seconds, 1-15. Size it to how much fuel you are actually "
+                            "holding - a light top-off wants 2.5-5s, emptying a full hopper "
+                            "wants up to 15. Leaves the current window alone if omitted."
                         ),
                     },
                 },
@@ -241,6 +256,51 @@ def tool_declarations(actions: list[str]) -> list[dict[str, Any]]:
                 },
             },
         },
+        {
+            "type": "function",
+            "name": "list_plays",
+            "description": (
+                "The named routines this robot actually knows how to run: the team's own real "
+                "autos, each with what it is for and its steps in order. Call this before "
+                "improvising a whole cycle by hand - if one of these matches the situation, "
+                "run_play carries out the entire thing itself, on the same lanes and speeds "
+                "the team's own drivers trust."
+            ),
+            "parameters": {"type": "object", "properties": {}},
+        },
+        {
+            "type": "function",
+            "name": "run_play",
+            "description": (
+                "Run one whole named play from list_plays, exactly as written - every drive leg "
+                "and every mechanism action, back to back, on the robot's own pathfinding. This "
+                "is a long action, well beyond any other single one here: it can take as long "
+                "as the whole routine it replays, so it blocks until the play finishes or times "
+                "out and reports each step's status as it went. Prefer this over driving and "
+                "triggering actions by hand whenever a play matches what you are trying to do."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": (
+                            "A play name from list_plays. An unknown name gets you the real "
+                            "list back instead of moving the robot."
+                        ),
+                    },
+                    "shoot_seconds": {
+                        "type": "number",
+                        "description": (
+                            "Override the shot window (seconds, 1-15) for a step in the play "
+                            "that does not already fix its own. Most steps do fix their own, so "
+                            "this rarely changes anything - it is here for the ones that don't."
+                        ),
+                    },
+                },
+                "required": ["name"],
+            },
+        },
     ]
 
 
@@ -260,6 +320,8 @@ class RobotTools:
             "find_fuel": self.find_fuel,
             "grab_fuel": self.grab_fuel,
             "collect_fuel": self.collect_fuel,
+            "list_plays": self.list_plays,
+            "run_play": self.run_play,
         }
 
     def call(self, name: str, arguments: dict) -> tuple[dict, bytes | None]:
@@ -298,10 +360,14 @@ class RobotTools:
             time.sleep(0.3)
         return self._state_with("driving to (%.2f, %.2f, %.1f deg)" % (x, y, heading_deg))
 
-    def run_action(self, action: str, wait: bool = True) -> dict:
+    def run_action(
+        self, action: str, wait: bool = True, shoot_seconds: float | None = None
+    ) -> dict:
         available = self.robot.available_actions()
         if action.upper() not in {a.upper() for a in available}:
             return {"error": f"no such action {action!r}", "available_actions": available}
+        if shoot_seconds is not None:
+            self.robot.set_shoot_seconds(shoot_seconds)
         self.robot.set_action(action.upper())
         if wait and action.upper() != "STOP":
             self.robot.wait_until_action_done(action, timeout=ACTION_TIMEOUT_S)
@@ -406,6 +472,63 @@ class RobotTools:
             time.sleep(0.3)
         return self._state_with(f"{action} (target {count})")
 
+    def list_plays(self) -> dict:
+        """The plays this robot is actually offering, from Playbook - so the model
+        chooses a real named routine instead of improvising one that already exists."""
+        plays = self.robot.playbook().get("plays") or []
+        if not plays:
+            return {
+                "available": False,
+                "plays": [],
+                "note": (
+                    "the robot is not publishing a Playbook - older robot code, or none "
+                    "configured - so there is nothing to run_play here"
+                ),
+            }
+        return {
+            "available": True,
+            "plays": [
+                {
+                    "name": play.get("name", ""),
+                    "purpose": play.get("purpose", ""),
+                    "steps": [_describe_play_step(step) for step in play.get("steps") or []],
+                }
+                for play in plays
+            ],
+        }
+
+    def run_play(self, name: str, shoot_seconds: float | None = None) -> dict:
+        """Runs one whole named play: the robot walks every drive leg and every
+        action itself, on its own pathfinding, exactly like RUN_PLAY replays a real
+        auto. Blocks until the play finishes, polling Status along the way rather
+        than waiting once - a play chains far more ground than any other action here."""
+        names = [p.get("name", "") for p in (self.robot.playbook().get("plays") or [])]
+        if not any(n.upper() == name.upper() for n in names if n):
+            return {"error": f"no such play {name!r}", "available_plays": names}
+        if shoot_seconds is not None:
+            self.robot.set_shoot_seconds(shoot_seconds)
+        self.robot.set_play_name(name)
+        self.robot.set_action("RUN_PLAY")
+        progress = self._poll_play(name)
+        result = self._state_with(f"ran play {name!r}")
+        result["play_progress"] = progress
+        return result
+
+    def _poll_play(self, name: str) -> list[str]:
+        """Samples Status while RUN_PLAY runs, so the result carries the whole
+        'step i/n: ...' trail instead of only the state after the last one."""
+        seen: list[str] = []
+        time.sleep(0.4)  # let the trigger actually get scheduled before we check
+        deadline = time.time() + PLAY_TIMEOUT_S
+        while time.time() < deadline:
+            status = self.robot.get("Status", "")
+            if status and (not seen or seen[-1] != status):
+                seen.append(status)
+            if "RUN_PLAY" not in {a.upper() for a in self.robot.running_actions()}:
+                break
+            time.sleep(0.15)
+        return seen
+
     # -- helpers -----------------------------------------------------------
 
     def _state_with(self, did: str | None) -> dict:
@@ -439,6 +562,21 @@ def _annotate_orange_blobs(jpeg: bytes) -> bytes:
         return encoded.tobytes() if ok else jpeg
     except Exception:
         return jpeg
+
+
+def _describe_play_step(step: dict) -> str:
+    """One human-readable line per play step, in the same wording the robot's own
+    Status uses for a running play - a drive leg's pose and speed, or an action's
+    name, plus its note if the play carries one."""
+    if step.get("type") == "drive":
+        base = "drive to (%.2f, %.2f, %.1f deg) at %.2f m/s" % (
+            step.get("x", 0.0), step.get("y", 0.0),
+            step.get("heading_deg", 0.0), step.get("speed_mps", 0.0),
+        )
+    else:
+        base = str(step.get("name", "?"))
+    note = step.get("note")
+    return f"{base} - {note}" if note else base
 
 
 def _default_camera(streams: dict[str, str]) -> str:
