@@ -287,13 +287,30 @@ public class FieldConstants {
     public static final double height = Units.inchesToMeters(1.125);
     public static final double distanceFromCenterY = Units.inchesToMeters(75.93);
 
-    // Relevant reference points on alliance side
+    // Relevant reference points on alliance side. The depot is `depth` deep measured FROM THE
+    // ALLIANCE WALL (x=0), so its centre sits at depth/2, not depth - `depth` alone would put the
+    // box overhanging past the far edge of the depot by half its own depth. Confirmed against the
+    // official field render and against FuelPhysicsSim.placeFieldBalls(), which spawns the depot
+    // fuel grid centred at x = 0.37, inside this corrected box.
     public static final Translation3d depotCenter =
-        new Translation3d(depth, (fieldWidth / 2) + distanceFromCenterY, height);
+        new Translation3d(depth / 2.0, (fieldWidth / 2) + distanceFromCenterY, height);
     public static final Translation3d leftCorner =
-        new Translation3d(depth, (fieldWidth / 2) + distanceFromCenterY + (width / 2), height);
+        new Translation3d(
+            depth / 2.0, (fieldWidth / 2) + distanceFromCenterY + (width / 2), height);
     public static final Translation3d rightCorner =
-        new Translation3d(depth, (fieldWidth / 2) + distanceFromCenterY - (width / 2), height);
+        new Translation3d(
+            depth / 2.0, (fieldWidth / 2) + distanceFromCenterY - (width / 2), height);
+
+    // Relevant reference points on the opposing side - the field is 180-degree rotationally
+    // symmetric, so mirror through the field centre: (fieldLength - x, fieldWidth - y).
+    public static final Translation3d oppDepotCenter =
+        new Translation3d(
+            fieldLength - depotCenter.getX(), fieldWidth - depotCenter.getY(), height);
+    public static final Translation3d oppLeftCorner =
+        new Translation3d(fieldLength - leftCorner.getX(), fieldWidth - leftCorner.getY(), height);
+    public static final Translation3d oppRightCorner =
+        new Translation3d(
+            fieldLength - rightCorner.getX(), fieldWidth - rightCorner.getY(), height);
   }
 
   public static class Outpost {
