@@ -28,6 +28,7 @@ AdvantageScope, or from any other model.
 - [What the model sees](#what-the-model-sees)
 - [The tools](#the-tools)
 - [The prompt](#the-prompt)
+- [Streaming - and why the cockpit does not use it](#streaming)
 - [Testing it without a key](#testing-it-without-a-key)
 - [Cost and rate limits](#cost-and-rate-limits)
 - [Troubleshooting](#troubleshooting)
@@ -165,6 +166,56 @@ Print the whole thing, against a running robot, with:
 ```bash
 python3 scripts/gemini_agent/agent.py --print-prompt
 ```
+
+## Streaming - and why the cockpit does not use it
+<a id="streaming"></a>
+
+The operator's cockpit ([cockpit.md](cockpit.md)) shows the model's thinking as it plays, which
+raises the obvious question: does the Interactions API actually stream a thought as it is
+generated, word by word, or only hand it over once the step is done?
+
+**It can stream real thought text, not just a token.** `client.interactions.create(...,
+stream=True)` returns an iterator of server-sent events - documented at
+[ai.google.dev/gemini-api/docs/streaming](https://ai.google.dev/gemini-api/docs/streaming) -
+and one of the deltas it emits mid-step is a **`step.delta` event whose `delta.type` is
+`"thought_summary"`**, carrying a real, readable chunk of the thought summary at
+`delta.content.text`:
+
+```json
+{"event_type": "step.delta", "index": 0,
+ "delta": {"type": "thought_summary", "content": {"type": "text", "text": "Thinking..."}}}
+```
+
+That is a genuinely different thing from a **`thought_signature`** delta, which the same API
+also emits - an opaque continuation token the SDK needs for its own bookkeeping, with no
+readable text in it at all. A design that only had access to `thought_signature` deltas would
+have nothing honest to show the operator; `thought_summary` is the real thing, confirmed
+against the installed `google-genai` SDK (2.22.0, the version this repo pins) by standing up a
+throwaway local SSE server and running `client.interactions.create(stream=True, ...)` against
+it - `ThoughtSummaryDelta.content.text` came back exactly as the docs describe, chunk by chunk.
+
+**The cockpit still does not use it**, for a reason specific to this preview model rather than
+to the API in general: `stream=True` has to be tried the same way every other request is, which
+means the first time it is *not* actually honoured - an older SDK, or this specific preview
+endpoint accepting the flag but replying with one plain JSON body instead of real SSE framing -
+the client has no way to tell before it has already spent a full request finding out. Falling
+back at that point means a *second*, separate call for the same step: double latency and quota
+on every single turn if that is what this endpoint does, and - the concrete failure this repo's
+self-test caught while trying it - a real risk of the fallback's response landing under a
+different interaction than the one already shown to the operator, breaking the `call_id` a tool
+result is matched back to. Nothing here has been able to confirm which way
+`gemini-robotics-er-2-preview` actually behaves without spending real quota against a live key
+to find out, so `Session.ask()` sends one plain (non-streaming) request per step, exactly as it
+always has.
+
+What the cockpit does instead - and it is worth being precise about what this is *not* - is a
+"thinking... (Ns)" placeholder that goes up the moment the request is sent, ticks off elapsed
+seconds while the blocking call is in flight, and is replaced by the real thought in one shot
+the instant the response comes back (`Session._run_step` in `agent.py`). That is an honest
+progress indicator, not token-level streaming: nothing about the thought's *content* is shown
+until the whole thing has arrived. If a later SDK release or a non-preview model confirms
+`stream=True` behaves as documented against this endpoint, wiring up `thought_summary` deltas
+the way described above is the way to turn that placeholder into the real thing.
 
 ## Testing it without a key
 

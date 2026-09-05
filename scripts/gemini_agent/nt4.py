@@ -39,16 +39,21 @@ FIELD_PIECES = "/AdvantageKit/RealOutputs/Sim/Fuel/Positions"
 HELD_FUEL = "/AdvantageKit/RealOutputs/Sim/Fuel/HeldBalls"
 INTAKE_RUNNING = "/AdvantageKit/RealOutputs/Sim/Fuel/IntakeRunning"
 TRAJECTORY = "/AdvantageKit/RealOutputs/Odometry/Trajectory"
+# The physics sim's own running score, one counter per hub - see match() below.
+# Not otherwise used anywhere on the /AIControl side of this file on purpose.
+BLUE_SCORE = "/AdvantageKit/RealOutputs/Sim/Fuel/BlueScore"
+RED_SCORE = "/AdvantageKit/RealOutputs/Sim/Fuel/RedScore"
 
 EXTRA_TOPICS = [
     "/CameraPublisher/", GAME_PIECES, FIELD_PIECES, TRAJECTORY, HELD_FUEL, INTAKE_RUNNING,
+    BLUE_SCORE, RED_SCORE,
 ]
 
-# Fuel, Zones, GameBrief, FuelPositions, FuelOnBoard, CollectTarget, IntakePolicy and
-# AutoFoldIntake all live under /AIControl/, which is already subscribed with prefix=True
-# below - so they show up in _values the moment the robot announces them and need no
-# entry of their own here. Only topics *outside* /AIControl/ (the AdvantageKit path
-# above) have to be listed explicitly.
+# Fuel, Zones, GameBrief, FuelPositions, FuelOnBoard, CollectTarget, IntakePolicy,
+# AutoFoldIntake and Match all live under /AIControl/, which is already subscribed
+# with prefix=True below - so they show up in _values the moment the robot announces
+# them and need no entry of their own here. Only topics *outside* /AIControl/ (the
+# AdvantageKit paths above) have to be listed explicitly.
 
 # pubuids are ours to choose; they only have to be unique within this client.
 _PUB = {
@@ -82,6 +87,10 @@ class RobotConnection:
         self._connected = False
         self._closing = False
         self._thread = threading.Thread(target=self._run, daemon=True, name="nt4")
+        # match()'s own derived shot counter - see that method. Guarded by _lock
+        # like everything else here, and zeroed by reset_simulation().
+        self._match_prev_held: int | None = None
+        self._match_shots = 0
 
     # -- lifecycle ---------------------------------------------------------
 
@@ -248,6 +257,47 @@ class RobotConnection:
         except json.JSONDecodeError:
             return {}
 
+    def match(self) -> dict[str, Any]:
+        """Fuel scored, shots taken, fuel on board - for the cockpit only.
+
+        Deliberately NOT surfaced through state(), a tool result, or the prompt:
+        a shot in this sim is close enough to a sure thing that the score is not
+        useful feedback for the model - it would just invite it to narrate a
+        number instead of playing. Score is a for-the-human thing, wired into
+        serve.py's /state alone. Do not add these fields to state() later - that
+        is exactly the shortcut this method exists to keep out of the model's way.
+
+        Prefers a robot-published /AIControl/Match JSON blob, per field, in case
+        a future bridge ships one; falls back to the physics sim's own
+        BlueScore/RedScore/HeldBalls outputs when that is absent, same as every
+        other topic here. Nothing publishes a shots-taken counter at all yet, so
+        it is derived here from the one honest signal available - fuel leaving
+        the robot, since the only way fuel leaves in this game is being launched
+        at a hub.
+        """
+        raw = self.get("Match", "")
+        try:
+            published = json.loads(raw) if raw else {}
+        except json.JSONDecodeError:
+            published = {}
+
+        held = self.get(HELD_FUEL)
+        blue, red = self.get(BLUE_SCORE), self.get(RED_SCORE)
+        scored = (blue or 0) + (red or 0) if (blue is not None or red is not None) else None
+
+        with self._lock:
+            if held is not None:
+                if self._match_prev_held is not None and held < self._match_prev_held:
+                    self._match_shots += self._match_prev_held - held
+                self._match_prev_held = held
+            shots = self._match_shots if self._match_prev_held is not None else None
+
+        return {
+            "scored": published.get("scored", scored),
+            "shots": published.get("shots", shots),
+            "fuel_on_board": published.get("fuel_on_board", held),
+        }
+
     def field_fuel(self) -> list[tuple[float, float]]:
         """Every fuel on the field, as (x, y) pairs, from the flat FuelPositions
         double array. Ground truth like field_game_pieces(), but published as plain
@@ -317,6 +367,13 @@ class RobotConnection:
         Deliberately not an action, so it stays out of AvailableActions and therefore
         out of the model's tool list - restarting the match is the human's button.
         """
+        with self._lock:
+            # match()'s derived shot count is ours, not the robot's - the robot
+            # resets BlueScore/RedScore/HeldBalls itself, but nothing tells us that
+            # happened except the values suddenly dropping, which this would
+            # otherwise misread as several shots landing at once.
+            self._match_prev_held = None
+            self._match_shots = 0
         self._publish("ResetSimulation", True)
         # Back to the neutral value, so a reconnecting client does not replay the restart.
         self._publish("ResetSimulation", False)

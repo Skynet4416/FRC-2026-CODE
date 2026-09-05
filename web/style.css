@@ -22,13 +22,38 @@ body {
 header {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 12px;
+  row-gap: 6px;
   padding: 12px 18px;
   border-bottom: 1px solid var(--line);
 }
 
 h1 { font-size: 16px; margin: 0; font-weight: 600; }
 h1 span { color: var(--dim); font-weight: 400; }
+
+/* The operator's own scoreboard - fuel scored, shots taken, fuel on board.
+   Never sent to the model; see nt4.py's RobotConnection.match(). */
+.score {
+  display: flex;
+  gap: 16px;
+  padding: 2px 16px;
+  border-left: 1px solid var(--line);
+  border-right: 1px solid var(--line);
+}
+.score .stat { display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
+.score .stat-value {
+  font-size: 17px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--amber);
+}
+.score .stat-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--dim);
+}
 
 h2 {
   font-size: 12px;
@@ -148,3 +173,24 @@ li.tool_call { border-left-color: var(--green); font-family: ui-monospace, Menlo
 li.tool_result { border-left-color: #30363d; color: var(--dim); font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
 li.answer { border-left-color: var(--amber); }
 li.error, li.stopped { border-left-color: var(--red); color: var(--red); }
+
+/* The transcript's one still-open line: a "thinking... (Ns)" placeholder
+   ticking off seconds, or the thought that just replaced it mid-render. The
+   pulsing dot is the only thing that says "still going" - text alone reads
+   the same whether it is finished or not. */
+li.thought.live { border-left-color: var(--blue); }
+li.live .kind::after {
+  content: "";
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-left: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: middle;
+  animation: live-pulse 1.1s ease-in-out infinite;
+}
+@keyframes live-pulse {
+  0%, 100% { opacity: 0.2; }
+  50% { opacity: 1; }
+}

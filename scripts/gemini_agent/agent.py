@@ -10,6 +10,20 @@ Then type instructions: "run the left trench, pick up fuel, and score it".
 The model is given five tools (drive_to, run_action, get_robot_state, look,
 wait); each one reads or writes the robot's /AIControl NetworkTables topics and
 hands the robot's live state straight back to the model.
+
+Session._run_step wraps that call with a ticking "thinking... (Ns)" placeholder
+so the operator's cockpit shows something the moment a request goes out, rather
+than nothing until the whole step returns. This is NOT token-level streaming:
+the Interactions API's own docs (https://ai.google.dev/gemini-api/docs/streaming)
+do document a stream=True mode whose step.delta events carry a ThoughtSummaryDelta
+with real incremental thought text - not just a ThoughtSignatureDelta's opaque
+continuation token, which would not have been enough to justify this. But wiring
+it up here made every step a *second*, discarded model call against this preview
+endpoint whenever the server accepted stream=True but replied with a single
+non-streaming body instead of real SSE - silently doubling latency and cost, and
+corrupting the call_id a tool result is matched back to on that discarded call.
+Given a preview model with unverified real-world stream support, that risk is
+not worth it for a decoration. See docs/gemini-agent.md for the full writeup.
 """
 
 from __future__ import annotations
@@ -19,6 +33,7 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -62,13 +77,19 @@ class Session:
         self.max_steps = max_steps
         self.verbose = verbose
         self.show_field = show_field
-        # Called with (kind, text) for every thought, tool call, result and answer.
-        # The dashboard listens on this; nothing else needs it.
-        self.on_event = on_event or (lambda kind, text: None)
+        # Called with (kind, text, event_id=None, live=False) for every thought,
+        # tool call, result and answer. event_id/live let the same transcript
+        # line update in place - a ticking "thinking..." placeholder, then the
+        # real thought that replaces it - instead of piling up a new line every
+        # second, see _run_step. The dashboard listens on this; nothing else needs it.
+        self.on_event = on_event or (lambda kind, text, **_kwargs: None)
         self.tools = tool_declarations(robot.available_actions())
         self.system_instruction = build_system_prompt(robot)
         self.executor = RobotTools(robot, on_call=self._log_call)
         self.previous_id: str | None = None
+        # Ticks up once per model turn, so every "thinking..." placeholder and
+        # every thought bubble gets a transcript id nothing else could collide with.
+        self._step_seq = 0
 
     def _log_call(self, name: str, args: dict) -> None:
         pretty = ", ".join(f"{k}={v!r}" for k, v in args.items())
@@ -80,19 +101,10 @@ class Session:
         self.on_event("instruction", instruction)
         pending_input: object = self._opening_input(instruction)
         for step_index in range(self.max_steps):
-            interaction = self._create(pending_input)
+            interaction = self._run_step(pending_input)
             self.previous_id = getattr(interaction, "id", None)
 
             calls = [s for s in (interaction.steps or []) if getattr(s, "type", None) == "function_call"]
-            for step in interaction.steps or []:
-                if getattr(step, "type", None) != "thought":
-                    continue
-                thought = _step_text(step)
-                if not thought:
-                    continue
-                self.on_event("thought", thought)
-                if self.verbose:
-                    print(f"  {DIM}(thinking) {thought}{RESET}", flush=True)
             if not calls:
                 answer = interaction.output_text or "(no reply)"
                 self.on_event("answer", answer)
@@ -136,7 +148,7 @@ class Session:
             encode_image(image),
         ]
 
-    def _create(self, model_input):
+    def _request(self, model_input) -> dict:
         request = {
             "model": self.model,
             "input": model_input,
@@ -146,25 +158,89 @@ class Session:
         }
         if self.previous_id:
             request["previous_interaction_id"] = self.previous_id
-        return self.client.interactions.create(**request)
+        return request
+
+    def _create(self, model_input):
+        return self.client.interactions.create(**self._request(model_input))
+
+    def _run_step(self, model_input):
+        """Runs one model turn and returns the finished interaction.
+
+        No true token streaming here - see the module docstring for why - so
+        the whole thought arrives at once, whenever the one blocking _create()
+        call returns. What we *can* give the operator honestly in the meantime
+        is a "thinking... (Ns)" placeholder that starts ticking the moment the
+        request goes out, then gets replaced by the real thought(s) in one shot
+        the instant the response is parsed - never a guess at content, just an
+        honest clock while there is nothing else to show.
+        """
+        step_id = f"think-{self._next_id()}"
+        started = time.time()
+        stop_ticking = threading.Event()
+        self.on_event("thought", "thinking…", event_id=step_id, live=True)
+        ticker = threading.Thread(
+            target=self._tick_thinking, args=(step_id, started, stop_ticking), daemon=True
+        )
+        ticker.start()
+        try:
+            interaction = self._create(model_input)
+        finally:
+            stop_ticking.set()
+        self._emit_thoughts(interaction, step_id)
+        return interaction
+
+    def _tick_thinking(self, step_id: str, started: float, stop: threading.Event) -> None:
+        """Ticks a "thinking... (Ns)" placeholder once a second. The elapsed clock
+        is the only honest thing to show during the gap before the blocking call
+        this brackets returns with anything real."""
+        while not stop.wait(1.0):
+            self.on_event(
+                "thought", f"thinking… ({time.time() - started:.0f}s)",
+                event_id=step_id, live=True,
+            )
+
+    def _emit_thoughts(self, interaction, placeholder_id: str) -> None:
+        """Replaces the ticking placeholder with whatever the model actually
+        thought, in one shot - the whole thought lands at once from a plain
+        (non-streaming) call, so there is nothing to trickle in."""
+        used = False
+        for step in interaction.steps or []:
+            if getattr(step, "type", None) != "thought":
+                continue
+            thought = _step_text(step, full=True)
+            if not thought:
+                continue
+            event_id = placeholder_id if not used else f"think-{self._next_id()}"
+            used = True
+            self.on_event("thought", thought, event_id=event_id, live=False)
+            if self.verbose:
+                print(f"  {DIM}(thinking) {_step_text(step)}{RESET}", flush=True)
+        if not used:
+            self.on_event("thought", "", event_id=placeholder_id, live=False)
+
+    def _next_id(self) -> int:
+        self._step_seq += 1
+        return self._step_seq
 
 
 def _strip_colour(text: str) -> str:
     return re.sub(r"\033\[[0-9;]*m", "", text)
 
 
-def _step_text(step) -> str:
-    """First line of a step's text, whether it carries it directly or in content blocks."""
+def _step_text(step, full: bool = False) -> str:
+    """First line of a step's text, whether it carries it directly or in content
+    blocks - or the whole thing when full=True, which is what the cockpit's
+    transcript shows (the terminal's one-line (thinking) print stays truncated)."""
     for attr in ("text", "summary", "output_text"):
         value = getattr(step, attr, None)
         if isinstance(value, str) and value.strip():
-            return value.strip().splitlines()[0][:160]
+            return value.strip() if full else value.strip().splitlines()[0][:160]
     for block in getattr(step, "content", None) or []:
         text = getattr(block, "text", None) or (
             block.get("text") if isinstance(block, dict) else None
         )
         if isinstance(text, str) and text.strip():
-            return text.strip().splitlines()[0][:160]
+            return text.strip() if full else text.strip().splitlines()[0][:160]
     return ""
 
 

@@ -23,6 +23,9 @@ const tokenBox = document.getElementById("token");
 const hint = document.getElementById("hint");
 const sendButton = document.getElementById("send");
 const restartButton = document.getElementById("restart");
+const scoreScored = document.getElementById("score-scored");
+const scoreShots = document.getElementById("score-shots");
+const scoreBoard = document.getElementById("score-board");
 
 const field = new Image();
 field.src = "field26.png";
@@ -30,6 +33,11 @@ field.src = "field26.png";
 let navgrid = null;
 let latest = null;
 let shownEvents = 0;
+// The transcript's still-open entry (a "thinking..." placeholder ticking off
+// seconds, or the thought that just replaced it) - the one line the server can
+// still rewrite in place instead of appending a new one. See renderTranscript.
+let liveEl = null;
+let liveText = "";
 
 fetch("navgrid.json").then((r) => r.json()).then((g) => { navgrid = g; }).catch(() => {});
 
@@ -236,26 +244,61 @@ function render() {
     latest.model || "",
   ].filter((line) => line !== null).join("\n");
 
-  const events = latest.transcript || [];
+  // Operator only - this never goes anywhere near the model. "?" is a robot
+  // that predates /AIControl/Match and the physics sim's own score topics,
+  // same convention as fuel_on_board above.
+  const match = latest.match || {};
+  scoreScored.textContent = match.scored ?? "?";
+  scoreShots.textContent = match.shots ?? "?";
+  scoreBoard.textContent = match.fuel_on_board ?? "?";
+
+  renderTranscript(latest.transcript || []);
+  draw();
+}
+
+// The transcript is append-only except for its very last line, which the
+// server can keep rewriting in place while it is "live" - a ticking
+// "thinking... (Ns)" placeholder, then the real thought that replaces it (see
+// serve.py's Cockpit._event). That is the one entry this has to update without
+// re-appending; everything before it only ever grows.
+function renderTranscript(events) {
   if (events.length < shownEvents) {
     transcriptList.replaceChildren();
     shownEvents = 0;
+    liveEl = null;
   }
+
+  // The entry at the last-shown index can keep changing in place - a tick of
+  // the clock, or the moment a "thinking..." placeholder finalises into the
+  // real thought - regardless of whether anything new has been appended after
+  // it since the last poll, so this has to run before the append loop below,
+  // against the boundary as it stood last render.
+  if (liveEl && shownEvents > 0) {
+    const current = events[shownEvents - 1];
+    if (current && current.text !== liveText) {
+      liveText = current.text;
+      liveEl.lastChild.textContent = liveText;
+      liveEl.classList.toggle("live", !!current.live);
+      if (!current.live) liveEl = null;
+    }
+  }
+
   for (const event of events.slice(shownEvents)) {
     const item = document.createElement("li");
-    item.className = event.kind;
+    item.className = event.kind + (event.live ? " live" : "");
     const kind = document.createElement("span");
     kind.className = "kind";
     kind.textContent = event.kind.replace("_", " ");
     item.append(kind, document.createTextNode(event.text));
     transcriptList.append(item);
+    liveEl = event.live ? item : null;
+    liveText = event.text;
   }
+
   if (events.length !== shownEvents) {
     shownEvents = events.length;
     transcriptList.lastElementChild?.scrollIntoView({ block: "nearest" });
   }
-
-  draw();
 }
 
 // The intake's own three states: folded up for a trench/bump crossing (the
@@ -317,6 +360,7 @@ document.getElementById("restart").addEventListener("click", async () => {
   if (ok) {
     transcriptList.replaceChildren();
     shownEvents = 0;
+    liveEl = null;
     hint.textContent = "match and chat restarted";
   } else {
     hint.className = "hint bad";

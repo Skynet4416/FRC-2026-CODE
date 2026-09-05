@@ -75,6 +75,9 @@ class Cockpit:
             "needs_token": bool(self.token),
             "model": getattr(self.session, "model", None),
             "time": time.time(),
+            # Operator-only: fuel scored, shots taken, fuel on board. Never fed
+            # back to the model - see the comment on RobotConnection.match().
+            "match": self.robot.match(),
         }
 
     # -- what the page writes ---------------------------------------------
@@ -115,7 +118,7 @@ class Cockpit:
             with self.lock:
                 if self.session is None:
                     self.session = self.session_factory(
-                        lambda kind, text: self._event(kind, text, generation)
+                        lambda kind, text, **kw: self._event(kind, text, generation, **kw)
                     )
                 session = self.session
             self.error = ""
@@ -128,10 +131,29 @@ class Cockpit:
             if generation == self.generation:
                 self.busy = False
 
-    def _event(self, kind: str, text: str, generation: int | None = None) -> None:
+    def _event(
+        self, kind: str, text: str, generation: int | None = None,
+        event_id: str | None = None, live: bool = False,
+    ) -> None:
         if generation is not None and generation != self.generation:
             return  # from a run the restart button already threw away
-        self.transcript.append({"t": time.time(), "kind": kind, "text": text})
+        # A thought streams in under one event_id: each chunk replaces the same
+        # transcript entry instead of piling up a new line per token, and an
+        # id that never got real content (live=False, text="") is dropped
+        # rather than left behind as an empty "thinking..." line. Every other
+        # kind of event (event_id=None) always appends, exactly as before.
+        last = self.transcript[-1] if self.transcript else None
+        if event_id is not None and last is not None and last.get("id") == event_id:
+            if text:
+                last["text"], last["live"], last["t"] = text, live, time.time()
+            else:
+                self.transcript.pop()
+            return
+        if not text:
+            return
+        self.transcript.append(
+            {"t": time.time(), "kind": kind, "text": text, "id": event_id, "live": live}
+        )
         del self.transcript[:-MAX_TRANSCRIPT]
 
 

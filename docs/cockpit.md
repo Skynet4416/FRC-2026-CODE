@@ -92,7 +92,14 @@ cockpit talks to Google.
   game-piece camera can actually see (bright) - which is all the model is told about.
 - **The active PathPlanner trajectory** and the pose that was requested.
 - **The transcript**: the instruction, the model's thinking, each tool call and its result,
-  and the final answer.
+  and the final answer. A "thinking... (Ns)" line goes up the moment a step starts and ticks
+  off elapsed seconds in place, then is replaced by the real thought the instant it comes
+  back - so the pane never sits blank through the model's longest pauses, even though (see
+  [gemini-agent.md](gemini-agent.md#streaming)) it is not token-by-token streaming.
+- **The score** (top bar, next to the status pill): fuel scored, shots taken, and fuel on
+  board, read from the physics sim. This is the operator's own scoreboard - a shot in
+  simulation is close enough to a sure thing that the number is not useful feedback for the
+  model, so it never reaches Gemini; it is wired into the page alone.
 - **Restart match & clear chat**, which puts the robot back on its starting pose, refills the
   field with fuel, empties the transcript and drops the conversation - so the next
   instruction starts from a robot that is where it began, with a model that has no memory of
