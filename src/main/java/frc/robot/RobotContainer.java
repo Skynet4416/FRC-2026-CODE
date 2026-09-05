@@ -36,6 +36,7 @@ import edu.wpi.first.wpilibj.smartdashboard.Field2d;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj2.command.Command;
 import edu.wpi.first.wpilibj2.command.Commands;
+import edu.wpi.first.wpilibj2.command.FunctionalCommand;
 import edu.wpi.first.wpilibj2.command.button.RobotModeTriggers;
 import edu.wpi.first.wpilibj2.command.button.Trigger;
 import frc.robot.commands.CollectFuelCommand;
@@ -84,6 +85,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.DoubleSupplier;
+import java.util.function.Supplier;
 import org.ironmaple.simulation.SimulatedArena;
 import org.ironmaple.simulation.drivesims.SwerveDriveSimulation;
 import org.littletonrobotics.junction.Logger;
@@ -446,19 +448,50 @@ public class RobotContainer {
         }));
     // Natural language / AI control bridge. Publishes the /AIControl/ topics on startup and turns
     // incoming tool calls into PathPlanner pathfinding and mechanism commands.
-    aiControlBridge =
-        new AIControlBridge(drive::getPose, drive::runVelocity, drive)
-            .setShootingZone(this::inShootingZone, this::shootingSpot)
-            .registerAction("INTAKE", () -> intakeForSeconds(4.0))
-            .registerAction("SHOOT_FUEL", () -> shootAtHub(4.0), true)
-            .registerAction("SHOOT_ON_THE_MOVE", () -> shootOnTheMove(5.0), true)
-            .registerAction("ALIGN_HUB", () -> aimAtHub(3.0), true);
+    //
+    // Built through a local variable rather than assigned straight into the field: a couple of
+    // actions below (AUTO_FOLD_ON/OFF) need to call back into the bridge from inside their own
+    // lambda, and the compiler cannot prove the `aiControlBridge` field is initialized yet while
+    // it is still the thing being assigned in this same statement - the local has no such
+    // problem, since it is fully assigned by the constructor call before any chained method
+    // (lambda bodies included) runs.
+    AIControlBridge bridge = new AIControlBridge(drive::getPose, drive::runVelocity, drive);
+    bridge
+        .setShootingZone(this::inShootingZone, this::shootingSpot)
+        .setHubStateSource(ignoreHubState::getAsBoolean)
+        .setIntakeActuator(leftIntake::setLowered)
+        .setFuelAwareness(
+            this::groundFuelPositions,
+            () -> intakeSimIO != null ? intakeSimIO.getHeldCount() : 0,
+            () -> intakeSimIO != null ? IntakeSubsystemIOSim.FUEL_CAPACITY : 0,
+            leftIntake::isLowered,
+            () -> intakeSimIO != null && intakeSimIO.isIntakeRunning())
+        // INTAKE/STOW_INTAKE: the latching fix. Neither requires leftIntake as a Command
+        // requirement - see intakeUntilFull()'s javadoc - so the mechanism stays free for its
+        // own default command to spin the rollers.
+        .registerAction("INTAKE", this::intakeUntilFull)
+        .registerAction("STOW_INTAKE", this::stowIntake)
+        .registerAction(
+            "AUTO_FOLD_ON", () -> Commands.runOnce(() -> bridge.setAutoFoldIntake(true)))
+        .registerAction(
+            "AUTO_FOLD_OFF", () -> Commands.runOnce(() -> bridge.setAutoFoldIntake(false)))
+        // COLLECT_FUEL/GRAB_FUEL are the same sweep with two different fuel sources - the whole
+        // field vs. a tight radius around the robot - registered with ownsDrive=true but WITHOUT
+        // the shooting-spot pre-approach (registerDriveAction), since they drive wherever the
+        // fuel actually is rather than to a fixed pre-shot position.
+        .registerDriveAction("COLLECT_FUEL", () -> collectFuelCommand(this::groundFuelPositions))
+        .registerDriveAction("GRAB_FUEL", () -> collectFuelCommand(this::nearbyFuelPositions))
+        .registerAction("SHOOT_FUEL", () -> shootAtHub(4.0), true)
+        .registerAction("SHOOT_ON_THE_MOVE", () -> shootOnTheMove(5.0), true)
+        .registerAction("ALIGN_HUB", () -> aimAtHub(3.0), true);
+    aiControlBridge = bridge;
     if (Constants.currentMode == Constants.Mode.SIM) {
       // Only the simulator has a match to restart; on a real robot the bridge says so instead of
       // reporting a reset that never happened.
       aiControlBridge.onSimulationReset(this::resetSimulation);
     }
     registerFieldLandmarks(aiControlBridge);
+    registerFieldZones(aiControlBridge);
     aiControlActive = new Trigger(aiControlBridge::isBusy);
 
     configureButtonBindings();
@@ -495,17 +528,282 @@ public class RobotContainer {
         .registerLandmark("left_trench_near", new Pose2d(hubX, leftLaneY, Rotation2d.kZero))
         .registerLandmark("left_trench_far", new Pose2d(centreX, leftLaneY, Rotation2d.kZero))
         .registerLandmark("right_trench_near", new Pose2d(hubX, rightLaneY, Rotation2d.kZero))
-        .registerLandmark("right_trench_far", new Pose2d(centreX, rightLaneY, Rotation2d.kZero));
+        .registerLandmark("right_trench_far", new Pose2d(centreX, rightLaneY, Rotation2d.kZero))
+        // Our own starting zone, a representative point midway between the alliance wall and the
+        // line where it ends.
+        .registerLandmark(
+            "our_alliance_zone",
+            new Pose2d(FieldConstants.LinesVertical.allianceZone / 2.0, centreY, Rotation2d.kZero))
+        .registerLandmark("neutral_zone_centre", new Pose2d(centreX, centreY, Rotation2d.kZero))
+        .registerLandmark("neutral_zone_left", new Pose2d(centreX, leftLaneY, Rotation2d.kZero))
+        .registerLandmark("neutral_zone_right", new Pose2d(centreX, rightLaneY, Rotation2d.kZero))
+        .registerLandmark(
+            "our_outpost", new Pose2d(FieldConstants.Outpost.centerPoint, Rotation2d.kZero))
+        .registerLandmark(
+            "left_bump_crossing",
+            new Pose2d(hubX, FieldConstants.LinesHorizontal.leftBumpMiddle, Rotation2d.kZero))
+        .registerLandmark(
+            "right_bump_crossing",
+            new Pose2d(hubX, FieldConstants.LinesHorizontal.rightBumpMiddle, Rotation2d.kZero))
+        .registerLandmark(
+            "our_depot",
+            new Pose2d(FieldConstants.Depot.depotCenter.toTranslation2d(), Rotation2d.kZero))
+        .registerLandmark(
+            "opponent_depot",
+            new Pose2d(FieldConstants.Depot.oppDepotCenter.toTranslation2d(), Rotation2d.k180deg));
   }
 
   /**
-   * Lowers the intake, runs it for a while, then folds it back up. Used by the AI control bridge
-   * for its "INTAKE" action.
+   * Publishes the named field rectangles behind the {@code Zones} topic, so an agent can reason
+   * about "am I in the neutral zone" or "is that fuel in the depot" without hard-coded coordinates
+   * of its own. Every boundary is derived from {@link FieldConstants} - see the comments below for
+   * the handful that needed real derivation rather than a straight lookup.
+   *
+   * <p>Zone names are BLUE-relative and fixed: {@code our_} is always the near/low-X half of the
+   * field, regardless of which alliance this robot is actually on, so the agent's map never flips
+   * out from under it mid-match.
+   *
+   * <p>{@code left_trench}/{@code right_trench}/{@code left_bump}/{@code right_bump} double as the
+   * hazard rectangles the automatic intake fold (ADDENDUM v2.1) reads directly from {@code
+   * AIControlBridge}'s own zone map - registered once here, used for both.
    */
-  private Command intakeForSeconds(double seconds) {
-    return Commands.startEnd(() -> leftIntake.setLowered(true), () -> leftIntake.setLowered(false))
-        .withTimeout(seconds)
+  private static void registerFieldZones(AIControlBridge bridge) {
+    double fieldLength = FieldConstants.fieldLength;
+    double fieldWidth = FieldConstants.fieldWidth;
+    double hubX = FieldConstants.LinesVertical.hubCenter;
+
+    bridge.registerZone(
+        "our_alliance_zone",
+        0.0,
+        0.0,
+        FieldConstants.LinesVertical.allianceZone,
+        fieldWidth,
+        "our starting zone and hub approach - the only place a hub shot counts");
+    bridge.registerZone(
+        "opponent_alliance_zone",
+        FieldConstants.LinesVertical.oppAllianceZone,
+        0.0,
+        fieldLength,
+        fieldWidth,
+        "the opponent's starting zone and hub approach");
+    bridge.registerZone(
+        "neutral_zone",
+        FieldConstants.LinesVertical.neutralZoneNear,
+        0.0,
+        FieldConstants.LinesVertical.neutralZoneFar,
+        fieldWidth,
+        "the shared middle strip where the preloaded fuel pile starts");
+
+    // Hub / opponent hub: bounding box of the four corner constants.
+    bridge.registerZone(
+        "hub",
+        FieldConstants.Hub.nearLeftCorner.getX(),
+        FieldConstants.Hub.nearRightCorner.getY(),
+        FieldConstants.Hub.farLeftCorner.getX(),
+        FieldConstants.Hub.nearLeftCorner.getY(),
+        "our hub structure - do not drive through it");
+    bridge.registerZone(
+        "opponent_hub",
+        FieldConstants.Hub.oppNearLeftCorner.getX(),
+        FieldConstants.Hub.oppNearRightCorner.getY(),
+        FieldConstants.Hub.oppFarLeftCorner.getX(),
+        FieldConstants.Hub.oppNearLeftCorner.getY(),
+        "the opponent's hub structure");
+
+    // The bump/trench Y bands come straight from LinesHorizontal, already used above for the
+    // trench-lane landmarks. Their X extent is not given as a min/max pair anywhere in
+    // FieldConstants, so - matching how LeftBump/RightBump's own corners are already centred on
+    // hubCenter - each is centred on hubX with half-width equal to its own declared `width`.
+    // (LeftBump/RightBump.width is used as an X extent here and as a Y extent in
+    // LinesHorizontal - an existing inconsistency in FieldConstants, not something to "fix": the
+    // live trench-crossing checks below and in DriveCommands depend on the X convention, so the
+    // agent's map has to agree with the robot's own logic rather than the other way around.)
+    double leftBumpYMin =
+        Math.min(
+            FieldConstants.LinesHorizontal.leftBumpEnd,
+            FieldConstants.LinesHorizontal.leftBumpStart);
+    double leftBumpYMax =
+        Math.max(
+            FieldConstants.LinesHorizontal.leftBumpEnd,
+            FieldConstants.LinesHorizontal.leftBumpStart);
+    double leftBumpXHalf = FieldConstants.LeftBump.width / 2.0;
+    bridge.registerZone(
+        "left_bump",
+        hubX - leftBumpXHalf,
+        leftBumpYMin,
+        hubX + leftBumpXHalf,
+        leftBumpYMax,
+        "raised ramp beside the hub - cross with a running start, or use the trench instead");
+
+    double rightBumpYMin =
+        Math.min(
+            FieldConstants.LinesHorizontal.rightBumpEnd,
+            FieldConstants.LinesHorizontal.rightBumpStart);
+    double rightBumpYMax =
+        Math.max(
+            FieldConstants.LinesHorizontal.rightBumpEnd,
+            FieldConstants.LinesHorizontal.rightBumpStart);
+    double rightBumpXHalf = FieldConstants.RightBump.width / 2.0;
+    bridge.registerZone(
+        "right_bump",
+        hubX - rightBumpXHalf,
+        rightBumpYMin,
+        hubX + rightBumpXHalf,
+        rightBumpYMax,
+        "raised ramp beside the hub - cross with a running start, or use the trench instead");
+
+    // Unlike the bump, the trench zone runs the FULL LENGTH of the field, not just a band near
+    // the hub: it is the low-clearance side lane a robot can drive the whole way down, only
+    // passing under the actual archway near the hub - confirmed against the official field
+    // render, and consistent with left_trench_near/_far above already spanning hubX to centreX
+    // rather than a single point.
+    bridge.registerZone(
+        "left_trench",
+        0.0,
+        FieldConstants.LinesHorizontal.leftTrenchOpenEnd,
+        fieldLength,
+        fieldWidth,
+        "low passage under the bump - flat, no running start needed, but mind the clearance");
+
+    bridge.registerZone(
+        "right_trench",
+        0.0,
+        0.0,
+        fieldLength,
+        FieldConstants.LinesHorizontal.rightTrenchOpenStart,
+        "low passage under the bump - flat, no running start needed, but mind the clearance");
+
+    // Depot zones: FieldConstants.Depot is `depth` deep from the alliance wall on each side, and
+    // `width` across - see FieldConstants.Depot's own javadoc for the centring fix that makes
+    // this line up with where FuelPhysicsSim.placeFieldBalls() actually spawns the depot fuel.
+    double ourDepotYMin =
+        Math.min(FieldConstants.Depot.leftCorner.getY(), FieldConstants.Depot.rightCorner.getY());
+    double ourDepotYMax =
+        Math.max(FieldConstants.Depot.leftCorner.getY(), FieldConstants.Depot.rightCorner.getY());
+    bridge.registerZone(
+        "our_depot",
+        0.0,
+        ourDepotYMin,
+        FieldConstants.Depot.depth,
+        ourDepotYMax,
+        "our preloaded fuel depot - one of the three places fuel comes from");
+
+    double oppDepotYMin =
+        Math.min(
+            FieldConstants.Depot.oppLeftCorner.getY(), FieldConstants.Depot.oppRightCorner.getY());
+    double oppDepotYMax =
+        Math.max(
+            FieldConstants.Depot.oppLeftCorner.getY(), FieldConstants.Depot.oppRightCorner.getY());
+    bridge.registerZone(
+        "opponent_depot",
+        fieldLength - FieldConstants.Depot.depth,
+        oppDepotYMin,
+        fieldLength,
+        oppDepotYMax,
+        "the opponent's preloaded fuel depot");
+  }
+
+  /** How near the robot a fuel piece has to be for {@code GRAB_FUEL} to consider chasing it. */
+  private static final double GRAB_FUEL_RADIUS_METERS = 3.0;
+
+  /**
+   * Lowers the intake and leaves it there - latched - until {@code STOW_INTAKE}, {@code STOP}, or
+   * the hopper filling up ends it. Used by the AI control bridge for its "INTAKE" action.
+   *
+   * <p>This is the fix for the operator's actual complaint: the old version was {@code
+   * Commands.startEnd(...).withTimeout(seconds)}, which folded the intake back up after a fixed
+   * number of seconds whether or not the robot had reached any fuel yet. Nothing here ever calls
+   * {@code leftIntake.setLowered(...)} directly - {@link IntakeSubsystem}'s default command already
+   * spins the rollers at 100% whenever {@code isLowered()} reads true (see the {@code
+   * leftIntake.setDefaultCommand(...)} below), so all this command has to do is declare intent
+   * through {@link AIControlBridge#setIntakeWantsDown}; the bridge is what actually moves the
+   * mechanism, because it also has to arbitrate the automatic trench/bump fold (ADDENDUM v2.1)
+   * without the two fighting over the solenoid. Deliberately has no requirements of its own, for
+   * the same reason: requiring {@code leftIntake} here would suspend its default command for as
+   * long as this runs, which is exactly the roller spin the whole action depends on.
+   */
+  private Command intakeUntilFull() {
+    // A plain Commands.startEnd() only gives a Runnable for its end action, with no way to tell
+    // a cancellation from a normal finish - and that distinction is exactly what matters here, so
+    // this is a FunctionalCommand instead, built the same requirement-free way.
+    return new FunctionalCommand(
+            () -> aiControlBridge.setIntakeWantsDown(true),
+            () -> {},
+            interrupted -> {
+              // A cancellation (retrigger, STOW_INTAKE ending it by name, or STOP) folds it back
+              // up; finishing on its own because the hopper filled stays down - nothing asked for
+              // it to come up, it just cannot hold any more.
+              if (interrupted) {
+                aiControlBridge.setIntakeWantsDown(false);
+              }
+            },
+            () -> intakeSimIO != null && !intakeSimIO.canHoldMore())
         .withName("AIControl/Intake");
+  }
+
+  /**
+   * Folds the intake up and ends whatever was trying to keep it down. Used by the AI control bridge
+   * for its "STOW_INTAKE" action.
+   *
+   * <p>{@code INTAKE}/{@code COLLECT_FUEL}/{@code GRAB_FUEL} all deliberately avoid requiring
+   * {@code leftIntake} (see {@link #intakeUntilFull()}), so the scheduler's usual "a new command
+   * needing the same subsystem bumps the old one" trick cannot end them - this says so by name
+   * instead, through {@link AIControlBridge#endActions}.
+   */
+  private Command stowIntake() {
+    return Commands.runOnce(
+            () -> {
+              aiControlBridge.setIntakeWantsDown(false);
+              aiControlBridge.endActions("INTAKE", "COLLECT_FUEL", "GRAB_FUEL");
+            })
+        .withName("AIControl/StowIntake");
+  }
+
+  /**
+   * Builds a {@link CollectFuelCommand} sweep fed from {@code fuelSource}. {@code COLLECT_FUEL} and
+   * {@code GRAB_FUEL} are this exact same command with two different sources - the whole field
+   * versus a tight radius around the robot - never two separate driving loops.
+   */
+  private Command collectFuelCommand(Supplier<List<Translation2d>> fuelSource) {
+    return new CollectFuelCommand(
+        drive::getPose,
+        drive::runVelocity,
+        drive,
+        fuelSource,
+        () -> aiControlBridge.setIntakeWantsDown(true),
+        () -> intakeSimIO != null ? intakeSimIO.getHeldCount() : 0,
+        aiControlBridge::getCollectTarget);
+  }
+
+  /**
+   * Ground-truth fuel actually resting on the carpet, blue-origin field XY. Excludes anything still
+   * in flight (a shot just launched, or one mid-arc) so the agent and the sweep both plan around
+   * fuel they can actually pick up, rather than a ball that will have moved by the time they get
+   * there. Empty away from simulation - a real robot has no ground-truth fuel to report.
+   */
+  private List<Translation2d> groundFuelPositions() {
+    if (Constants.currentMode != Constants.Mode.SIM) {
+      return List.of();
+    }
+    double groundLevelZ = FuelPhysicsSim.getBallRadius() * 2.0; // one ball diameter
+    return ballSim.getBallPositions().stream()
+        .filter(p -> p.getZ() <= groundLevelZ)
+        .map(Translation3d::toTranslation2d)
+        .toList();
+  }
+
+  /**
+   * The ground-truth fuel {@code GRAB_FUEL} chases: everything {@link #groundFuelPositions()}
+   * reports, narrowed to a generous radius around the robot so "grab" means "something nearby", not
+   * "plan a route across the field" - that is what {@code COLLECT_FUEL} is for. Sim ground truth is
+   * the operator's explicit choice here (see {@code CollectFuelCommand}'s javadoc) - there is no
+   * camera detection pipeline standing between the fuel and this list.
+   */
+  private List<Translation2d> nearbyFuelPositions() {
+    Translation2d robot = drive.getPose().getTranslation();
+    return groundFuelPositions().stream()
+        .filter(f -> f.getDistance(robot) <= GRAB_FUEL_RADIUS_METERS)
+        .toList();
   }
 
   /**

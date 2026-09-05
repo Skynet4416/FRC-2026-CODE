@@ -30,16 +30,16 @@ import org.littletonrobotics.junction.Logger;
  * Drives the robot along the nearest line of fuel with the intake down, so an AI operator can ask
  * for fuel instead of having to work out a pose, a heading and a speed by hand.
  *
- * <p>This is the "AI understands it can collect while moving" fix: {@code AIControlBridge}'s
- * {@code INTAKE} action only latches the mechanism down, it never drives anywhere. This command is
- * the thing that actually drives - it owns the drivetrain the way a shooting action does, but
- * instead of a fixed shooting spot it re-plans a short sweep every time the fuel it was chasing
- * runs out, until it has collected enough or there is nothing left in reach.
+ * <p>This is the "AI understands it can collect while moving" fix: {@code AIControlBridge}'s {@code
+ * INTAKE} action only latches the mechanism down, it never drives anywhere. This command is the
+ * thing that actually drives - it owns the drivetrain the way a shooting action does, but instead
+ * of a fixed shooting spot it re-plans a short sweep every time the fuel it was chasing runs out,
+ * until it has collected enough or there is nothing left in reach.
  *
  * <p>It is also the command behind {@code GRAB_FUEL}: that action is this same sweep fed from a
  * tighter, nearby-only fuel list instead of the whole field, so "grab what's in front of me" and
- * "sweep that line of fuel" are one implementation with two different {@code fuelSupplier}s -
- * never two separate driving loops.
+ * "sweep that line of fuel" are one implementation with two different {@code fuelSupplier}s - never
+ * two separate driving loops.
  */
 public class CollectFuelCommand extends Command {
   /**
@@ -56,8 +56,8 @@ public class CollectFuelCommand extends Command {
   private static final double CLUSTER_RADIUS_M = 1.5;
 
   /**
-   * Below this eigenvalue ratio the local fuel reads as a line, not a round blob; above it there
-   * is no dominant direction to sweep along, so aim at the cluster's centre instead.
+   * Below this eigenvalue ratio the local fuel reads as a line, not a round blob; above it there is
+   * no dominant direction to sweep along, so aim at the cluster's centre instead.
    */
   private static final double BLOB_ROUNDNESS_THRESHOLD = 0.5;
 
@@ -224,9 +224,8 @@ public class CollectFuelCommand extends Command {
     Translation2d robot = pose.getTranslation();
     List<Translation2d> fuel = fuelSupplier.get();
     List<Translation2d> inRange =
-        (fuel == null ? List.<Translation2d>of() : fuel).stream()
-            .filter(f -> f.getDistance(robot) <= SEARCH_RADIUS_M)
-            .toList();
+        (fuel == null ? List.<Translation2d>of() : fuel)
+            .stream().filter(f -> f.getDistance(robot) <= SEARCH_RADIUS_M).toList();
 
     Optional<PickupPlan> planned = planPickup(robot, inRange);
     if (planned.isEmpty()) {
@@ -262,8 +261,7 @@ public class CollectFuelCommand extends Command {
     double headingErrorRad =
         MathUtil.angleModulus(sweepHeading.getRadians() - pose.getRotation().getRadians());
     double omega =
-        MathUtil.clamp(
-            HEADING_KP * headingErrorRad, -MAX_OMEGA_RAD_PER_SEC, MAX_OMEGA_RAD_PER_SEC);
+        MathUtil.clamp(HEADING_KP * headingErrorRad, -MAX_OMEGA_RAD_PER_SEC, MAX_OMEGA_RAD_PER_SEC);
 
     ChassisSpeeds fieldSpeeds =
         new ChassisSpeeds(fieldVelocity.getX(), fieldVelocity.getY(), omega);
@@ -280,7 +278,8 @@ public class CollectFuelCommand extends Command {
    * ball" - both the sweep above and {@code AIControlBridge}'s {@code pickup} advice in the {@code
    * Fuel} JSON call this, so the two can never disagree about what "go collect it" means.
    */
-  public static Optional<PickupPlan> planPickup(Translation2d robot, List<Translation2d> fuelInRange) {
+  public static Optional<PickupPlan> planPickup(
+      Translation2d robot, List<Translation2d> fuelInRange) {
     if (fuelInRange.isEmpty()) {
       return Optional.empty();
     }
@@ -310,8 +309,8 @@ public class CollectFuelCommand extends Command {
   }
 
   /**
-   * The point the robot's centre must occupy for {@code fuel} to sit inside the intake's pickup
-   * box while the robot holds {@code heading}.
+   * The point the robot's centre must occupy for {@code fuel} to sit inside the intake's pickup box
+   * while the robot holds {@code heading}.
    *
    * <p>Derivation: the pickup box is centred, robot-relative, at {@code (0, INTAKE_OFFSET_M)} -
    * straight out the robot's LEFT (+Y) side. Rotating that robot-relative offset into the field
@@ -330,13 +329,12 @@ public class CollectFuelCommand extends Command {
    */
   public static Translation2d pickupPoint(Translation2d fuel, Rotation2d heading) {
     return fuel.plus(
-        new Translation2d(
-            INTAKE_OFFSET_M * heading.getSin(), -INTAKE_OFFSET_M * heading.getCos()));
+        new Translation2d(INTAKE_OFFSET_M * heading.getSin(), -INTAKE_OFFSET_M * heading.getCos()));
   }
 
   /**
-   * Sweep heading for a local group of fuel: the direction of its principal spread (a line of
-   * fuel gets swept lengthwise), or, if the group reads as a round blob rather than a line, the
+   * Sweep heading for a local group of fuel: the direction of its principal spread (a line of fuel
+   * gets swept lengthwise), or, if the group reads as a round blob rather than a line, the
    * direction from the robot to its centroid.
    */
   private static Rotation2d sweepHeadingFor(
@@ -395,9 +393,9 @@ public class CollectFuelCommand extends Command {
 
   /**
    * If the straight line from {@code from} to {@code to} crosses either hub (inflated for
-   * clearance), inserts one waypoint that routes around it via whichever trench lane's Y is
-   * closer - simple point-to-point-to-point, not a real path planner, which is all a sweep this
-   * short needs.
+   * clearance), inserts one waypoint that routes around it via whichever trench lane's Y is closer
+   * - simple point-to-point-to-point, not a real path planner, which is all a sweep this short
+   * needs.
    */
   private static List<Translation2d> routeAvoidingHubs(Translation2d from, Translation2d to) {
     for (Rect hub : HUB_RECTS) {

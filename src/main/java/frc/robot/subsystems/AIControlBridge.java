@@ -49,7 +49,6 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
-import java.util.function.DoubleSupplier;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
 import org.littletonrobotics.junction.Logger;
@@ -102,8 +101,8 @@ import org.littletonrobotics.junction.Logger;
  * <p><b>Shots are taken from our alliance zone, behind the hub.</b> Past the hub the launch
  * solution becomes a lob pass back into our own zone instead of a hub shot, so a shooting action
  * triggered from the neutral zone drives into the alliance zone first and shoots when it arrives.
- * {@code /AIControl/InShootingZone} reports where the robot stands. {@code COLLECT_FUEL} and
- * {@code GRAB_FUEL} are exempt from this pre-approach - they drive wherever the fuel actually is.
+ * {@code /AIControl/InShootingZone} reports where the robot stands. {@code COLLECT_FUEL} and {@code
+ * GRAB_FUEL} are exempt from this pre-approach - they drive wherever the fuel actually is.
  *
  * <p><b>The intake latches.</b> {@code INTAKE} lowers it and leaves it there, rollers running,
  * until {@code STOW_INTAKE}, {@code STOP}, or the hopper filling up ends it - it never times out.
@@ -116,12 +115,11 @@ import org.littletonrobotics.junction.Logger;
  * RotationLocked}, {@code InShootingZone}, {@code AtTarget}, {@code ActiveTarget}, {@code Status},
  * {@code LastAction}, {@code LastError}, {@code AvailableActions}, {@code HeadingUnits}, {@code
  * Notes}, {@code Landmarks}, {@code Fuel} (String JSON; ground-truth fuel awareness, {@code
- * available:false} off simulation), {@code FuelPositions} (flat {@code [x,y,x,y,...]} of every
- * fuel on the ground), {@code FuelOnBoard}, {@code Zones} (String JSON of named field
- * rectangles), {@code IntakePolicy} (String JSON; what the auto-fold is doing and why), {@code
- * HubState} (String JSON; is our hub active right now) and {@code GameBrief} (String; the REBUILT
- * rules). Every topic is created in the constructor, so they are all there the moment the robot
- * code starts.
+ * available:false} off simulation), {@code FuelPositions} (flat {@code [x,y,x,y,...]} of every fuel
+ * on the ground), {@code FuelOnBoard}, {@code Zones} (String JSON of named field rectangles),
+ * {@code IntakePolicy} (String JSON; what the auto-fold is doing and why), {@code HubState} (String
+ * JSON; is our hub active right now) and {@code GameBrief} (String; the REBUILT rules). Every topic
+ * is created in the constructor, so they are all there the moment the robot code starts.
  */
 public class AIControlBridge extends SubsystemBase {
   /** NetworkTables table that holds the whole API. */
@@ -206,10 +204,10 @@ public class AIControlBridge extends SubsystemBase {
   private static final double FINAL_APPROACH_RADIUS_METERS = 0.75;
 
   /**
-   * Pathfinding max speed while the intake is down - crossing the field slowly is what makes
-   * "drive with the intake down" actually sweep fuel instead of blowing past it. Only ever lowers
-   * the agent's own request, never raises it: an agent that deliberately asked to creep slower
-   * keeps creeping slower.
+   * Pathfinding max speed while the intake is down - crossing the field slowly is what makes "drive
+   * with the intake down" actually sweep fuel instead of blowing past it. Only ever lowers the
+   * agent's own request, never raises it: an agent that deliberately asked to creep slower keeps
+   * creeping slower.
    */
   private static final double COLLECT_SPEED_MPS = 1.5;
 
@@ -218,8 +216,8 @@ public class AIControlBridge extends SubsystemBase {
 
   /**
    * {@code Fuel}/{@code FuelPositions} rebuild a string for a few hundred balls every call; at the
-   * full 50 Hz robot loop rate that is wasted work for something a language model reads a few
-   * times a second at most. Throttled to about 5 Hz instead.
+   * full 50 Hz robot loop rate that is wasted work for something a language model reads a few times
+   * a second at most. Throttled to about 5 Hz instead.
    */
   private static final double FUEL_PUBLISH_PERIOD_SECONDS = 0.2;
 
@@ -491,8 +489,8 @@ public class AIControlBridge extends SubsystemBase {
    * because the hub happens to be inactive looks indistinguishable from one that just missed.
    *
    * @param hubStateIgnored whether shots currently count regardless of shift (the "Ignore Hub
-   *     State" dashboard chooser) - reported as-is, never sugar-coated, since telling the agent
-   *     its shots are blocked when they are not would be worse than saying nothing
+   *     State" dashboard chooser) - reported as-is, never sugar-coated, since telling the agent its
+   *     shots are blocked when they are not would be worse than saying nothing
    */
   public AIControlBridge setHubStateSource(BooleanSupplier hubStateIgnored) {
     this.hubStateIgnoredSupplier = hubStateIgnored;
@@ -586,11 +584,11 @@ public class AIControlBridge extends SubsystemBase {
   /**
    * Ends specific running actions immediately, as if each had been cancelled on its own.
    *
-   * <p>The scheduler's usual trick for "a new command needing the same subsystem bumps the old
-   * one" only works when the old command actually requires that subsystem, and {@code INTAKE} /
-   * {@code COLLECT_FUEL} / {@code GRAB_FUEL} deliberately do not require the intake (so its
-   * default command keeps spinning the rollers underneath them - see {@code RobotContainer}). An
-   * action that means to end them, {@code STOW_INTAKE}, has to say so by name instead.
+   * <p>The scheduler's usual trick for "a new command needing the same subsystem bumps the old one"
+   * only works when the old command actually requires that subsystem, and {@code INTAKE} / {@code
+   * COLLECT_FUEL} / {@code GRAB_FUEL} deliberately do not require the intake (so its default
+   * command keeps spinning the rollers underneath them - see {@code RobotContainer}). An action
+   * that means to end them, {@code STOW_INTAKE}, has to say so by name instead.
    *
    * @param names action names to end, matched case-insensitively; a name that is not running is
    *     ignored
@@ -982,10 +980,10 @@ public class AIControlBridge extends SubsystemBase {
    * Pathfinding limits for the next path, from {@code MaxSpeed} / {@code MaxAccel}. Clamped, so a
    * bad number from the agent slows the robot down rather than launching it across the field.
    *
-   * <p>While the intake is down this also clamps the speed to {@code COLLECT_SPEED_MPS} - never
-   * up, so an agent that deliberately asked for something slower keeps it - because a fast path
-   * blows straight through a line of fuel instead of sweeping it. {@link #speedClampNote()} says
-   * so in {@code Status} whenever it actually bites.
+   * <p>While the intake is down this also clamps the speed to {@code COLLECT_SPEED_MPS} - never up,
+   * so an agent that deliberately asked for something slower keeps it - because a fast path blows
+   * straight through a line of fuel instead of sweeping it. {@link #speedClampNote()} says so in
+   * {@code Status} whenever it actually bites.
    */
   private PathConstraints constraints() {
     double maxSpeed =
@@ -1004,7 +1002,9 @@ public class AIControlBridge extends SubsystemBase {
         Units.degreesToRadians(MAX_ANGULAR_ACCEL_DEG_PER_SEC2));
   }
 
-  /** Suffix for {@code Status} explaining the intake-down speed clamp, or "" when it isn't active. */
+  /**
+   * Suffix for {@code Status} explaining the intake-down speed clamp, or "" when it isn't active.
+   */
   private String speedClampNote() {
     return intakeDownSupplier.getAsBoolean()
         ? String.format(" (clamped to %.1f m/s - intake down)", COLLECT_SPEED_MPS)
@@ -1173,8 +1173,8 @@ public class AIControlBridge extends SubsystemBase {
 
   /**
    * Rebuilds and publishes {@code Zones} from every rectangle registered so far. Zones are static
-   * for the life of the match, so - unlike {@code Fuel} - this runs once per {@link
-   * #registerZone} call rather than every loop.
+   * for the life of the match, so - unlike {@code Fuel} - this runs once per {@link #registerZone}
+   * call rather than every loop.
    */
   private void publishZones() {
     StringBuilder json = new StringBuilder("{");
@@ -1408,12 +1408,14 @@ public class AIControlBridge extends SubsystemBase {
   /**
    * The {@code Fuel.pickup} advice: where to stand, which way to face, and where the sweep ends,
    * for the nearest fuel in range. Built from {@link CollectFuelCommand#planPickup} - the exact
-   * same static method {@code COLLECT_FUEL}/{@code GRAB_FUEL} use to actually drive - so the
-   * advice the model reads and the sweep the robot runs can never disagree.
+   * same static method {@code COLLECT_FUEL}/{@code GRAB_FUEL} use to actually drive - so the advice
+   * the model reads and the sweep the robot runs can never disagree.
    */
   private String buildPickupJson(Translation2d robot, List<Translation2d> fuel) {
     List<Translation2d> inRange =
-        fuel.stream().filter(f -> f.getDistance(robot) <= CollectFuelCommand.SEARCH_RADIUS_M).toList();
+        fuel.stream()
+            .filter(f -> f.getDistance(robot) <= CollectFuelCommand.SEARCH_RADIUS_M)
+            .toList();
     Optional<CollectFuelCommand.PickupPlan> planned = CollectFuelCommand.planPickup(robot, inRange);
     if (planned.isEmpty()) {
       return "null";
@@ -1443,13 +1445,13 @@ public class AIControlBridge extends SubsystemBase {
    * Decides the intake's actual physical position, every loop: down when the agent wants it down,
    * UNLESS the robot is presently inside a trench/bump hazard rectangle and auto-fold is on, in
    * which case it folds for clearance and remembers which hazard so it knows when it is safe to
-   * lower again. This is the ONLY place {@link #intakeActuator} is called - see its javadoc for
-   * why that has to be true - and it is also where {@code IntakePolicy} is published.
+   * lower again. This is the ONLY place {@link #intakeActuator} is called - see its javadoc for why
+   * that has to be true - and it is also where {@code IntakePolicy} is published.
    *
    * <p>Hysteresis: the fold trigger uses the hazard rectangle inflated by {@code FOLD_MARGIN_M}
    * (fold a bit early), but once folded the exit test requires clearing an even larger rectangle
-   * ({@code FOLD_MARGIN_M + FOLD_EXIT_HYSTERESIS_M}) before lowering again, so sitting right on
-   * the fold boundary cannot make the intake flap.
+   * ({@code FOLD_MARGIN_M + FOLD_EXIT_HYSTERESIS_M}) before lowering again, so sitting right on the
+   * fold boundary cannot make the intake flap.
    */
   private void updateIntakeAutoFold() {
     boolean autoFold = autoFoldIntakeSub.get(true);
@@ -1518,7 +1520,8 @@ public class AIControlBridge extends SubsystemBase {
 
     Logger.recordOutput("AIControl/Intake/WantsDown", intakeWantsDown);
     Logger.recordOutput("AIControl/Intake/Lowered", lowered);
-    Logger.recordOutput("AIControl/Intake/FoldedFor", foldedForHazard == null ? "" : foldedForHazard);
+    Logger.recordOutput(
+        "AIControl/Intake/FoldedFor", foldedForHazard == null ? "" : foldedForHazard);
   }
 
   /** True if {@code point} is inside the named zone, inflated by {@code margin} on every side. */
