@@ -481,10 +481,17 @@ public class RobotContainer {
         // fuel actually is rather than to a fixed pre-shot position.
         .registerDriveAction("COLLECT_FUEL", () -> collectFuelCommand(this::groundFuelPositions))
         .registerDriveAction("GRAB_FUEL", () -> collectFuelCommand(this::nearbyFuelPositions))
-        .registerAction("SHOOT_FUEL", () -> shootAtHub(4.0), true)
+        // The window used to be a hard-coded 4.0s; it now reads /AIControl/ShootSeconds (default
+        // 4.0, so nothing changes for a caller that never touches that topic) so a play can ask
+        // for the window its own tactic actually calls for - see AIPlaybook.ActionStep.
+        .registerAction("SHOOT_FUEL", () -> shootAtHub(bridge.getShootSeconds()), true)
         .registerAction("SHOOT_ON_THE_MOVE", () -> shootOnTheMove(5.0), true)
         .registerAction("ALIGN_HUB", () -> aimAtHub(3.0), true);
     aiControlBridge = bridge;
+    // Sim-only, and OPERATOR-FACING ONLY on the bridge side (see setScoreAwareness's javadoc) -
+    // ballSim.getTotalScored() reports 0 forever on a real robot, where nothing ever calls
+    // ballSim.enable()/tick().
+    aiControlBridge.setScoreAwareness(ballSim::getTotalScored);
     if (Constants.currentMode == Constants.Mode.SIM) {
       // Only the simulator has a match to restart; on a real robot the bridge says so instead of
       // reporting a reset that never happened.

@@ -38,6 +38,11 @@ import edu.wpi.first.wpilibj2.command.Commands;
 import edu.wpi.first.wpilibj2.command.Subsystem;
 import edu.wpi.first.wpilibj2.command.SubsystemBase;
 import frc.robot.AIGameBrief;
+import frc.robot.AIPlaybook;
+import frc.robot.AIPlaybook.ActionStep;
+import frc.robot.AIPlaybook.DriveStep;
+import frc.robot.AIPlaybook.Play;
+import frc.robot.AIPlaybook.Step;
 import frc.robot.commands.CollectFuelCommand;
 import frc.robot.util.HubShiftUtil;
 import java.util.ArrayList;
@@ -47,10 +52,12 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.IntSupplier;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import org.littletonrobotics.junction.Logger;
 
 /**
@@ -73,10 +80,20 @@ import org.littletonrobotics.junction.Logger;
  *       <td>Name of a registered mechanism action, e.g. {@code "INTAKE"}, {@code "STOW_INTAKE"},
  *       {@code "COLLECT_FUEL"}, {@code "GRAB_FUEL"}, {@code "SHOOT_FUEL"}, {@code
  *       "SHOOT_ON_THE_MOVE"}, {@code "ALIGN_HUB"}, {@code "AUTO_FOLD_ON"}, {@code
- *       "AUTO_FOLD_OFF"}. {@code "STOP"} cancels everything.</td></tr>
+ *       "AUTO_FOLD_OFF"}. {@code "STOP"} cancels everything. {@code "RUN_PLAY"} replays a whole
+ *       named routine from {@code Playbook} - see {@code PlayName} below.</td></tr>
+ *   <tr><td>{@code PlayName}</td><td>{@code String}</td>
+ *       <td>Which entry of {@code Playbook} the {@code RUN_PLAY} action drives. An unknown or
+ *       empty name is reported as an error (listing the real names) rather than moving the
+ *       robot.</td></tr>
  *   <tr><td>{@code CollectTarget}</td><td>{@code double}</td>
  *       <td>How many fuel {@code COLLECT_FUEL}/{@code GRAB_FUEL} should gather before stopping on
  *       their own. Defaults to 10.</td></tr>
+ *   <tr><td>{@code ShootSeconds}</td><td>{@code double}</td>
+ *       <td>How long {@code SHOOT_FUEL} holds its shot window open, seconds. Defaults to 4.0,
+ *       clamped to a sane 1-15 s range. A play sets this itself for the step it is on - the real
+ *       autos size a shot to how much fuel they expect to be holding, from a quick 2.5 s top-off
+ *       to a 15 s full-hopper dump - so this is a knob, not a constant.</td></tr>
  *   <tr><td>{@code AutoFoldIntake}</td><td>{@code boolean}</td>
  *       <td>Defaults to {@code true}. While true the bridge folds the intake by itself for
  *       clearance crossing a trench or a bump, and lowers it again once clear, without losing
@@ -118,8 +135,17 @@ import org.littletonrobotics.junction.Logger;
  * available:false} off simulation), {@code FuelPositions} (flat {@code [x,y,x,y,...]} of every fuel
  * on the ground), {@code FuelOnBoard}, {@code Zones} (String JSON of named field rectangles),
  * {@code IntakePolicy} (String JSON; what the auto-fold is doing and why), {@code HubState} (String
- * JSON; is our hub active right now) and {@code GameBrief} (String; the REBUILT rules). Every topic
- * is created in the constructor, so they are all there the moment the robot code starts.
+ * JSON; is our hub active right now), {@code GameBrief} (String; the REBUILT rules), {@code
+ * Tactics} (String; ten driving rules distilled from the team's real autos, see {@link
+ * AIPlaybook#TACTICS}) and {@code Playbook} (String JSON; those same autos as literal, replayable
+ * routines, a {@code plays} array of {@code name}/{@code purpose}/{@code steps}, see {@link
+ * AIPlaybook#PLAYS}). Every topic is created in the constructor, so they are all there the moment
+ * the robot code starts.
+ *
+ * <p><b>Match score is deliberately not published here.</b> A shot in simulation essentially always
+ * scores, so a score count would just be noise that invites narrating a number instead of playing -
+ * see {@code ScoredFuelOperatorOnly} for the one place it does live, marked as operator-facing and
+ * kept out of every topic this class builds prompts or tool results from.
  */
 public class AIControlBridge extends SubsystemBase {
   /** NetworkTables table that holds the whole API. */
@@ -127,6 +153,16 @@ public class AIControlBridge extends SubsystemBase {
 
   /** Cancels the running path and action. Always available, never registered by the caller. */
   public static final String STOP_ACTION = "STOP";
+
+  /**
+   * Replays a whole named entry of {@link AIPlaybook#PLAYS}, chosen by {@code /AIControl/PlayName}.
+   * Handled the same way as {@link #STOP_ACTION} - outside the {@link #actions} map, checked for by
+   * name in {@link #handleAction} - rather than as a normal {@link RegisteredAction}, so an unknown
+   * or empty play name can report its own specific error (the real list of names) instead of the
+   * generic "action produced no command" message a registered action's supplier returning null
+   * would give, and without a generic "RUNNING ..." status immediately overwriting it.
+   */
+  public static final String RUN_PLAY_ACTION = "RUN_PLAY";
 
   private static final String NOTES =
       "Write /AIControl/TargetPose = [x_m, y_m, heading_deg] to drive somewhere (PathPlanner "
@@ -175,7 +211,13 @@ public class AIControlBridge extends SubsystemBase {
           + "new TargetPose takes the drivetrain back from whatever had it. RunningActions lists "
           + "what is running right now. STOP cancels everything, including latched INTAKE (which "
           + "folds it back up) - STOW_INTAKE does the same for INTAKE/COLLECT_FUEL/GRAB_FUEL "
-          + "without cancelling anything else.";
+          + "without cancelling anything else. "
+          // --- Pointer to the playbook: the team's own real autos, not invented advice.
+          + "Read Tactics for ten driving rules distilled from this team's own real autonomous "
+          + "routines, and Playbook (JSON: plays[].name/purpose/steps) for those same routines as "
+          + "literal, replayable plays. Trigger RUN_PLAY with /AIControl/PlayName set to one of "
+          + "Playbook's names to run a whole play exactly as written; ShootSeconds controls how "
+          + "long SHOOT_FUEL holds its window open, which a play sets for itself step by step.";
 
   // Default pathfinding limits. The agent can change them live through MaxSpeed / MaxAccel - worth
   // doing, since crossing a bump needs a running start while lining up on something wants slow.
@@ -214,6 +256,16 @@ public class AIControlBridge extends SubsystemBase {
   /** Default for {@code /AIControl/CollectTarget}: how much fuel a collect sweep gathers. */
   private static final double DEFAULT_COLLECT_TARGET = 10.0;
 
+  // ShootSeconds: how long SHOOT_FUEL holds its shot window open. Was a hard-coded 4.0 s
+  // (registerAction("SHOOT_FUEL", () -> shootAtHub(4.0), true) in RobotContainer) until this was
+  // added; the default below keeps that exact behavior when nothing ever sets the topic. The real
+  // autos this bridge's Playbook is built from range from 2.5 s (a light top-off) to 15 s (empty
+  // a full hopper), so a play sets this itself for the step it is on rather than living with one
+  // constant for every shot.
+  private static final double DEFAULT_SHOOT_SECONDS = 4.0;
+  private static final double MIN_SHOOT_SECONDS = 1.0;
+  private static final double MAX_SHOOT_SECONDS = 15.0;
+
   /**
    * {@code Fuel}/{@code FuelPositions} rebuild a string for a few hundred balls every call; at the
    * full 50 Hz robot loop rate that is wasted work for something a language model reads a few times
@@ -241,6 +293,9 @@ public class AIControlBridge extends SubsystemBase {
   /** Named field positions, published as JSON so an agent can be told where things are. */
   private final Map<String, double[]> landmarks = new LinkedHashMap<>();
 
+  /** Every play from {@link AIPlaybook#PLAYS}, keyed by upper-cased name for {@code RUN_PLAY}. */
+  private final Map<String, Play> playsByName = new LinkedHashMap<>();
+
   /** True while the robot is standing where a shot counts as a hub shot. */
   private BooleanSupplier inShootingZone = () -> true;
 
@@ -258,6 +313,11 @@ public class AIControlBridge extends SubsystemBase {
   private BooleanSupplier intakeDownSupplier = () -> false;
   private BooleanSupplier intakeCollectingSupplier = () -> false;
   private boolean fuelAwarenessConfigured = false;
+
+  // Sim-only "how many fuel have actually gone into a hub this match" - see setScoreAwareness()
+  // and ScoredFuelOperatorOnly's own comment for why this is the one number in this whole class
+  // that is never allowed to reach the agent.
+  private IntSupplier totalScoredSupplier = () -> 0;
 
   /** Whether shots are allowed regardless of hub shift - the "Ignore Hub State" chooser. */
   private BooleanSupplier hubStateIgnoredSupplier = () -> true;
@@ -291,6 +351,8 @@ public class AIControlBridge extends SubsystemBase {
   private final BooleanSubscriber resetSimulationSub;
   private final DoubleSubscriber collectTargetSub;
   private final BooleanSubscriber autoFoldIntakeSub;
+  private final StringSubscriber playNameSub;
+  private final DoubleSubscriber shootSecondsSub;
 
   // Input topics are published once so they exist (with a neutral value) at startup.
   private final DoubleArrayPublisher targetPosePub;
@@ -302,6 +364,8 @@ public class AIControlBridge extends SubsystemBase {
   private final DoubleSubscriber maxAccelSub;
   private final DoublePublisher collectTargetPub;
   private final BooleanPublisher autoFoldIntakePub;
+  private final StringPublisher playNamePub;
+  private final DoublePublisher shootSecondsPub;
 
   // Outputs (read by the AI agent)
   private final DoubleArrayPublisher robotPosePub;
@@ -327,6 +391,12 @@ public class AIControlBridge extends SubsystemBase {
   private final StringPublisher intakePolicyPub;
   private final StringPublisher hubStatePub;
   private final StringPublisher gameBriefPub;
+  private final StringPublisher tacticsPub;
+  private final StringPublisher playbookPub;
+
+  // OPERATOR-FACING ONLY - see setScoreAwareness() and the class javadoc. Never read this back
+  // into Fuel, Notes, Tactics, or anything else built for the agent.
+  private final DoublePublisher scoredFuelOperatorOnlyPub;
 
   private Command navigationCommand = null;
 
@@ -420,6 +490,16 @@ public class AIControlBridge extends SubsystemBase {
     autoFoldIntakePub.set(true);
     autoFoldIntakeSub = autoFoldIntakeTopic.subscribe(true);
 
+    var playNameTopic = table.getStringTopic("PlayName");
+    playNamePub = playNameTopic.publish();
+    playNamePub.set("");
+    playNameSub = playNameTopic.subscribe("");
+
+    var shootSecondsTopic = table.getDoubleTopic("ShootSeconds");
+    shootSecondsPub = shootSecondsTopic.publish();
+    shootSecondsPub.set(DEFAULT_SHOOT_SECONDS);
+    shootSecondsSub = shootSecondsTopic.subscribe(DEFAULT_SHOOT_SECONDS);
+
     robotPosePub = table.getDoubleArrayTopic("RobotPose").publish();
     activeTargetPub = table.getDoubleArrayTopic("ActiveTarget").publish();
     navigatingPub = table.getBooleanTopic("Navigating").publish();
@@ -443,6 +523,13 @@ public class AIControlBridge extends SubsystemBase {
     intakePolicyPub = table.getStringTopic("IntakePolicy").publish();
     hubStatePub = table.getStringTopic("HubState").publish();
     gameBriefPub = table.getStringTopic("GameBrief").publish();
+    tacticsPub = table.getStringTopic("Tactics").publish();
+    playbookPub = table.getStringTopic("Playbook").publish();
+    scoredFuelOperatorOnlyPub = table.getDoubleTopic("ScoredFuelOperatorOnly").publish();
+
+    for (Play play : AIPlaybook.PLAYS) {
+      playsByName.put(play.name().toUpperCase(java.util.Locale.US), play);
+    }
 
     robotPosePub.set(toArray(poseSupplier.get()));
     activeTargetPub.set(new double[0]);
@@ -465,6 +552,12 @@ public class AIControlBridge extends SubsystemBase {
     intakePolicyPub.set("{}");
     hubStatePub.set("{}");
     gameBriefPub.set(AIGameBrief.TEXT);
+    // Tactics and Playbook are fixed for the life of the match - they are literally the
+    // AIPlaybook constants - so, like Landmarks, this publishes once here rather than rebuilding
+    // either on every loop.
+    tacticsPub.set(AIPlaybook.TACTICS);
+    playbookPub.set(buildPlaybookJson());
+    scoredFuelOperatorOnlyPub.set(0);
     publishAvailableActions();
     publishLandmarks();
   }
@@ -522,6 +615,21 @@ public class AIControlBridge extends SubsystemBase {
     this.intakeDownSupplier = intakeDown;
     this.intakeCollectingSupplier = intakeCollecting;
     this.fuelAwarenessConfigured = true;
+    return this;
+  }
+
+  /**
+   * Wires the bridge to how much fuel has actually gone into a hub this match, sim ground truth -
+   * published to {@code /AIControl/ScoredFuelOperatorOnly} and NOWHERE else in this class's API.
+   *
+   * <p>This is deliberately excluded from {@code Fuel}, {@code Notes}, {@code Tactics}, and every
+   * other topic this class builds an agent's prompt or tool results from: in simulation a shot
+   * essentially always scores, so a running score is noise to a model and an invitation to narrate
+   * a number instead of actually playing. It exists purely so a human glancing at the dashboard can
+   * see the score - the operator's own number, never the agent's.
+   */
+  public AIControlBridge setScoreAwareness(IntSupplier totalScored) {
+    this.totalScoredSupplier = totalScored;
     return this;
   }
 
@@ -619,6 +727,21 @@ public class AIControlBridge extends SubsystemBase {
    */
   public double getCollectTarget() {
     return collectTargetSub.get(DEFAULT_COLLECT_TARGET);
+  }
+
+  /**
+   * Current value of {@code /AIControl/ShootSeconds}: how long {@code SHOOT_FUEL} holds its shot
+   * window open, clamped to {@code [MIN_SHOOT_SECONDS, MAX_SHOOT_SECONDS]} so a bad number from the
+   * agent (or a play) shortens or lengthens the shot rather than doing something unsafe. Defaults
+   * to {@code DEFAULT_SHOOT_SECONDS} - the exact window {@code SHOOT_FUEL} used to be hard-coded to
+   * - so nothing changes for a caller that never touches this topic.
+   */
+  public double getShootSeconds() {
+    return clampShootSeconds(shootSecondsSub.get(DEFAULT_SHOOT_SECONDS));
+  }
+
+  private static double clampShootSeconds(double seconds) {
+    return MathUtil.clamp(seconds, MIN_SHOOT_SECONDS, MAX_SHOOT_SECONDS);
   }
 
   /**
@@ -762,6 +885,9 @@ public class AIControlBridge extends SubsystemBase {
     atTargetPub.set(atTarget);
     inShootingZonePub.set(inShootingZone.getAsBoolean());
     runningActionsPub.set(runningActions());
+    // OPERATOR-FACING ONLY - see setScoreAwareness(). Cheap enough to publish every loop rather
+    // than throttling it the way Fuel is.
+    scoredFuelOperatorOnlyPub.set(totalScoredSupplier.getAsInt());
 
     Logger.recordOutput("AIControl/Navigating", navigating);
     Logger.recordOutput("AIControl/ActionRunning", actionRunning);
@@ -860,11 +986,18 @@ public class AIControlBridge extends SubsystemBase {
     setDriveOwnedByShooter(anyRunningActionOwnsDrive());
   }
 
-  /** True while one of the running actions is a shooting action, which drives the robot itself. */
+  /**
+   * True while one of the running actions is a shooting action or {@code RUN_PLAY}, either of which
+   * drives the robot itself. {@code RUN_PLAY} is not a {@link RegisteredAction} (see {@link
+   * #RUN_PLAY_ACTION}'s javadoc), so it cannot be found through {@link #actions} the way every
+   * other action here is - checked for by name instead, the same way {@link #handleAction} finds
+   * it.
+   */
   private boolean anyRunningActionOwnsDrive() {
-    return runningActions.keySet().stream()
-        .map(actions::get)
-        .anyMatch(action -> action != null && action.ownsDrive());
+    return runningActions.containsKey(RUN_PLAY_ACTION)
+        || runningActions.keySet().stream()
+            .map(actions::get)
+            .anyMatch(action -> action != null && action.ownsDrive());
   }
 
   /** Cancels everything the bridge is doing, then puts the simulated match back to the start. */
@@ -942,13 +1075,36 @@ public class AIControlBridge extends SubsystemBase {
 
   /**
    * Drives to a pose: PathPlanner's pathfinder for the distance, its controller for the last bit.
+   * Speed comes from {@code /AIControl/MaxSpeed}, same as always.
    */
   private Command pathfindCommand(Pose2d target) {
+    return pathfindCommand(target, maxSpeedSub.get(DEFAULT_MAX_SPEED_MPS), true);
+  }
+
+  /**
+   * Same pathfind-then-settle command, but capped at a speed the caller hands in directly instead
+   * of reading {@code /AIControl/MaxSpeed} - what {@code RUN_PLAY} uses for a play's own drive
+   * legs, each already labeled with the exact speed the real auto flew it at.
+   *
+   * <p>Deliberately skips the intake-down {@code COLLECT_SPEED_MPS} clamp {@link
+   * #constraints(double, boolean)} applies to ordinary agent-driven paths: a play's own speed is
+   * already the deliberate value for that exact moment - 0.35 m/s for a collection creep, 4+ m/s
+   * for a return sprint flown with the intake still down the whole time - so clamping it down
+   * further would only ever make the play slower than the routine it is replaying, never more
+   * correct.
+   */
+  private Command pathfindCommand(Pose2d target, double requestedMaxSpeedMps) {
+    return pathfindCommand(target, requestedMaxSpeedMps, false);
+  }
+
+  private Command pathfindCommand(
+      Pose2d target, double requestedMaxSpeedMps, boolean applyCollectSpeedClamp) {
     return Commands.sequence(
             // Cross the field with PathPlanner's pathfinder. Its command ends when its trajectory
             // timer runs out rather than when the robot arrives, so repeat it - every repeat
             // replans from wherever the robot really is.
-            AutoBuilder.pathfindToPose(target, constraints())
+            AutoBuilder.pathfindToPose(
+                    target, constraints(requestedMaxSpeedMps, applyCollectSpeedClamp))
                 .repeatedly()
                 .until(() -> withinFinalApproach(target)),
             finalApproach(target))
@@ -986,10 +1142,18 @@ public class AIControlBridge extends SubsystemBase {
    * {@code Status} whenever it actually bites.
    */
   private PathConstraints constraints() {
-    double maxSpeed =
-        MathUtil.clamp(
-            maxSpeedSub.get(DEFAULT_MAX_SPEED_MPS), MIN_MAX_SPEED_MPS, MAX_MAX_SPEED_MPS);
-    if (intakeDownSupplier.getAsBoolean()) {
+    return constraints(maxSpeedSub.get(DEFAULT_MAX_SPEED_MPS), true);
+  }
+
+  /**
+   * {@link #constraints()}, generalized: {@code requestedMaxSpeedMps} stands in for {@code
+   * MaxSpeed}, and {@code applyCollectSpeedClamp} says whether the intake-down {@code
+   * COLLECT_SPEED_MPS} safety clamp applies at all - see {@link #pathfindCommand(Pose2d, double)}
+   * for why {@code RUN_PLAY} needs it off.
+   */
+  private PathConstraints constraints(double requestedMaxSpeedMps, boolean applyCollectSpeedClamp) {
+    double maxSpeed = MathUtil.clamp(requestedMaxSpeedMps, MIN_MAX_SPEED_MPS, MAX_MAX_SPEED_MPS);
+    if (applyCollectSpeedClamp && intakeDownSupplier.getAsBoolean()) {
       maxSpeed = Math.min(maxSpeed, COLLECT_SPEED_MPS);
     }
     double maxAccel =
@@ -1028,6 +1192,11 @@ public class AIControlBridge extends SubsystemBase {
 
     if (name.equals(STOP_ACTION)) {
       cancel();
+      return;
+    }
+
+    if (name.equals(RUN_PLAY_ACTION)) {
+      handleRunPlay();
       return;
     }
 
@@ -1092,6 +1261,247 @@ public class AIControlBridge extends SubsystemBase {
               + String.join(" + ", runningActions())
               + (anyRunningActionOwnsDrive() ? " - shooter owns the drivetrain" : ""));
     }
+  }
+
+  /**
+   * Handles the {@code RUN_PLAY} action: looks up {@code /AIControl/PlayName} in {@link
+   * AIPlaybook#PLAYS} and, if it names a real play, runs it exactly like any other {@code
+   * ownsDrive} action - cancels any path, takes over from conflicting actions, and reports through
+   * {@code Status}/{@code RunningActions} the same way. An unknown or empty name reports the real
+   * list of names instead and touches nothing else, so it can never leave the robot mid-cancel over
+   * a typo.
+   */
+  private void handleRunPlay() {
+    String requested = playNameSub.get("");
+    String key = requested == null ? "" : requested.trim().toUpperCase(java.util.Locale.US);
+    Play play = key.isEmpty() ? null : playsByName.get(key);
+    if (play == null) {
+      reportError(
+          (key.isEmpty() ? "PlayName is empty" : "unknown play '" + requested + "'")
+              + " - available plays: "
+              + playsByName.values().stream().map(Play::name).collect(Collectors.joining(", ")));
+      return;
+    }
+
+    enableForCommandInSim();
+    // RUN_PLAY drives itself, on its own sequence of pathfinds and actions, so no independently
+    // triggered path may be running underneath it - the same rule every ownsDrive action follows.
+    cancelNavigation();
+
+    Command previous = runningActions.remove(RUN_PLAY_ACTION);
+    if (previous != null) {
+      CommandScheduler.getInstance().cancel(previous);
+    }
+
+    Command command = buildPlayCommand(play);
+    cancelConflictingActions(command, RUN_PLAY_ACTION);
+
+    runningActions.put(RUN_PLAY_ACTION, command);
+    CommandScheduler.getInstance().schedule(command);
+    actionRunningPub.set(true);
+    runningActionsPub.set(runningActions());
+    setDriveOwnedByShooter(anyRunningActionOwnsDrive());
+    // The play's own first step immediately refines this to "step 1/N: ..." - see
+    // buildPlayCommand() - this just covers the instant before that first step runs.
+    statusPub.set("RUNNING " + RUN_PLAY_ACTION + " " + play.name());
+  }
+
+  /**
+   * Builds one play into a single command: its steps, back to back, each announcing itself in
+   * {@code Status} as it starts, finishing by holding the robot still - mirroring how every real
+   * routine ends a trajectory with {@code drive.stopWithX()} - whether the play ran to completion
+   * or was cancelled mid-step.
+   */
+  private Command buildPlayCommand(Play play) {
+    List<Step> steps = play.steps();
+    int total = steps.size();
+    Command[] stepCommands = new Command[total];
+    for (int i = 0; i < total; i++) {
+      Step step = steps.get(i);
+      int stepNumber = i + 1;
+      stepCommands[i] =
+          Commands.runOnce(() -> statusPub.set(runPlayStatus(play.name(), stepNumber, total, step)))
+              .andThen(stepCommand(step));
+    }
+    return Commands.sequence(stepCommands)
+        .finallyDo(() -> velocityConsumer.accept(new ChassisSpeeds()))
+        .withName("AIControl/RunPlay/" + play.name());
+  }
+
+  /** Dispatches one play step to a drive leg or a mechanism action. */
+  private Command stepCommand(Step step) {
+    if (step instanceof DriveStep driveStep) {
+      return driveStepCommand(driveStep);
+    }
+    return actionStepCommand((ActionStep) step);
+  }
+
+  /**
+   * A play's drive leg: pathfind to the leg's pose at the leg's own speed cap, the same way {@code
+   * TargetPose} does, so {@code ActiveTarget}/{@code AtTarget} track a running play just like they
+   * track an agent-driven path.
+   */
+  private Command driveStepCommand(DriveStep step) {
+    Pose2d target = new Pose2d(step.x(), step.y(), Rotation2d.fromDegrees(step.headingDeg()));
+    return Commands.runOnce(
+            () -> {
+              activeTarget = target;
+              activeTargetPub.set(toArray(target));
+            })
+        .andThen(pathfindCommand(target, step.speedMps()));
+  }
+
+  /**
+   * A play's mechanism-action step: look up the same {@link RegisteredAction} {@code ActionTrigger}
+   * would find, then either fire it and move straight to the next step, or wait for it, depending
+   * on what kind of action it is.
+   *
+   * <p>{@code ownsDrive() == false} means a background toggle - {@code INTAKE}, {@code
+   * STOW_INTAKE}, the auto-fold switches - so it is registered into {@link #runningActions} under
+   * its own name (retriggering replaces the previous copy, exactly like {@link #handleAction} does)
+   * and left to run alongside the rest of the play, mirroring how the real auto's own {@code
+   * leftIntake.setLowered()} calls are instantaneous and never block a trajectory from starting.
+   * Registering it (rather than just scheduling it and forgetting about it) matters: it is what
+   * lets a later {@code STOW_INTAKE} step - in this same play, or a plain agent trigger - find and
+   * cancel a latched {@code INTAKE} through {@link #endActions}, and what keeps {@code
+   * RunningActions} honest while a play is mid-sweep.
+   *
+   * <p>{@code ownsDrive() == true} means a bounded action that takes over the whole robot for a
+   * while - a shot, a collect sweep - so the play genuinely waits for it, the same way every real
+   * routine sequences {@code autoShoot(...)} before its next drive leg.
+   *
+   * <p>Built with {@link Commands#defer} rather than calling {@code commandSupplier().get()}
+   * eagerly, so a {@code SHOOT_FUEL} step's {@code secondsOverride} can be written to {@code
+   * ShootSeconds} right before the real shoot command is actually constructed, instead of being
+   * baked in back when the whole play was first triggered (and every other {@code SHOOT_FUEL} step
+   * in the same play would otherwise read whatever value happened to be set at that one moment).
+   */
+  private Command actionStepCommand(ActionStep step) {
+    String name = step.name().toUpperCase(java.util.Locale.US);
+    RegisteredAction registered = actions.get(name);
+    if (registered == null) {
+      return Commands.runOnce(
+          () -> reportError("play step references unknown action '" + step.name() + "'"));
+    }
+    if (!registered.ownsDrive()) {
+      return Commands.runOnce(() -> fireBackgroundAction(name, registered));
+    }
+    return Commands.defer(
+        () -> {
+          if (step.secondsOverride() > 0) {
+            shootSecondsPub.set(clampShootSeconds(step.secondsOverride()));
+          }
+          return registered.commandSupplier().get();
+        },
+        Set.of());
+  }
+
+  /**
+   * Fires a background (non-{@code ownsDrive}) action from inside a running play, folding it into
+   * {@link #runningActions} the same way {@link #handleAction} would for a directly triggered
+   * action - so it shows up in {@code RunningActions} and a later {@code STOW_INTAKE} (from the
+   * same play or a plain agent trigger) can still find and cancel it through {@link #endActions}.
+   */
+  private void fireBackgroundAction(String name, RegisteredAction registered) {
+    Command command = registered.commandSupplier().get();
+    if (command == null) {
+      reportError("action '" + name + "' produced no command");
+      return;
+    }
+    Command previous = runningActions.remove(name);
+    if (previous != null) {
+      CommandScheduler.getInstance().cancel(previous);
+    }
+    cancelConflictingActions(command, name);
+    runningActions.put(name, command);
+    CommandScheduler.getInstance().schedule(command);
+    actionRunningPub.set(true);
+    runningActionsPub.set(runningActions());
+  }
+
+  /**
+   * The {@code Status} text for a play step in progress: {@code "RUNNING RUN_PLAY name - step i/n:
+   * ..."}.
+   */
+  private static String runPlayStatus(String playName, int stepNumber, int totalSteps, Step step) {
+    return String.format(
+        java.util.Locale.US,
+        "RUNNING %s %s - step %d/%d: %s",
+        RUN_PLAY_ACTION,
+        playName,
+        stepNumber,
+        totalSteps,
+        describeStep(step));
+  }
+
+  private static String describeStep(Step step) {
+    if (step instanceof DriveStep drive) {
+      return String.format(
+              java.util.Locale.US,
+              "drive to (%.2f, %.2f, %.1f deg) at %.2f m/s",
+              drive.x(),
+              drive.y(),
+              drive.headingDeg(),
+              drive.speedMps())
+          + (drive.note().isEmpty() ? "" : " - " + drive.note());
+    }
+    ActionStep action = (ActionStep) step;
+    return action.name() + (action.note().isEmpty() ? "" : " - " + action.note());
+  }
+
+  /**
+   * Builds the {@code Playbook} JSON once, at startup - {@link AIPlaybook#PLAYS} is fixed for the
+   * life of the match, so there is nothing to gain by rebuilding this every loop the way {@code
+   * Fuel} has to.
+   */
+  private String buildPlaybookJson() {
+    StringBuilder json = new StringBuilder("{\"plays\":[");
+    boolean first = true;
+    for (Play play : AIPlaybook.PLAYS) {
+      json.append(first ? "" : ",").append(playToJson(play));
+      first = false;
+    }
+    return json.append("]}").toString();
+  }
+
+  private static String playToJson(Play play) {
+    StringBuilder json =
+        new StringBuilder()
+            .append("{\"name\":\"")
+            .append(jsonEscape(play.name()))
+            .append("\",\"purpose\":\"")
+            .append(jsonEscape(play.purpose()))
+            .append("\",\"steps\":[");
+    boolean first = true;
+    for (Step step : play.steps()) {
+      json.append(first ? "" : ",").append(stepToJson(step));
+      first = false;
+    }
+    return json.append("]}").toString();
+  }
+
+  private static String stepToJson(Step step) {
+    if (step instanceof DriveStep drive) {
+      return "{\"type\":\"drive\",\"x\":"
+          + num(drive.x())
+          + ",\"y\":"
+          + num(drive.y())
+          + ",\"heading_deg\":"
+          + num(drive.headingDeg())
+          + ",\"speed_mps\":"
+          + num(drive.speedMps())
+          + ",\"note\":\""
+          + jsonEscape(drive.note())
+          + "\"}";
+    }
+    ActionStep action = (ActionStep) step;
+    return "{\"type\":\"action\",\"name\":\""
+        + jsonEscape(action.name())
+        + "\",\"seconds\":"
+        + num(action.secondsOverride())
+        + ",\"note\":\""
+        + jsonEscape(action.note())
+        + "\"}";
   }
 
   /** Records that a shooting action has taken the drivetrain (aim, lead and all) from the agent. */
@@ -1162,9 +1572,10 @@ public class AIControlBridge extends SubsystemBase {
   }
 
   private void publishAvailableActions() {
-    String[] names = new String[actions.size() + 1];
+    String[] names = new String[actions.size() + 2];
     names[0] = STOP_ACTION;
-    int i = 1;
+    names[1] = RUN_PLAY_ACTION;
+    int i = 2;
     for (String name : actions.keySet()) {
       names[i++] = name;
     }
